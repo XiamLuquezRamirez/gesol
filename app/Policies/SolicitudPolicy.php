@@ -9,6 +9,11 @@ class SolicitudPolicy
 {
     public function __construct(private MotorWorkflow $motor) {}
 
+    public function create(Usuario $usuario): bool
+    {
+        return true;
+    }
+
     public function verDetalle(Usuario $usuario, Solicitud $solicitud): bool
     {
         if ($usuario->id === $solicitud->solicitante_id) return true;
