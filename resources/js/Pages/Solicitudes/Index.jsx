@@ -2,22 +2,24 @@ import AppLayout from '@/Layouts/AppLayout';
 import BadgeEstado from '@/Components/BadgeEstado';
 import { formatearMoneda, formatearFecha } from '@/lib/format';
 import { Link, router } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 
 export default function Index({ solicitudes, filtros }) {
     const tab = filtros?.tab ?? 'mias';
-
     const cambiarTab = (nuevoTab) => {
         router.get(route('solicitudes.index'), { tab: nuevoTab }, { preserveState: true, replace: true });
     };
 
     return (
         <AppLayout title="Solicitudes">
-            <div className="p-6 max-w-5xl mx-auto w-full">
+            <Head title="Solicitudes" />
+            <div className="flex-1 flex flex-col p-6 w-full">
                 {/* Tabs */}
                 <div className="flex gap-1 mb-6 border-b border-slate-200">
                     {[
                         { key: 'mias',       label: 'Mis solicitudes' },
                         { key: 'pendientes', label: 'Pendientes de acción' },
+                        { key: 'revisadas',  label: 'Revisadas' },
                     ].map(({ key, label }) => (
                         <button
                             key={key}
@@ -34,18 +36,28 @@ export default function Index({ solicitudes, filtros }) {
                     ))}
                 </div>
 
+                
+
                 {/* Lista */}
                 {solicitudes.data.length === 0 ? (
                     <div className="text-center py-16 text-slate-400">
-                        <p className="text-sm">No hay solicitudes para mostrar.</p>
-                        <div className="flex gap-3 justify-center mt-4">
-                            <Link href={route('oficina.crear')} className="text-sm text-indigo-600 hover:underline">
-                                Nueva solicitud de oficina
-                            </Link>
-                            <Link href={route('viaticos.crear')} className="text-sm text-indigo-600 hover:underline">
-                                Nueva solicitud de viáticos
-                            </Link>
-                        </div>
+                        <p className="text-sm">
+                            {tab === 'revisadas'
+                                ? 'Aún no has revisado ninguna solicitud.'
+                                : tab === 'pendientes'
+                                    ? 'No tienes solicitudes pendientes de acción.'
+                                    : 'No hay solicitudes para mostrar.'}
+                        </p>
+                        {tab === 'mias' && (
+                            <div className="flex gap-3 justify-center mt-4">
+                                <Link href={route('oficina.crear')} className="text-sm text-indigo-600 hover:underline">
+                                    Nueva solicitud de oficina
+                                </Link>
+                                <Link href={route('viaticos.crear')} className="text-sm text-indigo-600 hover:underline">
+                                    Nueva solicitud de viáticos
+                                </Link>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="space-y-2">

@@ -2,7 +2,7 @@
 namespace Tests\Feature;
 
 use App\Exceptions\TransicionNoPermitidaException;
-use App\Models\{Solicitud, SolicitudViaticos, ViajeroComision, TipoSolicitud, Usuario};
+use App\Models\{Empleados, Solicitud, SolicitudViaticos, ViajeroComision, TipoSolicitud, Usuario};
 use App\Services\MotorWorkflow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -33,13 +33,16 @@ class MotorWorkflowViaticosTest extends TestCase
         $cabecera = SolicitudViaticos::create([
             'nombre_comision'    => 'Comité técnico',
             'municipio_destino'  => 'Medellín',
-            'motivo'             => 'Capacitación',
-            'fecha_salida'       => now()->addDays(5)->toDateString(),
-            'fecha_regreso'      => now()->addDays(7)->toDateString(),
+            'observacion'        => 'Capacitación',
         ]);
         ViajeroComision::create([
             'solicitud_viaticos_id' => $cabecera->id,
-            'usuario_id'            => $this->liderComite->id,
+            'empleado_id'           => Empleados::first()->id,
+            'motivo'                => 'Capacitación',
+            'fecha_salida'          => now()->addDays(5)->toDateString(),
+            'hora_salida'           => '08:00',
+            'fecha_regreso'         => now()->addDays(7)->toDateString(),
+            'hora_regreso'          => '17:00',
         ]);
         return Solicitud::create([
             'tipo_solicitud_id' => $this->tipo->id,
@@ -59,7 +62,7 @@ class MotorWorkflowViaticosTest extends TestCase
         $this->assertEquals('enviada', $solicitud->fresh()->estado);
 
         $this->motor->aplicarTransicion($solicitud->fresh(), 'aprobar', $this->contabilidadLider);
-        $this->assertEquals('aprobada_monto', $solicitud->fresh()->estado);
+        $this->assertEquals('aprobada', $solicitud->fresh()->estado);
 
         $this->motor->aplicarTransicion($solicitud->fresh(), 'liquidar', $this->contador);
         $this->assertEquals('liquidada', $solicitud->fresh()->estado);

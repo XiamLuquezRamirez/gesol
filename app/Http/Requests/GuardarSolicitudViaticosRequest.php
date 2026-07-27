@@ -14,13 +14,31 @@ class GuardarSolicitudViaticosRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nombre_comision'   => 'required|string|max:255',
-            'municipio_destino' => 'required|string|max:255',
-            'motivo'            => 'required|string|max:2000',
-            'fecha_salida'      => 'required|date|after_or_equal:today',
-            'fecha_regreso'     => 'required|date|after_or_equal:fecha_salida',
-            'viajeros'          => 'required|array|min:1',
-            'viajeros.*'        => 'required|exists:usuarios,id',
+            'nombre_comision'             => 'required|string|max:255',
+            'municipio_destino'           => 'required|string|max:255',
+            'observacion'                 => 'nullable|string|max:2000',
+            'viajeros'                    => 'required|array|min:1',
+            'viajeros.*.empleado_id'      => 'required|exists:empleados,id',
+            'viajeros.*.motivo'           => 'required|string|max:2000',
+            'viajeros.*.fecha_salida'     => 'required|date',
+            'viajeros.*.hora_salida'      => 'required|string|max:5',
+            'viajeros.*.fecha_regreso'    => 'required|date',
+            'viajeros.*.hora_regreso'     => 'required|string|max:5',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'viajeros.required'               => 'Debe agregar al menos un viajero.',
+            'viajeros.min'                    => 'Debe agregar al menos un viajero.',
+            'viajeros.*.empleado_id.required' => 'Seleccione el empleado.',
+            'viajeros.*.empleado_id.exists'   => 'El empleado seleccionado no es válido.',
+            'viajeros.*.motivo.required'      => 'El motivo es obligatorio para cada viajero.',
+            'viajeros.*.fecha_salida.required'=> 'La fecha de salida es obligatoria.',
+            'viajeros.*.fecha_regreso.required'=> 'La fecha de regreso es obligatoria.',
+            'viajeros.*.hora_salida.required' => 'La hora de salida es obligatoria.',
+            'viajeros.*.hora_regreso.required'=> 'La hora de regreso es obligatoria.',
         ];
     }
 }

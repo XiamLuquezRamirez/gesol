@@ -18,7 +18,7 @@ class SolicitudDetalleResource extends JsonResource
             'area'        => $this->area ? ['id' => $this->area->id, 'nombre' => $this->area->nombre] : null,
             'solicitable' => $this->solicitable,
             'transiciones' => TransicionResource::collection($this->transiciones),
-            'created_at'  => $this->created_at->format('d/m/Y H:i'),
+            'created_at'  => $this->created_at->format('Y-m-d H:i'),
         ];
     }
 }

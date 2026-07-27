@@ -1,12 +1,12 @@
 <?php
-use App\Http\Controllers\{OficinaController, ProfileController, SolicitudController, ViaticosController};
+use App\Http\Controllers\{InicioController, NotificacionController, OficinaController, ParametrosController, ProfileController, SolicitudController, UsuarioController, ViaticosController};
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/', fn() => redirect()->route('solicitudes.index'))->middleware('auth');
+Route::get('/', fn() => redirect()->route('inicio'))->middleware('auth');
 
 Route::middleware(['auth','verified'])->group(function () {
-    Route::get('/inicio', fn() => Inertia::render('Inicio/Index'))->name('inicio');
+    Route::get('/inicio', [InicioController::class, 'index'])->name('inicio');
 
     // Solicitudes
     Route::get('/solicitudes',                          [SolicitudController::class, 'index'])->name('solicitudes.index');
@@ -22,8 +22,31 @@ Route::middleware(['auth','verified'])->group(function () {
     // Viáticos
     Route::get('/viaticos/crear',                    [ViaticosController::class, 'create'])->name('viaticos.crear');
     Route::post('/viaticos',                         [ViaticosController::class, 'store'])->name('viaticos.store');
+    Route::get('/viaticos/{solicitud}/editar',       [ViaticosController::class, 'edit'])->name('viaticos.editar');
+    Route::put('/viaticos/{solicitud}',              [ViaticosController::class, 'update'])->name('viaticos.update');
     Route::get('/viaticos/{solicitud}/liquidar',     [ViaticosController::class, 'liquidacion'])->name('viaticos.liquidacion');
     Route::put('/viaticos/{solicitud}/asignaciones', [ViaticosController::class, 'updateAllocations'])->name('viaticos.asignaciones');
+
+    // Parámetros
+    Route::get('/parametros',                          [ParametrosController::class, 'index'])->name('parametros.index');
+    Route::post('/parametros/tarifas',                 [ParametrosController::class, 'storeTarifa'])->name('parametros.tarifas.store');
+    Route::put('/parametros/tarifas/{tarifa}',         [ParametrosController::class, 'updateTarifa'])->name('parametros.tarifas.update');
+    Route::delete('/parametros/tarifas/{tarifa}',      [ParametrosController::class, 'destroyTarifa'])->name('parametros.tarifas.destroy');
+    Route::post('/parametros/empleados',               [ParametrosController::class, 'storeEmpleado'])->name('parametros.empleados.store');
+    Route::put('/parametros/empleados/{empleado}',     [ParametrosController::class, 'updateEmpleado'])->name('parametros.empleados.update');
+    Route::delete('/parametros/empleados/{empleado}',  [ParametrosController::class, 'destroyEmpleado'])->name('parametros.empleados.destroy');
+
+    // Usuarios (solo admin)
+    Route::middleware('role:admin')->group(function () {
+        Route::get('/usuarios',           [UsuarioController::class, 'index'])->name('usuarios.index');
+        Route::post('/usuarios',          [UsuarioController::class, 'store'])->name('usuarios.store');
+        Route::put('/usuarios/{usuario}', [UsuarioController::class, 'update'])->name('usuarios.update');
+    });
+
+    // Notificaciones
+    Route::get('/notificaciones',                    [NotificacionController::class, 'index'])->name('notificaciones.index');
+    Route::post('/notificaciones/{id}/leer',          [NotificacionController::class, 'marcarLeida'])->name('notificaciones.leer');
+    Route::post('/notificaciones/leer-todas',         [NotificacionController::class, 'marcarTodasLeidas'])->name('notificaciones.leer-todas');
 
     // Perfil
     Route::get('/perfil',    [ProfileController::class, 'edit'])->name('profile.edit');

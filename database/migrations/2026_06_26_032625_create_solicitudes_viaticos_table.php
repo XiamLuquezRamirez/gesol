@@ -15,9 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('nombre_comision');
             $table->string('municipio_destino');
-            $table->text('motivo');
-            $table->date('fecha_salida');
-            $table->date('fecha_regreso');
+            $table->text('observacion')->nullable();
             $table->decimal('total', 14, 2)->default(0);
             $table->timestamps();
         });

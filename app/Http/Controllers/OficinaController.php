@@ -19,21 +19,19 @@ class OficinaController extends Controller
 
     public function store(GuardarSolicitudOficinaRequest $request)
     {
+
+       
         $this->authorize('create', Solicitud::class);
         $tipo = TipoSolicitud::where('clave','OFI')->firstOrFail();
 
         $solicitud = DB::transaction(function () use ($request, $tipo) {
             $cabecera = SolicitudOficina::create([
-                'beneficiario_id' => $request->beneficiario_id,
-                'urgencia'        => $request->urgencia,
-                'justificacion'   => $request->justificacion,
+                'beneficiario' => $request->beneficiario,
+                'urgencia'     => $request->urgencia,
+                'justificacion'=> $request->justificacion,
             ]);
 
-            foreach ($request->items as $item) {
-                ItemOficina::create(array_merge($item, ['solicitud_oficina_id' => $cabecera->id, 'subtotal' => 0]));
-            }
-
-            return Solicitud::create([
+            $solicitud = Solicitud::create([
                 'tipo_solicitud_id' => $tipo->id,
                 'solicitante_id'    => auth()->id(),
                 'area_id'           => $request->area_id,
@@ -42,6 +40,12 @@ class OficinaController extends Controller
                 'estado'            => $tipo->estado_inicial,
                 'radicado'          => Solicitud::generarRadicado($tipo),
             ]);
+
+            foreach ($request->items as $item) {
+                ItemOficina::create(array_merge($item, ['solicitud_oficina_id' => $cabecera->id, 'subtotal' => 0]));
+            }
+
+            return $solicitud;
         });
 
         return redirect()->route('solicitudes.show', $solicitud)
@@ -51,7 +55,7 @@ class OficinaController extends Controller
     public function edit(Solicitud $solicitud)
     {
         $this->authorize('editar', $solicitud);
-        $solicitud->load('solicitable.items','solicitable.beneficiario');
+        $solicitud->load('solicitable.items');
         return Inertia::render('Oficina/Crear', [
             'solicitud' => $solicitud,
             'areas'     => Area::orderBy('nombre')->get(['id','nombre']),
@@ -67,7 +71,7 @@ class OficinaController extends Controller
 
         DB::transaction(function () use ($request, $cabecera) {
             $cabecera->update([
-                'beneficiario_id' => $request->beneficiario_id,
+                'beneficiario' => $request->beneficiario,
                 'urgencia'        => $request->urgencia,
                 'justificacion'   => $request->justificacion,
             ]);

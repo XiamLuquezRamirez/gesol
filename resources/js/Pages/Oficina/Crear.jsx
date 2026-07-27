@@ -1,6 +1,7 @@
 import AppLayout from '@/Layouts/AppLayout';
 import CampoMoneda from '@/Components/CampoMoneda';
-import { useForm } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
+import { XCircleIcon, CheckCircleIcon, PlusCircleIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 function SelectField({ label, name, value, onChange, options, error, placeholder }) {
     return (
@@ -50,9 +51,10 @@ export default function Crear({ areas, usuarios, solicitud, editar }) {
 
     const { data, setData, post, put, processing, errors } = useForm({
         area_id:          solicitud?.area_id ?? '',
-        beneficiario_id:  solicitable?.beneficiario_id ?? '',
+        beneficiario:  solicitable?.beneficiario ?? '',
         urgencia:         solicitable?.urgencia ?? 'media',
         justificacion:    solicitable?.justificacion ?? '',
+        fecha_solicitud:  solicitable?.fecha_solicitud ?? '',
         items:            solicitable?.items?.map(i => ({
             nombre:          i.nombre,
             categoria:       i.categoria,
@@ -78,22 +80,25 @@ export default function Crear({ areas, usuarios, solicitud, editar }) {
         }
     };
 
+
     return (
         <AppLayout title={titulo}>
-            <div className="p-6 max-w-3xl mx-auto w-full">
+            <Head title={titulo} />
+            <div className="p-6 w-full">
                 <h2 className="text-lg font-semibold text-slate-800 mb-6">{titulo}</h2>
                 <form onSubmit={submit} className="space-y-6">
                     {/* Cabecera */}
                     <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
                         <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Información general</h3>
                         <div className="grid grid-cols-2 gap-4">
-                            <SelectField label="Área" name="area_id" value={data.area_id}
+                            <SelectField label="Departamento:" name="area_id" value={data.area_id}
                                 onChange={(v) => setData('area_id', v)}
-                                options={areas} error={errors.area_id} placeholder="Seleccionar área" />
-                            <SelectField label="Beneficiario" name="beneficiario_id" value={data.beneficiario_id}
-                                onChange={(v) => setData('beneficiario_id', v)}
-                                options={usuarios} error={errors.beneficiario_id} placeholder="Seleccionar usuario" />
+                                options={areas} error={errors.area_id} placeholder="Seleccionar departamento" />
+                            <TextField label="Beneficiario(s):" value={data.beneficiario}
+                                onChange={(v) => setData('beneficiario', v)}
+                                error={errors.beneficiario} />
                         </div>
+
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Urgencia</label>
@@ -104,8 +109,11 @@ export default function Crear({ areas, usuarios, solicitud, editar }) {
                                     <option value="alta">Alta</option>
                                 </select>
                             </div>
+                            <TextField label="Fecha de solicitud:" name="fecha_solicitud" value={data.fecha_solicitud}
+                                onChange={(v) => setData('fecha_solicitud', v)}
+                                error={errors.fecha_solicitud} type="date" />
                         </div>
-                        <TextField label="Justificación" name="justificacion" value={data.justificacion}
+                        <TextField label="Justificación:" name="justificacion" value={data.justificacion}
                             onChange={(v) => setData('justificacion', v)} multiline
                             error={errors.justificacion} />
                     </div>
@@ -115,8 +123,8 @@ export default function Crear({ areas, usuarios, solicitud, editar }) {
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Ítems</h3>
                             <button type="button" onClick={agregarItem}
-                                className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">
-                                + Agregar ítem
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-800 font-medium">
+                                <PlusCircleIcon className="w-4 h-4" /> Agregar ítem
                             </button>
                         </div>
                         {errors.items && <p className="text-red-500 text-xs mb-3">{errors.items}</p>}
@@ -125,8 +133,8 @@ export default function Crear({ areas, usuarios, solicitud, editar }) {
                                 <div key={idx} className="border border-slate-100 rounded-lg p-4 space-y-3 relative">
                                     {data.items.length > 1 && (
                                         <button type="button" onClick={() => eliminarItem(idx)}
-                                            className="absolute top-3 right-3 text-slate-400 hover:text-red-500 text-xs">
-                                            Eliminar
+                                            className="absolute top-3 right-3 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-500 bg-white border border-red-300 rounded-lg hover:bg-red-50 transition-colors">
+                                            <TrashIcon className="w-4 h-4 text-red-500" /> Eliminar
                                         </button>
                                     )}
                                     <div className="grid grid-cols-2 gap-3">
@@ -164,12 +172,12 @@ export default function Crear({ areas, usuarios, solicitud, editar }) {
                     {/* Footer */}
                     <div className="flex justify-end gap-3">
                         <a href={route('solicitudes.index')}
-                            className="px-5 py-2 text-sm text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50">
-                            Cancelar
+                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">
+                          <XCircleIcon className="w-4 h-4" /> Cancelar
                         </a>
                         <button type="submit" disabled={processing}
-                            className="px-5 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50">
-                            {editar ? 'Guardar cambios' : 'Crear solicitud'}
+                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors">
+                           <CheckCircleIcon className="w-4 h-4" /> {editar ? 'Guardar cambios' : 'Crear solicitud'}
                         </button>
                     </div>
                 </form>

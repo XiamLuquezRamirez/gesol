@@ -16,9 +16,12 @@ class ActualizarAsignacionesRequest extends FormRequest
         return [
             'asignaciones'                       => 'required|array',
             'asignaciones.*.viajero_comision_id' => 'required|exists:viajeros_comision,id',
-            'asignaciones.*.rubro'               => 'required|in:desayuno,almuerzo,cena,merienda,gasolina',
+            'asignaciones.*.rubro'               => 'required|exists:tarifas_viaticos,rubro',
             'asignaciones.*.valor_unitario'      => 'required|numeric|min:0',
             'asignaciones.*.dias'                => 'required|integer|min:1',
+            'pagos'                              => 'required|array',
+            'pagos.*.viajero_comision_id'        => 'required|exists:viajeros_comision,id',
+            'pagos.*.tipo_pago'                  => 'required|in:efectivo,transferencia',
         ];
     }
 }

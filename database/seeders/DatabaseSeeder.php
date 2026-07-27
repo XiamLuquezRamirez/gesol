@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
             TarifaViaticosSeeder::class,
             AdminSeeder::class,
             UsuariosDemoSeeder::class,
+            EmpleadosSeeder::class,
         ]);
     }
 }

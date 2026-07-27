@@ -1,4 +1,5 @@
 import { router, Link, usePage } from '@inertiajs/react';
+import PanelNotificaciones from '@/Components/PanelNotificaciones';
 
 const IconInbox = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -25,21 +26,27 @@ const IconHome = ({ className }) => (
     </svg>
 );
 
+const IconCog = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+        <path fillRule="evenodd" d="M11.078 2.25c-.917 0-1.699.663-1.85 1.567L9.05 4.889c-.02.12-.115.26-.297.348a7.493 7.493 0 0 0-.986.57c-.166.115-.334.126-.45.083L6.3 5.508a1.875 1.875 0 0 0-2.282.819l-.922 1.597a1.875 1.875 0 0 0 .432 2.385l.84.692c.095.078.17.229.154.43a7.598 7.598 0 0 0 0 1.139c.015.2-.059.352-.153.43l-.841.692a1.875 1.875 0 0 0-.432 2.385l.922 1.597a1.875 1.875 0 0 0 2.282.818l1.019-.382c.115-.043.283-.031.45.082.312.214.641.405.985.57.182.088.277.228.297.35l.178 1.071c.151.904.933 1.567 1.85 1.567h1.844c.916 0 1.699-.663 1.85-1.567l.178-1.072c.02-.12.114-.26.297-.349.344-.165.673-.356.985-.57.167-.114.335-.125.45-.082l1.02.382a1.875 1.875 0 0 0 2.28-.819l.923-1.597a1.875 1.875 0 0 0-.432-2.385l-.84-.692c-.095-.078-.17-.229-.154-.43a7.614 7.614 0 0 0 0-1.139c-.016-.2.059-.352.153-.43l.84-.692c.708-.582.891-1.59.433-2.385l-.922-1.597a1.875 1.875 0 0 0-2.282-.818l-1.02.382c-.114.043-.282.031-.449-.083a7.49 7.49 0 0 0-.985-.57c-.183-.087-.277-.227-.297-.348l-.179-1.072a1.875 1.875 0 0 0-1.85-1.567h-1.843ZM12 15.75a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z" clipRule="evenodd" />
+    </svg>
+);
+
 const IconUser = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
         <path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM3.751 20.105a8.25 8.25 0 0 1 16.498 0 .75.75 0 0 1-.437.695A18.683 18.683 0 0 1 12 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 0 1-.437-.695Z" clipRule="evenodd" />
     </svg>
 );
 
-const IconLogout = ({ className }) => (
+const IconUsers = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-        <path fillRule="evenodd" d="M16.5 3.75a1.5 1.5 0 0 1 1.5 1.5v13.5a1.5 1.5 0 0 1-1.5 1.5h-6a1.5 1.5 0 0 1-1.5-1.5V15a.75.75 0 0 0-1.5 0v3.75a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V5.25a3 3 0 0 0-3-3h-6a3 3 0 0 0-3 3V9A.75.75 0 0 0 9 9V5.25a1.5 1.5 0 0 1 1.5-1.5h6ZM5.78 8.47a.75.75 0 0 0-1.06 0l-3 3a.75.75 0 0 0 0 1.06l3 3a.75.75 0 0 0 1.06-1.06l-1.72-1.72H15a.75.75 0 0 0 0-1.5H4.06l1.72-1.72a.75.75 0 0 0 0-1.06Z" clipRule="evenodd" />
+        <path d="M4.5 6.375a4.125 4.125 0 1 1 8.25 0 4.125 4.125 0 0 1-8.25 0ZM14.25 8.625a3.375 3.375 0 1 1 6.75 0 3.375 3.375 0 0 1-6.75 0ZM1.5 19.125a7.125 7.125 0 0 1 14.25 0v.003l-.001.119a.75.75 0 0 1-.363.63 13.067 13.067 0 0 1-6.761 1.873c-2.472 0-4.786-.684-6.76-1.873a.75.75 0 0 1-.364-.63l-.001-.122ZM17.25 19.128l-.001.144a2.25 2.25 0 0 1-.233.96 10.088 10.088 0 0 0 5.06-1.01.75.75 0 0 0 .42-.643 4.875 4.875 0 0 0-6.957-4.611 8.586 8.586 0 0 1 1.71 5.157v.003Z" />
     </svg>
 );
 
-const IconBell = ({ className }) => (
+const IconLogout = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-        <path fillRule="evenodd" d="M5.25 9a6.75 6.75 0 0 1 13.5 0v.75c0 2.123.8 4.057 2.118 5.52a.75.75 0 0 1-.297 1.206c-1.544.57-3.16.99-4.831 1.243a3.75 3.75 0 1 1-7.48 0 24.585 24.585 0 0 1-4.831-1.244.75.75 0 0 1-.298-1.205A8.217 8.217 0 0 0 5.25 9.75V9Zm4.502 8.9a2.25 2.25 0 1 0 4.496 0 25.057 25.057 0 0 1-4.496 0Z" clipRule="evenodd" />
+        <path fillRule="evenodd" d="M16.5 3.75a1.5 1.5 0 0 1 1.5 1.5v13.5a1.5 1.5 0 0 1-1.5 1.5h-6a1.5 1.5 0 0 1-1.5-1.5V15a.75.75 0 0 0-1.5 0v3.75a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V5.25a3 3 0 0 0-3-3h-6a3 3 0 0 0-3 3V9A.75.75 0 0 0 9 9V5.25a1.5 1.5 0 0 1 1.5-1.5h6ZM5.78 8.47a.75.75 0 0 0-1.06 0l-3 3a.75.75 0 0 0 0 1.06l3 3a.75.75 0 0 0 1.06-1.06l-1.72-1.72H15a.75.75 0 0 0 0-1.5H4.06l1.72-1.72a.75.75 0 0 0 0-1.06Z" clipRule="evenodd" />
     </svg>
 );
 
@@ -85,6 +92,7 @@ export default function AppLayout({ title, children }) {
     const { auth, notificaciones_no_leidas } = usePage().props;
     const usuario = auth.user;
     const initials = getInitials(usuario.name);
+    const esAdmin = usuario.roles?.some((r) => r.name === 'admin');
 
     return (
         <div className="flex h-screen overflow-hidden bg-slate-50">
@@ -93,14 +101,8 @@ export default function AppLayout({ title, children }) {
                 {/* Branding */}
                 <div className="h-14 flex items-center px-4 border-b border-slate-800/80">
                     <Link href={route('inicio')} className="flex items-center gap-2.5 group">
-                        <div className="w-7 h-7 rounded-lg bg-indigo-500 flex items-center justify-center shrink-0 group-hover:bg-indigo-400 transition-colors duration-150">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" className="w-4 h-4">
-                                <path d="M3.375 3C2.339 3 1.5 3.84 1.5 4.875v.75c0 1.036.84 1.875 1.875 1.875h17.25c1.035 0 1.875-.84 1.875-1.875v-.75C22.5 3.839 21.66 3 20.625 3H3.375Z" />
-                                <path fillRule="evenodd" d="m3.087 9 .54 9.176A3 3 0 0 0 6.62 21h10.757a3 3 0 0 0 2.995-2.824L20.913 9H3.087Zm6.163 3.75A.75.75 0 0 1 10 12h4a.75.75 0 0 1 0 1.5h-4a.75.75 0 0 1-.75-.75Z" clipRule="evenodd" />
-                            </svg>
-                        </div>
-                        <span className="text-white font-bold text-base tracking-tight">Gesol</span>
-                    </Link>
+                       <img src="/images/logo.png"  alt="Logo"  className="w-full h-full" />
+                         </Link>
                 </div>
 
                 {/* Navigation */}
@@ -139,7 +141,23 @@ export default function AppLayout({ title, children }) {
                         </NavItem>
                     </NavSection>
 
-                    <NavSection label="Cuenta">
+                    <NavSection label="Configuración">
+                        {esAdmin && (
+                            <NavItem
+                                href={route('usuarios.index')}
+                                active={route().current('usuarios.*')}
+                                icon={IconUsers}
+                            >
+                                Usuarios
+                            </NavItem>
+                        )}
+                        <NavItem
+                            href={route('parametros.index')}
+                            active={route().current('parametros.*')}
+                            icon={IconCog}
+                        >
+                            Parámetros
+                        </NavItem>
                         <NavItem
                             href={route('profile.edit')}
                             active={route().current('profile.*')}
@@ -173,23 +191,14 @@ export default function AppLayout({ title, children }) {
             </aside>
 
             {/* ── Main area ── */}
-            <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
                 {/* Top bar */}
                 <header className="h-14 shrink-0 bg-white border-b border-slate-200 flex items-center px-6">
                     {title && (
                         <h1 className="text-sm font-semibold text-slate-800">{title}</h1>
                     )}
                     <div className="flex items-center gap-2 ml-auto">
-                        <button
-                            type="button"
-                            title="Notificaciones"
-                            className="relative w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors duration-150"
-                        >
-                            <IconBell className="w-5 h-5" />
-                            {notificaciones_no_leidas > 0 && (
-                                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-                            )}
-                        </button>
+                        <PanelNotificaciones noLeidasIniciales={notificaciones_no_leidas} />
                         <div
                             className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white text-xs font-bold select-none"
                             title={usuario.name}
@@ -200,10 +209,8 @@ export default function AppLayout({ title, children }) {
                 </header>
 
                 {/* Page content */}
-                <main className="flex-1 overflow-y-auto bg-slate-50">
-                    <div className="min-h-full flex flex-col">
-                        {children}
-                    </div>
+                <main className="flex-1 min-h-0 overflow-y-auto bg-slate-50">
+                    {children}
                 </main>
             </div>
         </div>

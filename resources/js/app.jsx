@@ -4,8 +4,8 @@ import '../css/app.css';
 import { createRoot } from 'react-dom/client';
 import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
-
-const appName = import.meta.env.VITE_APP_NAME || 'GeSol';
+//agregar nombre de dominio en el title
+const appName = import.meta.env.VITE_APP_DOMAIN || 'GeSol';
 
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,

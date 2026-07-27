@@ -15,7 +15,7 @@ class TransicionResource extends JsonResource
             'accion'         => $this->accion,
             'comentario'     => $this->comentario,
             'metadatos'      => $this->metadatos,
-            'created_at'     => $this->created_at?->format('d/m/Y H:i'),
+            'created_at'     => $this->created_at?->format('Y-m-d H:i'),
             'usuario'        => ['id' => $this->usuario->id, 'name' => $this->usuario->name],
         ];
     }

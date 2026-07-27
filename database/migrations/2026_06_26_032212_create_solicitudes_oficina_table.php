@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('solicitudes_oficina', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('beneficiario_id')->constrained('usuarios');
+            $table->string('beneficiario');
             $table->enum('urgencia', ['baja','media','alta'])->default('media');
             $table->text('justificacion');
             $table->decimal('total', 14, 2)->default(0);

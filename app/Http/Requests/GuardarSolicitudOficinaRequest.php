@@ -14,7 +14,7 @@ class GuardarSolicitudOficinaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'beneficiario_id'        => 'required|exists:usuarios,id',
+            'beneficiario'           => 'required|string|max:255',
             'area_id'                => 'required|exists:areas,id',
             'urgencia'               => 'required|in:baja,media,alta',
             'justificacion'          => 'required|string|max:2000',

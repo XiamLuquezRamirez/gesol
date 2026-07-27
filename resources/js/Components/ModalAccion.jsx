@@ -1,8 +1,17 @@
 import { useForm } from '@inertiajs/react';
 import { useEffect } from 'react';
 
-export default function ModalAccion({ solicitudId, accion, onClose }) {
-    const esPago = accion?.accion === 'pagar';
+const ACCIONES_CON_RAZON = ['rechazar', 'devolver'];
+
+function labelComentario(accion) {
+    if (accion === 'rechazar') return 'Razón del rechazo';
+    if (accion === 'devolver') return 'Razón de la devolución';
+    return 'Comentario';
+}
+
+export default function ModalAccion({ solicitudId, accion, onClose, icono }) {
+    const esPago       = accion?.accion === 'pagar';
+    const requiereRazon = ACCIONES_CON_RAZON.includes(accion?.accion);
 
     const { data, setData, post, processing, errors, reset } = useForm({
         accion:                    accion?.accion ?? '',
@@ -18,10 +27,11 @@ export default function ModalAccion({ solicitudId, accion, onClose }) {
 
     const submit = (e) => {
         e.preventDefault();
-        post(route('solicitudes.transicion', solicitudId), {
+        post(route('solicitudes.transicion', { solicitud: solicitudId }), {
             onSuccess: () => { reset(); onClose(); },
         });
     };
+    
 
     if (!accion) return null;
 
@@ -34,11 +44,17 @@ export default function ModalAccion({ solicitudId, accion, onClose }) {
                 <form onSubmit={submit} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1">
-                            Comentario (opcional)
+                            {labelComentario(accion?.accion)}
+                            {requiereRazon
+                                ? <span className="text-red-500 ml-1">*</span>
+                                : <span className="text-slate-400 text-xs font-normal ml-1">(opcional)</span>
+                            }
                         </label>
                         <textarea
                             className="w-full rounded-lg border-slate-300 text-sm"
                             rows={3}
+                            required={requiereRazon}
+                            placeholder={requiereRazon ? 'Explique brevemente el motivo...' : ''}
                             value={data.comentario}
                             onChange={e => setData('comentario', e.target.value)}
                         />
@@ -76,8 +92,8 @@ export default function ModalAccion({ solicitudId, accion, onClose }) {
                             Cancelar
                         </button>
                         <button type="submit" disabled={processing}
-                            className="px-4 py-2 text-sm text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50 capitalize">
-                            {accion.accion}
+                            className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50 capitalize">
+                            {icono} {accion.accion}
                         </button>
                     </div>
                 </form>

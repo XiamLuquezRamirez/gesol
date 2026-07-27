@@ -31,6 +31,6 @@ class SolicitudPolicy
     public function editar(Usuario $usuario, Solicitud $solicitud): bool
     {
         return $usuario->id === $solicitud->solicitante_id &&
-            in_array($solicitud->estado, ['borrador']);
+            in_array($solicitud->estado, ['borrador', 'devuelta']);
     }
 }

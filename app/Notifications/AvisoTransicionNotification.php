@@ -12,7 +12,10 @@ class AvisoTransicionNotification extends Notification
 
     public function __construct(
         public readonly Solicitud $solicitud,
-        public readonly string $tipo  // 'accion_requerida' | 'informativo'
+        public readonly string $tipo,  // 'accion_requerida' | 'informativo' | 'rechazada' | 'devuelta'
+        public readonly ?string $accion = null,
+        public readonly ?string $comentario = null,
+        public readonly ?string $actorNombre = null,
     ) {}
 
     public function via(object $notifiable): array
@@ -28,6 +31,10 @@ class AvisoTransicionNotification extends Notification
             'estado'       => $this->solicitud->estado,
             'tipo'         => $this->tipo,
             'tipo_nombre'  => $this->solicitud->tipoSolicitud->nombre,
+            'accion'       => $this->accion,
+            'comentario'   => $this->comentario,
+            'actor_nombre' => $this->actorNombre,
+            'solicitante'  => $this->solicitud->solicitante->name,
         ];
     }
 }

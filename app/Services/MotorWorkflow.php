@@ -57,14 +57,19 @@ class MotorWorkflow
                 'metadatos'      => $metadatos ?: null,
             ]);
 
-            $this->notificarSiguientePaso($solicitud->fresh(), $transicion);
+            $this->notificarSiguientePaso($solicitud->fresh(), $transicion, $accion, $usuario, $comentario);
         });
 
         return $solicitud->fresh();
     }
 
-    private function notificarSiguientePaso(Solicitud $solicitud, array $transicion): void
-    {
+    private function notificarSiguientePaso(
+        Solicitud $solicitud,
+        array $transicion,
+        string $accion,
+        Usuario $actor,
+        ?string $comentario
+    ): void {
         $rolesActores = collect($solicitud->tipoSolicitud->transiciones)
             ->filter(fn($t) => $t['origen'] === $transicion['destino'])
             ->pluck('roles')
@@ -84,6 +89,17 @@ class MotorWorkflow
             foreach ($observadores as $u) {
                 $u->notify(new AvisoTransicionNotification($solicitud, 'informativo'));
             }
+        }
+
+        if (in_array($accion, ['rechazar', 'devolver']) && $solicitud->solicitante_id !== $actor->id) {
+            $tipoAviso = $accion === 'rechazar' ? 'rechazada' : 'devuelta';
+            $solicitud->solicitante->notify(new AvisoTransicionNotification(
+                $solicitud,
+                $tipoAviso,
+                $accion,
+                $comentario,
+                $actor->name,
+            ));
         }
     }
 }

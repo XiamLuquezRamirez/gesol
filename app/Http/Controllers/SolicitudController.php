@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 use App\Exceptions\TransicionNoPermitidaException;
 use App\Http\Requests\EjecutarTransicionRequest;
 use App\Http\Resources\{SolicitudDetalleResource, SolicitudResource};
-use App\Models\Solicitud;
+use App\Models\{Solicitud, SolicitudOficina, SolicitudViaticos};
 use App\Services\MotorWorkflow;
 use Inertia\Inertia;
 
@@ -22,6 +22,13 @@ class SolicitudController extends Controller
                 ->get()
                 ->filter(fn($s) => !empty($this->motor->accionesDisponibles($s, $usuario)))
                 ->values();
+        } elseif ($tab === 'revisadas') {
+            // Solicitudes donde el usuario ejecuto al menos una transicion:
+            // conserva la trazabilidad de lo que reviso, en cualquier estado.
+            $solicitudes = Solicitud::with(['tipoSolicitud','solicitante'])
+                ->whereHas('transiciones', fn($q) => $q->where('usuario_id', $usuario->id))
+                ->latest()
+                ->get();
         } else {
             $solicitudes = Solicitud::with(['tipoSolicitud','solicitante'])
                 ->where('solicitante_id', $usuario->id)
@@ -29,8 +36,9 @@ class SolicitudController extends Controller
                 ->get();
         }
 
+
         return Inertia::render('Solicitudes/Index', [
-            'solicitudes' => SolicitudResource::collection($solicitudes),
+            'solicitudes' => ['data' => SolicitudResource::collection($solicitudes)->resolve()],
             'filtros'     => ['tab' => $tab],
         ]);
     }
@@ -39,11 +47,29 @@ class SolicitudController extends Controller
     {
         $this->authorize('verDetalle', $solicitud);
 
-        $solicitud->load(['tipoSolicitud','solicitante','area','solicitable','transiciones.usuario']);
+        $solicitud->load([
+            'tipoSolicitud',
+            'solicitante',
+            'area',
+            'solicitable' => fn ($morphTo) => $morphTo->morphWith([
+                SolicitudOficina::class  => ['items'],
+                SolicitudViaticos::class => ['viajeros.empleado', 'viajeros.asignaciones'],
+            ]),
+            'transiciones.usuario',
+        ]);
+
+        $usuario    = auth()->user();
+        $rutaEditar = null;
+        if ($usuario->can('editar', $solicitud)) {
+            $clave = $solicitud->tipoSolicitud->clave;
+            if ($clave === 'OFI') $rutaEditar = route('oficina.editar', $solicitud);
+            if ($clave === 'VIA') $rutaEditar = route('viaticos.editar', $solicitud);
+        }
 
         return Inertia::render('Solicitudes/Detalle', [
-            'solicitud' => new SolicitudDetalleResource($solicitud),
-            'acciones'  => $this->motor->accionesDisponibles($solicitud, auth()->user()),
+            'solicitud'   => (new SolicitudDetalleResource($solicitud))->resolve(),
+            'acciones'    => $this->motor->accionesDisponibles($solicitud, $usuario),
+            'rutaEditar'  => $rutaEditar,
         ]);
     }
 

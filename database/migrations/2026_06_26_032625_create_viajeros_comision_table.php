@@ -14,8 +14,13 @@ return new class extends Migration
         Schema::create('viajeros_comision', function (Blueprint $table) {
             $table->id();
             $table->foreignId('solicitud_viaticos_id')->constrained('solicitudes_viaticos')->cascadeOnDelete();
-            $table->foreignId('usuario_id')->constrained('usuarios');
+            $table->foreignId('empleado_id')->constrained('empleados');
             $table->string('rol_en_comision')->nullable();
+            $table->text('motivo');
+            $table->date('fecha_salida');
+            $table->string('hora_salida', 5);
+            $table->date('fecha_regreso');
+            $table->string('hora_regreso', 5);
             $table->timestamps();
         });
     }

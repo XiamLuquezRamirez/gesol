@@ -20,6 +20,7 @@ class AdminSeeder extends Seeder
         );
 
         $admin->syncRoles([
+            'admin',
             'lider_area',
             'lider_comite',
             'rrhh',

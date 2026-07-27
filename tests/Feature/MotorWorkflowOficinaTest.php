@@ -32,7 +32,7 @@ class MotorWorkflowOficinaTest extends TestCase
     private function crearSolicitudOficina(): Solicitud
     {
         $cabecera = SolicitudOficina::create([
-            'beneficiario_id' => $this->liderArea->id,
+            'beneficiario' => $this->liderArea->name,
             'urgencia'        => UrgenciaOficina::Media,
             'justificacion'   => 'Necesitamos material de oficina.',
         ]);
