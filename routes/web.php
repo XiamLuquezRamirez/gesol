@@ -1,5 +1,5 @@
 <?php
-use App\Http\Controllers\{InicioController, NotificacionController, OficinaController, ParametrosController, ProfileController, SolicitudController, UsuarioController, ViaticosController};
+use App\Http\Controllers\{ComisionesRrhhController, InicioController, NotificacionController, OficinaController, ParametrosController, ProfileController, SolicitudController, UsuarioController, ViaticosController};
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -41,6 +41,11 @@ Route::middleware(['auth','verified'])->group(function () {
         Route::get('/usuarios',           [UsuarioController::class, 'index'])->name('usuarios.index');
         Route::post('/usuarios',          [UsuarioController::class, 'store'])->name('usuarios.store');
         Route::put('/usuarios/{usuario}', [UsuarioController::class, 'update'])->name('usuarios.update');
+    });
+
+    // Panel de comisiones (solo RR. HH.)
+    Route::middleware('role:rrhh')->group(function () {
+        Route::get('/rrhh/comisiones', [ComisionesRrhhController::class, 'index'])->name('rrhh.comisiones');
     });
 
     // Notificaciones

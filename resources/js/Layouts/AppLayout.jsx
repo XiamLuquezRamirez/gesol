@@ -93,6 +93,7 @@ export default function AppLayout({ title, children }) {
     const usuario = auth.user;
     const initials = getInitials(usuario.name);
     const esAdmin = usuario.roles?.some((r) => r.name === 'admin');
+    const esRrhh = usuario.roles?.some((r) => r.name === 'rrhh');
 
     return (
         <div className="flex h-screen overflow-hidden bg-slate-50">
@@ -122,6 +123,15 @@ export default function AppLayout({ title, children }) {
                         >
                             Mis solicitudes
                         </NavItem>
+                        {esRrhh && (
+                            <NavItem
+                                href={route('rrhh.comisiones')}
+                                active={route().current('rrhh.*')}
+                                icon={IconUsers}
+                            >
+                                Comisiones RR. HH.
+                            </NavItem>
+                        )}
                     </NavSection>
 
                     <NavSection label="Nueva solicitud">
