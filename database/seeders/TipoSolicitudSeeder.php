@@ -29,14 +29,19 @@ class TipoSolicitudSeeder extends Seeder
                     'clave'         => 'VIA',
                     'nombre'        => 'Viáticos',
                     'estado_inicial'=> 'borrador',
-                    'estados'       => json_encode(['borrador','enviada','aprobada','liquidada','cerrada','rechazada']),
+                    'estados'       => json_encode(['borrador','enviada','liquidada','revisada','cerrada','rechazada']),
                     'transiciones'  => json_encode([
-                        ['origen'=>'borrador',  'accion'=>'enviar',   'destino'=>'enviada',   'roles'=>['lider_area','lider_comite'],               'label'=>'Enviar a contabilidad'],
-                        ['origen'=>'enviada',   'accion'=>'aprobar',  'destino'=>'aprobada',  'roles'=>['contabilidad_lider'], 'notificar'=>['lider_area','lider_comite'], 'label'=>'Aprobar monto'],
-                        ['origen'=>'enviada',   'accion'=>'rechazar', 'destino'=>'rechazada', 'roles'=>['contabilidad_lider'],                      'label'=>'Rechazar'],
-                        ['origen'=>'enviada',   'accion'=>'devolver', 'destino'=>'borrador',  'roles'=>['contabilidad_lider'],                      'label'=>'Devolver'],
-                        ['origen'=>'aprobada',  'accion'=>'liquidar', 'destino'=>'liquidada', 'roles'=>['contador'],                                'label'=>'Presentar informe'],
-                        ['origen'=>'liquidada', 'accion'=>'cerrar',   'destino'=>'cerrada',   'roles'=>['contador','lider_comite'],                 'label'=>'Cerrar comisión'],
+                        // El solicitante envia la comision directamente al contador.
+                        ['origen'=>'borrador',  'accion'=>'enviar',        'destino'=>'enviada',   'roles'=>['lider_area','lider_comite'], 'notificar'=>['contador'], 'label'=>'Enviar al contador'],
+                        // El contador presenta el informe (liquida).
+                        ['origen'=>'enviada',   'accion'=>'liquidar',      'destino'=>'liquidada', 'roles'=>['contador'],                  'label'=>'Presentar informe'],
+                        ['origen'=>'enviada',   'accion'=>'devolver',      'destino'=>'borrador',  'roles'=>['contador'],                  'label'=>'Devolver'],
+                        // Ya liquidada, el contador la envia al lider de contabilidad.
+                        ['origen'=>'liquidada', 'accion'=>'enviar_revision','destino'=>'revisada', 'roles'=>['contador'], 'notificar'=>['contabilidad_lider'], 'label'=>'Enviar a líder de contabilidad'],
+                        // El lider de contabilidad aprueba y cierra (esto notifica a RR. HH.).
+                        ['origen'=>'revisada',  'accion'=>'cerrar',        'destino'=>'cerrada',   'roles'=>['contabilidad_lider'],        'label'=>'Aprobar y cerrar comisión'],
+                        ['origen'=>'revisada',  'accion'=>'devolver',      'destino'=>'liquidada', 'roles'=>['contabilidad_lider'],        'label'=>'Devolver al contador'],
+                        ['origen'=>'revisada',  'accion'=>'rechazar',      'destino'=>'rechazada', 'roles'=>['contabilidad_lider'],        'label'=>'Rechazar'],
                     ]),
                     'created_at' => now(), 'updated_at' => now(),
                 ],
@@ -46,3 +51,4 @@ class TipoSolicitudSeeder extends Seeder
         );
     }
 }
+// 

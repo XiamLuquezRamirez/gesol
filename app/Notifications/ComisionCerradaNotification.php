@@ -46,7 +46,7 @@ class ComisionCerradaNotification extends Notification
             'solicitud_id'    => $this->solicitud->id,
             'radicado'        => $this->solicitud->radicado,
             'estado'          => $this->solicitud->estado,
-            'tipo'            => 'comision_cerrada',
+            'tipo'            => 'comision_reportada',
             'tipo_nombre'     => $this->solicitud->tipoSolicitud->nombre,
             'nombre_comision' => $comision->nombre_comision ?? null,
             'destino'         => $comision->municipio_destino ?? null,
@@ -59,11 +59,10 @@ class ComisionCerradaNotification extends Notification
         $comision = $this->solicitud->solicitable;
 
         $mail = (new MailMessage)
-            ->subject('Informe de comisión cerrada: '.$this->solicitud->radicado)
+            ->subject('Personal en comisión: '.$this->solicitud->radicado)
             ->greeting('Informe de comisión a RR. HH.')
-            ->line('La comisión "'.($comision->nombre_comision ?? '—').'" con destino '
-                .($comision->municipio_destino ?? '—').' ha sido cerrada.')
-            ->line('Personal que estuvo en comisión:');
+            ->line('Se reportó la comisión "'.($comision->nombre_comision ?? '—').'" con destino '
+                .($comision->municipio_destino ?? '—').'. El siguiente personal estará por fuera:');
 
         foreach ($this->comisionados() as $c) {
             $mail->line('• '.$c['empleado'].' ('.($c['identificacion'] ?? 's/id').') — del '

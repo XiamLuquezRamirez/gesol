@@ -33,4 +33,27 @@ class SolicitudPolicy
         return $usuario->id === $solicitud->solicitante_id &&
             in_array($solicitud->estado, ['borrador', 'devuelta']);
     }
+
+    /**
+     * El contador puede trabajar la liquidacion de una comision de viaticos:
+     * en 'enviada' presenta el informe por primera vez, y en 'liquidada' lo corrige
+     * antes de enviarlo al lider de contabilidad.
+     */
+    public function editarLiquidacion(Usuario $usuario, Solicitud $solicitud): bool
+    {
+        return $solicitud->tipoSolicitud->clave === 'VIA'
+            && $usuario->hasRole('contador')
+            && in_array($solicitud->estado, ['enviada', 'liquidada']);
+    }
+
+    /**
+     * Imprimir o enviar el formato de liquidacion de un viajero: solo para
+     * comisiones de viaticos ya cerradas, y para quien pueda ver el detalle.
+     */
+    public function imprimirLiquidacion(Usuario $usuario, Solicitud $solicitud): bool
+    {
+        return $solicitud->tipoSolicitud->clave === 'VIA'
+            && $solicitud->estado === 'cerrada'
+            && $this->verDetalle($usuario, $solicitud);
+    }
 }

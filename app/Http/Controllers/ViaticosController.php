@@ -98,6 +98,8 @@ class ViaticosController extends Controller
 
     public function liquidacion(Solicitud $solicitud)
     {
+        $this->authorize('editarLiquidacion', $solicitud);
+
         $solicitud->load(['solicitable.viajeros.empleado','solicitable.viajeros.asignaciones']);
         return Inertia::render('Viaticos/Liquidacion', [
             'solicitud' => $solicitud,
@@ -108,7 +110,10 @@ class ViaticosController extends Controller
 
     public function updateAllocations(ActualizarAsignacionesRequest $request, Solicitud $solicitud)
     {
+        $this->authorize('editarLiquidacion', $solicitud);
+
         $usuario = auth()->user();
+        $eraLiquidada = $solicitud->estado === 'liquidada';
 
         DB::transaction(function () use ($request, $solicitud, $usuario) {
             // Eliminar y recrear para respetar los rubros que el usuario quitó
@@ -132,12 +137,15 @@ class ViaticosController extends Controller
 
             $solicitud->solicitable->recalcularTotal();
 
-            if ($solicitud->estado === 'aprobada' && $this->motor->puede($solicitud, 'liquidar', $usuario)) {
+            // El contador presenta el informe: la comision pasa de enviada a liquidada.
+            if ($solicitud->estado === 'enviada' && $this->motor->puede($solicitud, 'liquidar', $usuario)) {
                 $this->motor->aplicarTransicion($solicitud, 'liquidar', $usuario);
             }
         });
 
         return redirect()->route('solicitudes.show', $solicitud)
-            ->with('success', 'Informe de comisión guardado.');
+            ->with('success', $eraLiquidada
+                ? 'Liquidación actualizada.'
+                : 'Informe de comisión guardado.');
     }
 }

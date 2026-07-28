@@ -68,10 +68,17 @@ class SolicitudController extends Controller
             if ($clave === 'VIA') $rutaEditar = route('viaticos.editar', $solicitud);
         }
 
+        // Corregir la liquidación mientras la comisión sigue liquidada (solo contador).
+        $rutaLiquidacion = null;
+        if ($solicitud->estado === 'liquidada' && $usuario->can('editarLiquidacion', $solicitud)) {
+            $rutaLiquidacion = route('viaticos.liquidacion', $solicitud);
+        }
+
         return Inertia::render('Solicitudes/Detalle', [
-            'solicitud'   => (new SolicitudDetalleResource($solicitud))->resolve(),
-            'acciones'    => $this->motor->accionesDisponibles($solicitud, $usuario),
-            'rutaEditar'  => $rutaEditar,
+            'solicitud'       => (new SolicitudDetalleResource($solicitud))->resolve(),
+            'acciones'        => $this->motor->accionesDisponibles($solicitud, $usuario),
+            'rutaEditar'      => $rutaEditar,
+            'rutaLiquidacion' => $rutaLiquidacion,
         ]);
     }
 
@@ -91,13 +98,17 @@ class SolicitudController extends Controller
             return back()->withErrors(['accion' => $e->getMessage()]);
         }
 
-        // Al cerrar una comisión de viáticos, enviar el informe a RR. HH.
-        if ($solicitud->fresh()->estado === 'cerrada' && $solicitud->tipoSolicitud->clave === 'VIA') {
+        // Cuando el lider de area envia la comision de viaticos, avisar a RR. HH.
+        // de inmediato (el informe de quien esta por fuera), sin esperar al cierre contable.
+        if ($request->accion === 'enviar'
+            && $solicitud->fresh()->estado === 'enviada'
+            && $solicitud->tipoSolicitud->clave === 'VIA'
+        ) {
             $rrhh = Usuario::role('rrhh')->get();
             if ($rrhh->isNotEmpty()) {
                 // 1) La campana (database) siempre queda registrada.
                 Notification::send($rrhh, new ComisionCerradaNotification($solicitud->fresh(), ['database']));
-                // 2) El correo se intenta aparte; un fallo de SMTP no debe romper el cierre.
+                // 2) El correo se intenta aparte; un fallo de SMTP no debe romper el envio.
                 try {
                     Notification::send($rrhh, new ComisionCerradaNotification($solicitud->fresh(), ['mail']));
                 } catch (\Throwable $e) {

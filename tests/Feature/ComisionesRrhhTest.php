@@ -1,7 +1,7 @@
 <?php
 namespace Tests\Feature;
 
-use App\Models\{Area, Empleados, ItemOficina, Solicitud, SolicitudOficina, SolicitudViaticos, TipoSolicitud, Usuario, ViajeroComision};
+use App\Models\{Area, AsignacionViatico, Empleados, ItemOficina, Solicitud, SolicitudOficina, SolicitudViaticos, TarifaViatico, TipoSolicitud, Usuario, ViajeroComision};
 use App\Notifications\ComisionCerradaNotification;
 use App\Services\MotorWorkflow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -30,14 +30,14 @@ class ComisionesRrhhTest extends TestCase
         $this->rrhh              = Usuario::where('email', 'rrhh@demo.test')->firstOrFail();
     }
 
-    private function crearComision(string $salida, string $regreso): Solicitud
+    private function crearComision(string $salida, string $regreso, string $nombreComision = 'Comité técnico'): Solicitud
     {
         $cabecera = SolicitudViaticos::create([
-            'nombre_comision'   => 'Comité técnico',
+            'nombre_comision'   => $nombreComision,
             'municipio_destino' => 'Medellín',
             'observacion'       => 'Capacitación',
         ]);
-        ViajeroComision::create([
+        $viajero = ViajeroComision::create([
             'solicitud_viaticos_id' => $cabecera->id,
             'empleado_id'           => Empleados::first()->id,
             'motivo'                => 'Capacitación',
@@ -45,6 +45,13 @@ class ComisionesRrhhTest extends TestCase
             'hora_salida'           => '08:00',
             'fecha_regreso'         => $regreso,
             'hora_regreso'          => '17:00',
+            'tipo_pago'             => 'efectivo',
+        ]);
+        AsignacionViatico::create([
+            'viajero_comision_id' => $viajero->id,
+            'rubro'               => TarifaViatico::firstOrFail()->rubro,
+            'valor_unitario'      => 15000,
+            'dias'                => 2,
         ]);
         return Solicitud::create([
             'tipo_solicitud_id' => TipoSolicitud::where('clave', 'VIA')->firstOrFail()->id,
@@ -56,25 +63,31 @@ class ComisionesRrhhTest extends TestCase
         ]);
     }
 
-    private function llevarACerrada(Solicitud $solicitud): void
+    /** Deja la comision liquidada (contador presento el informe). */
+    private function llevarALiquidada(Solicitud $solicitud): void
     {
         $this->motor->aplicarTransicion($solicitud, 'enviar', $this->liderComite);
-        $this->motor->aplicarTransicion($solicitud->fresh(), 'aprobar', $this->contabilidadLider);
         $this->motor->aplicarTransicion($solicitud->fresh(), 'liquidar', $this->contador);
     }
 
-    public function test_cerrar_comision_notifica_a_rrhh(): void
+    /** Deja la comision revisada (lista para que el lider de contabilidad la cierre). */
+    private function llevarARevisada(Solicitud $solicitud): void
+    {
+        $this->llevarALiquidada($solicitud);
+        $this->motor->aplicarTransicion($solicitud->fresh(), 'enviar_revision', $this->contador);
+    }
+
+    public function test_enviar_comision_notifica_a_rrhh(): void
     {
         Notification::fake();
         $solicitud = $this->crearComision('2026-08-10', '2026-08-12');
-        $this->llevarACerrada($solicitud);
 
-        // El cierre pasa por la ruta de transicion (flujo generico), como el contador.
-        $this->actingAs($this->contador)
-            ->post(route('solicitudes.transicion', $solicitud), ['accion' => 'cerrar'])
+        // El lider envia la comision al contador: RR. HH. debe enterarse de inmediato.
+        $this->actingAs($this->liderComite)
+            ->post(route('solicitudes.transicion', $solicitud), ['accion' => 'enviar'])
             ->assertRedirect();
 
-        $this->assertEquals('cerrada', $solicitud->fresh()->estado);
+        $this->assertEquals('enviada', $solicitud->fresh()->estado);
         Notification::assertSentTo($this->rrhh, ComisionCerradaNotification::class);
     }
 
@@ -111,41 +124,64 @@ class ComisionesRrhhTest extends TestCase
         Notification::assertNotSentTo($this->rrhh, ComisionCerradaNotification::class);
     }
 
-    public function test_panel_muestra_comisionados_de_comisiones_cerradas(): void
+    public function test_panel_muestra_comisionados_desde_que_se_reportan(): void
     {
-        $cerrada = $this->crearComision('2026-08-10', '2026-08-12');
-        $this->llevarACerrada($cerrada);
-        $this->actingAs($this->contador)->post(route('solicitudes.transicion', $cerrada), ['accion' => 'cerrar']);
+        // Una comision ya enviada (reportada a RR. HH.), aun en proceso: debe aparecer.
+        $enProceso = $this->crearComision('2026-08-10', '2026-08-12');
+        $this->llevarALiquidada($enProceso);
+        $this->assertEquals('liquidada', $enProceso->fresh()->estado);
 
-        // Otra comision solo liquidada (no cerrada): no debe aparecer.
-        $liquidada = $this->crearComision('2026-08-20', '2026-08-22');
-        $this->llevarACerrada($liquidada);
-        $this->assertEquals('liquidada', $liquidada->fresh()->estado);
+        // Otra en borrador (aun no reportada): NO debe aparecer.
+        $borrador = $this->crearComision('2026-08-20', '2026-08-22');
+        $this->assertEquals('borrador', $borrador->fresh()->estado);
 
         $this->actingAs($this->rrhh)
             ->get(route('rrhh.comisiones'))
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('Rrhh/Comisiones')
                 ->where('comisionados', fn ($data) => count($data) === 1
-                    && $data[0]['radicado'] === $cerrada->fresh()->radicado)
+                    && $data[0]['radicado'] === $enProceso->fresh()->radicado
+                    && $data[0]['estado'] === 'liquidada'
+                    // Los rubros asignados viajan para el modal "Ver rubros".
+                    && count($data[0]['rubros']) === 1
+                    && (float) $data[0]['rubros'][0]['subtotal'] === 30000.0
+                    && (float) $data[0]['total'] === 30000.0)
             );
     }
 
     public function test_filtro_por_fecha_incluye_solapamiento_y_excluye_fuera_de_rango(): void
     {
         $enRango = $this->crearComision('2026-08-10', '2026-08-12');
-        $this->llevarACerrada($enRango);
-        $this->actingAs($this->contador)->post(route('solicitudes.transicion', $enRango), ['accion' => 'cerrar']);
+        $this->llevarARevisada($enRango);
+        $this->actingAs($this->contabilidadLider)->post(route('solicitudes.transicion', $enRango), ['accion' => 'cerrar']);
 
         $fueraRango = $this->crearComision('2026-12-01', '2026-12-03');
-        $this->llevarACerrada($fueraRango);
-        $this->actingAs($this->contador)->post(route('solicitudes.transicion', $fueraRango), ['accion' => 'cerrar']);
+        $this->llevarARevisada($fueraRango);
+        $this->actingAs($this->contabilidadLider)->post(route('solicitudes.transicion', $fueraRango), ['accion' => 'cerrar']);
 
         $this->actingAs($this->rrhh)
             ->get(route('rrhh.comisiones', ['desde' => '2026-08-01', 'hasta' => '2026-08-31']))
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->where('comisionados', fn ($data) => count($data) === 1
                     && $data[0]['radicado'] === $enRango->fresh()->radicado)
+            );
+    }
+
+    public function test_filtro_por_comision(): void
+    {
+        $auditoria = $this->crearComision('2026-08-10', '2026-08-12', 'Auditoría regional');
+        $this->llevarARevisada($auditoria);
+        $this->actingAs($this->contabilidadLider)->post(route('solicitudes.transicion', $auditoria), ['accion' => 'cerrar']);
+
+        $capacitacion = $this->crearComision('2026-08-15', '2026-08-17', 'Capacitación técnica');
+        $this->llevarARevisada($capacitacion);
+        $this->actingAs($this->contabilidadLider)->post(route('solicitudes.transicion', $capacitacion), ['accion' => 'cerrar']);
+
+        $this->actingAs($this->rrhh)
+            ->get(route('rrhh.comisiones', ['comision' => 'Auditoría']))
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('comisionados', fn ($data) => count($data) === 1
+                    && $data[0]['comision'] === 'Auditoría regional')
             );
     }
 

@@ -2,11 +2,12 @@ import AppLayout from '@/Layouts/AppLayout';
 import BadgeEstado from '@/Components/BadgeEstado';
 import LineaTiempo from '@/Components/LineaTiempo';
 import ModalAccion from '@/Components/ModalAccion';
+import Modal from '@/Components/Modal';
 import { formatearMoneda, formatearFecha } from '@/lib/format';
 import { useState } from 'react';
-import { usePage } from '@inertiajs/react';
+import { usePage, router } from '@inertiajs/react';
 import { Head } from '@inertiajs/react';
-import { ArrowLeftIcon, ArrowRightIcon, ArrowUturnLeftIcon, CheckCircleIcon, CheckIcon, XCircleIcon, CreditCardIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, ArrowRightIcon, ArrowUturnLeftIcon, CheckCircleIcon, CheckIcon, XCircleIcon, CreditCardIcon, PencilSquareIcon, PrinterIcon, EnvelopeIcon, EyeIcon } from '@heroicons/react/24/outline';
 
 function SeccionCard({ titulo, children }) {
     return (
@@ -35,6 +36,7 @@ const COLORES_ACCION = {
     rechazar:  'bg-red-600 hover:bg-red-700',
     pagar:     'bg-violet-600 hover:bg-violet-700',
     liquidar:  'bg-teal-600 hover:bg-teal-700',
+    enviar_revision: 'bg-blue-600 hover:bg-blue-700',
     cerrar:    'bg-slate-600 hover:bg-slate-700',
 };
 
@@ -46,6 +48,7 @@ function IconoAccion({ accion }) {
     const cls = 'w-4 h-4';
     switch (accion) {
         case 'enviar':
+        case 'enviar_revision':
             return <ArrowRightIcon className={cls} />;
         case 'devolver':
             return <ArrowUturnLeftIcon className={cls} />;
@@ -107,9 +110,19 @@ function DetalleOficina({ solicitable }) {
     );
 }
 
-function DetalleViaticos({ solicitable }) {
+const etiquetaRubro = (r) =>
+    r ? r.charAt(0).toUpperCase() + r.slice(1).replace(/[_-]/g, ' ') : '—';
+
+const ETIQUETAS_PAGO = { efectivo: 'Efectivo', transferencia: 'Transferencia' };
+
+function DetalleViaticos({ solicitable, solicitudId, cerrada }) {
     if (!solicitable) return null;
     const viajeros = solicitable.viajeros ?? [];
+    const [rubrosDe, setRubrosDe] = useState(null); // viajero seleccionado para ver sus rubros
+
+    const enviarCorreo = (viajeroId) => {
+        router.post(route('liquidacion.correo', [solicitudId, viajeroId]), {}, { preserveScroll: true });
+    };
 
     const formatFechaHora = (fecha, hora) => {
         if (!fecha) return '—';
@@ -146,6 +159,7 @@ function DetalleViaticos({ solicitable }) {
                                         <th className="px-3 py-2 font-medium">Motivo</th>
                                         <th className="px-3 py-2 font-medium whitespace-nowrap">Salida</th>
                                         <th className="px-3 py-2 font-medium whitespace-nowrap">Regreso</th>
+                                        <th className="px-3 py-2 font-medium text-left whitespace-nowrap">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
@@ -161,6 +175,42 @@ function DetalleViaticos({ solicitable }) {
                                             </td>
                                             <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{formatFechaHora(v.fecha_salida, v.hora_salida)}</td>
                                             <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{formatFechaHora(v.fecha_regreso, v.hora_regreso)}</td>
+                                           
+                                          
+                                                <td className="px-3 py-2.5 whitespace-nowrap">
+                                                    <div className="flex items-center justify-end gap-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setRubrosDe(v)}
+                                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg text-blue-600 border border-blue-300 hover:bg-blue-50 transition-colors hover:text-blue-700"
+                                                        title="Ver rubros"
+                                                    >
+                                                        <EyeIcon className="w-4 h-4" /> Ver rubros
+                                                    </button>
+                                                    {cerrada && (
+                                                        <>
+                                                        <a
+                                                            href={route('liquidacion.pdf', [solicitudId, v.id])}
+                                                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg text-slate-600 border border-slate-300 hover:bg-slate-50 transition-colors hover:text-slate-700"
+                                                            title="Imprimir / descargar PDF"
+                                                        >
+                                                            <PrinterIcon className="w-4 h-4" /> Imprimir
+                                                        </a>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => enviarCorreo(v.id)}
+                                                            disabled={!v.empleado?.email}
+                                                            title={v.empleado?.email
+                                                                ? `Enviar a ${v.empleado.email}`
+                                                                : 'El empleado no tiene correo registrado'}
+                                                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-blue-600 font-medium rounded-lg border border-blue-300 hover:bg-blue-50 transition-colors hover:text-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                                                        >
+                                                            <EnvelopeIcon className="w-4 h-4" /> Correo
+                                                        </button>
+                                                        </>
+                                                        )}  
+                                                    </div>
+                                                </td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -169,6 +219,67 @@ function DetalleViaticos({ solicitable }) {
                     </div>
                 </>
             )}
+
+            {/* Modal: rubros asignados al viajero */}
+            <Modal show={rubrosDe !== null} onClose={() => setRubrosDe(null)} maxWidth="lg">
+                {rubrosDe && (() => {
+                    const asigs = rubrosDe.asignaciones ?? [];
+                    const total = asigs.reduce((s, a) => s + Number(a.subtotal ?? 0), 0);
+                    return (
+                        <div className="p-6">
+                            <div className="flex items-start justify-between mb-1">
+                                <h3 className="text-base font-semibold text-slate-800">Rubros asignados</h3>
+                                <button type="button" onClick={() => setRubrosDe(null)}
+                                    className="text-slate-400 hover:text-slate-600 text-xl leading-none" aria-label="Cerrar">×</button>
+                            </div>
+                            <p className="text-sm text-slate-500 mb-4">
+                                {rubrosDe.empleado ? `${rubrosDe.empleado.nombres} ${rubrosDe.empleado.apellidos}` : '—'}
+                                {rubrosDe.tipo_pago ? ` · ${ETIQUETAS_PAGO[rubrosDe.tipo_pago] ?? rubrosDe.tipo_pago}` : ''}
+                            </p>
+
+                            {asigs.length === 0 ? (
+                                <p className="text-sm text-slate-400 text-center py-6">Este viajero no tiene rubros asignados.</p>
+                            ) : (
+                                <div className="overflow-x-auto rounded-lg border border-slate-100">
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-slate-50 border-b border-slate-100">
+                                            <tr className="text-left text-xs text-slate-500">
+                                                <th className="px-3 py-2 font-medium">Rubro</th>
+                                                <th className="px-3 py-2 font-medium text-right">Valor unit.</th>
+                                                <th className="px-3 py-2 font-medium text-center">Días</th>
+                                                <th className="px-3 py-2 font-medium text-right">Subtotal</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-50">
+                                            {asigs.map((a, i) => (
+                                                <tr key={i} className="text-slate-700">
+                                                    <td className="px-3 py-2.5">{etiquetaRubro(a.rubro)}</td>
+                                                    <td className="px-3 py-2.5 text-right">{formatearMoneda(a.valor_unitario)}</td>
+                                                    <td className="px-3 py-2.5 text-center">{a.dias}</td>
+                                                    <td className="px-3 py-2.5 text-right font-medium">{formatearMoneda(a.subtotal)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                        <tfoot className="bg-slate-50 border-t border-slate-100">
+                                            <tr>
+                                                <td colSpan={3} className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500">Total</td>
+                                                <td className="px-3 py-2.5 text-right font-semibold text-slate-800">{formatearMoneda(total)}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            )}
+
+                            <div className="flex justify-end mt-5">
+                                <button type="button" onClick={() => setRubrosDe(null)}
+                                    className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50">
+                                    Cerrar
+                                </button>
+                            </div>
+                        </div>
+                    );
+                })()}
+            </Modal>
         </div>
     );
 }
@@ -226,7 +337,7 @@ function AvisoRechazo({ transicion, rutaEditar }) {
     );
 }
 
-export default function Detalle({ solicitud, acciones, rutaEditar }) {
+export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidacion }) {
     const [accionActiva, setAccionActiva] = useState(null);
     const { props } = usePage();
     const flash = props.flash ?? {};
@@ -277,6 +388,11 @@ export default function Detalle({ solicitud, acciones, rutaEditar }) {
                                 <PencilSquareIcon className="w-4 h-4" /> Editar
                             </a>
                         )}
+                        {rutaLiquidacion && (
+                            <a href={rutaLiquidacion} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors">
+                                <PencilSquareIcon className="w-4 h-4" /> Editar liquidación
+                            </a>
+                        )}
                         {acciones.map((a) =>
                             a.accion === 'liquidar' && esViaticos
                                 ? (
@@ -300,7 +416,13 @@ export default function Detalle({ solicitud, acciones, rutaEditar }) {
                 {/* Detalle del proceso */}
                 <SeccionCard titulo="Detalle">
                     {esOficina && <DetalleOficina solicitable={solicitud.solicitable} />}
-                    {esViaticos && <DetalleViaticos solicitable={solicitud.solicitable} />}
+                    {esViaticos && (
+                        <DetalleViaticos
+                            solicitable={solicitud.solicitable}
+                            solicitudId={solicitud.id}
+                            cerrada={solicitud.estado === 'cerrada'}
+                        />
+                    )}
                 </SeccionCard>
 
                 {/* Línea de tiempo */}

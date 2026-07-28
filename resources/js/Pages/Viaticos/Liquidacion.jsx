@@ -5,25 +5,16 @@ import { formatearMoneda } from '@/lib/format';
 import { useForm, Head } from '@inertiajs/react';
 import { useState } from 'react';
 import { PlusCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { rubrosPorDefecto } from '@/lib/rubros';
 
 const etiquetaRubro = (r) =>
     r.charAt(0).toUpperCase() + r.slice(1).replace(/[_-]/g, ' ');
-
-const RUBROS_DEFAULT = ['desayuno', 'almuerzo', 'cena'];
 
 const formatFechaHora = (fecha, hora) => {
     if (!fecha) return '—';
     const f = new Date(String(fecha).substring(0, 10) + 'T00:00:00')
         .toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
     return hora ? `${f} · ${hora}` : f;
-};
-
-const diasEntre = (fechaSalida, fechaRegreso) => {
-    if (!fechaSalida || !fechaRegreso) return 1;
-    const s = new Date(String(fechaSalida).substring(0, 10) + 'T00:00:00');
-    const r = new Date(String(fechaRegreso).substring(0, 10) + 'T00:00:00');
-    const diff = Math.ceil((r - s) / (1000 * 60 * 60 * 24));
-    return Math.max(1, diff);
 };
 
 export default function Liquidacion({ solicitud, tarifas, rubros }) {
@@ -38,15 +29,10 @@ export default function Liquidacion({ solicitud, tarifas, rubros }) {
                 dias:           a.dias,
             }));
         }
-        const dias = diasEntre(v.fecha_salida, v.fecha_regreso);
-        return RUBROS_DEFAULT
-            .filter((r) => rubros.includes(r))
-            .map((rubro) => ({
-                viajero_comision_id: v.id,
-                rubro,
-                valor_unitario: tarifas[rubro]?.valor_sugerido ?? 0,
-                dias,
-            }));
+        // Rubros por defecto segun fechas Y horas: las horas afinan los bordes
+        // (primer/ultimo dia) y la merienda es proporcional a las franjas del dia.
+        return rubrosPorDefecto(v.fecha_salida, v.fecha_regreso, v.hora_salida, v.hora_regreso, rubros, tarifas)
+            .map((a) => ({ viajero_comision_id: v.id, ...a }));
     });
 
     const pagosIniciales = viajeros.map((v) => ({
@@ -187,7 +173,7 @@ export default function Liquidacion({ solicitud, tarifas, rubros }) {
                                                 <tr className="text-left text-xs text-slate-500 border-b border-slate-100 bg-slate-50/50">
                                                     <th className="px-5 pb-2.5 pt-2.5 font-medium">Rubro</th>
                                                     <th className="px-5 pb-2.5 pt-2.5 font-medium w-48">Valor unitario</th>
-                                                    <th className="px-5 pb-2.5 pt-2.5 font-medium w-24">Días</th>
+                                                    <th className="px-5 pb-2.5 pt-2.5 font-medium w-24">Cantidad</th>
                                                     <th className="px-5 pb-2.5 pt-2.5 font-medium text-right w-36">Subtotal</th>
                                                     <th className="px-3 pb-2.5 pt-2.5 w-8"></th>
                                                 </tr>
@@ -312,7 +298,11 @@ export default function Liquidacion({ solicitud, tarifas, rubros }) {
                         </a>
                         <button type="submit" disabled={processing}
                             className="px-5 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50">
-                            {processing ? 'Guardando…' : 'Guardar informe'}
+                            {processing
+                                ? 'Guardando…'
+                                : solicitud.estado === 'liquidada'
+                                    ? 'Guardar cambios'
+                                    : 'Guardar informe'}
                         </button>
                     </div>
                 </form>

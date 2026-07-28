@@ -58,16 +58,20 @@ class MotorWorkflowViaticosTest extends TestCase
     {
         $solicitud = $this->crearSolicitudViaticos();
 
+        // El solicitante envia la comision directamente al contador.
         $this->motor->aplicarTransicion($solicitud, 'enviar', $this->liderComite);
         $this->assertEquals('enviada', $solicitud->fresh()->estado);
 
-        $this->motor->aplicarTransicion($solicitud->fresh(), 'aprobar', $this->contabilidadLider);
-        $this->assertEquals('aprobada', $solicitud->fresh()->estado);
-
+        // El contador presenta el informe (liquida).
         $this->motor->aplicarTransicion($solicitud->fresh(), 'liquidar', $this->contador);
         $this->assertEquals('liquidada', $solicitud->fresh()->estado);
 
-        $this->motor->aplicarTransicion($solicitud->fresh(), 'cerrar', $this->contador);
+        // El contador la envia al lider de contabilidad.
+        $this->motor->aplicarTransicion($solicitud->fresh(), 'enviar_revision', $this->contador);
+        $this->assertEquals('revisada', $solicitud->fresh()->estado);
+
+        // El lider de contabilidad aprueba y cierra.
+        $this->motor->aplicarTransicion($solicitud->fresh(), 'cerrar', $this->contabilidadLider);
         $this->assertEquals('cerrada', $solicitud->fresh()->estado);
     }
 
@@ -76,7 +80,8 @@ class MotorWorkflowViaticosTest extends TestCase
         $solicitud = $this->crearSolicitudViaticos();
         $this->motor->aplicarTransicion($solicitud, 'enviar', $this->liderComite);
 
+        // El lider de comite no puede liquidar; eso es del contador.
         $this->expectException(TransicionNoPermitidaException::class);
-        $this->motor->aplicarTransicion($solicitud->fresh(), 'aprobar', $this->liderComite);
+        $this->motor->aplicarTransicion($solicitud->fresh(), 'liquidar', $this->liderComite);
     }
 }
