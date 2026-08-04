@@ -18,6 +18,14 @@ class SolicitudDetalleResource extends JsonResource
             'area'        => $this->area ? ['id' => $this->area->id, 'nombre' => $this->area->nombre] : null,
             'solicitable' => $this->solicitable,
             'transiciones' => TransicionResource::collection($this->transiciones),
+            'cotizacion'  => $this->when($this->tipoSolicitud->clave === 'OFI', fn () => [
+                'comentario'   => $this->solicitable->comentario_contador,
+                'archivos'     => $this->solicitable->cotizaciones->map(fn ($c) => [
+                    'id'     => $c->id,
+                    'nombre' => $c->nombre_original,
+                ])->values(),
+                'puede_anexar' => $request->user()?->can('anexarCotizacion', $this->resource) ?? false,
+            ]),
             'created_at'  => $this->created_at->format('Y-m-d H:i'),
         ];
     }

@@ -8,12 +8,16 @@ use Illuminate\Database\Eloquent\Model;
 class SolicitudOficina extends Model
 {
     protected $table = 'solicitudes_oficina';
-    protected $fillable = ['beneficiario', 'urgencia', 'justificacion', 'total', 'valor_pagado', 'fecha_pago', 'comprobante'];
+    protected $fillable = ['beneficiario', 'urgencia', 'justificacion', 'total', 'valor_pagado', 'fecha_pago', 'comprobante', 'cotizacion_path', 'comentario_contador'];
     protected $casts = ['urgencia' => UrgenciaOficina::class, 'fecha_pago' => 'date'];
 
     public function items()
     {
         return $this->hasMany(ItemOficina::class, 'solicitud_oficina_id');
+    }
+    public function cotizaciones()
+    {
+        return $this->hasMany(CotizacionOficina::class, 'solicitud_oficina_id');
     }
     public function solicitud()
     {

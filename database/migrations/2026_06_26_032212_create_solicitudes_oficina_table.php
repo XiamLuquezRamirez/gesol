@@ -20,6 +20,9 @@ return new class extends Migration
             $table->decimal('valor_pagado', 14, 2)->nullable();
             $table->date('fecha_pago')->nullable();
             $table->string('comprobante')->nullable();
+            // Cotizacion y comentario que RR. HH. anexa para el contador.
+            $table->string('cotizacion_path')->nullable();
+            $table->text('comentario_contador')->nullable();
             $table->timestamps();
         });
     }

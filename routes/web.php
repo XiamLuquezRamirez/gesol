@@ -18,6 +18,10 @@ Route::middleware(['auth','verified'])->group(function () {
     Route::post('/oficina',                   [OficinaController::class, 'store'])->name('oficina.store');
     Route::get('/oficina/{solicitud}/editar', [OficinaController::class, 'edit'])->name('oficina.editar');
     Route::put('/oficina/{solicitud}',        [OficinaController::class, 'update'])->name('oficina.update');
+    // Cotizaciones y comentario para el contador (RR. HH. / solicitante)
+    Route::post('/oficina/{solicitud}/cotizacion', [OficinaController::class, 'anexarCotizacion'])->name('oficina.cotizacion.anexar');
+    Route::get('/oficina/{solicitud}/cotizacion/{cotizacion}',    [OficinaController::class, 'descargarCotizacion'])->name('oficina.cotizacion.descargar');
+    Route::delete('/oficina/{solicitud}/cotizacion/{cotizacion}', [OficinaController::class, 'eliminarCotizacion'])->name('oficina.cotizacion.eliminar');
 
     // Formato de liquidación por viajero (comisión cerrada)
     Route::get('/solicitudes/{solicitud}/viajeros/{viajero}/liquidacion.pdf', [LiquidacionPdfController::class, 'descargar'])->name('liquidacion.pdf');

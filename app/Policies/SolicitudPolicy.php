@@ -35,6 +35,18 @@ class SolicitudPolicy
     }
 
     /**
+     * RR. HH. (o el solicitante lider_area) puede anexar cotizaciones y el comentario
+     * para el contador mientras la solicitud de oficina esta enviada, verificada o
+     * rechazada (por si la rechazaron por falta de cotizacion y hay que reenviarla).
+     */
+    public function anexarCotizacion(Usuario $usuario, Solicitud $solicitud): bool
+    {
+        return $solicitud->tipoSolicitud->clave === 'OFI'
+            && $usuario->hasAnyRole(['rrhh', 'lider_area'])
+            && in_array($solicitud->estado, ['enviada', 'verificada', 'rechazada']);
+    }
+
+    /**
      * El contador puede trabajar la liquidacion de una comision de viaticos:
      * en 'enviada' presenta el informe por primera vez, y en 'liquidada' lo corrige
      * antes de enviarlo al lider de contabilidad.

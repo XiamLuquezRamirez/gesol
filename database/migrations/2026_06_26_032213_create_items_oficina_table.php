@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('nombre');
             $table->enum('categoria', ['producto','servicio']);
             $table->unsignedInteger('cantidad')->default(1);
-            $table->decimal('costo_estimado', 14, 2);
+            $table->decimal('costo_estimado', 14, 2)->nullable();
             $table->decimal('subtotal', 14, 2);
             $table->string('notas')->nullable();
             $table->timestamps();

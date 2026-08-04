@@ -28,6 +28,12 @@ export default function Comisiones({ comisionados, filtros }) {
             { preserveState: true, replace: true });
     };
 
+    const formatFechaHora = (fecha, hora) => {
+        if (!fecha) return '—';
+        const f = new Date(String(fecha).substring(0, 10) + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+        return hora ? `${f} ${hora}` : f;
+    };
+
     const limpiar = () => {
         setDesde('');
         setHasta('');
@@ -144,10 +150,10 @@ export default function Comisiones({ comisionados, filtros }) {
                                             <td className="px-4 py-3 text-slate-600">{c.comision ?? '—'}</td>
                                             <td className="px-4 py-3 text-slate-600">{c.destino ?? '—'}</td>
                                             <td className="px-4 py-3 text-slate-600">
-                                                {formatearFecha(c.fecha_salida)}{c.hora_salida ? ` · ${c.hora_salida}` : ''}
+                                                {formatFechaHora(c.fecha_salida, c.hora_salida)}
                                             </td>
                                             <td className="px-4 py-3 text-slate-600">
-                                                {formatearFecha(c.fecha_regreso)}{c.hora_regreso ? ` · ${c.hora_regreso}` : ''}
+                                                {formatFechaHora(c.fecha_regreso, c.hora_regreso)}
                                             </td>
                                             <td className="px-4 py-3">
                                                 {c.estado ? <BadgeEstado estado={c.estado} /> : '—'}

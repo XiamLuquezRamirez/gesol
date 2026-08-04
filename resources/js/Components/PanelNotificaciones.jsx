@@ -127,6 +127,24 @@ export default function PanelNotificaciones({ noLeidasIniciales = 0 }) {
         return () => document.removeEventListener('mousedown', handleClickFuera);
     }, []);
 
+    // Sondeo automatico: refresca el contador (y la lista si el panel esta abierto)
+    // cada 45s, para que las notificaciones nuevas aparezcan sin recargar la pagina.
+    useEffect(() => {
+        const id = setInterval(() => {
+            if (document.hidden) return; // no sondear en pestañas en segundo plano
+            axios.get(route('notificaciones.index'))
+                .then(({ data }) => {
+                    setNoLeidas(data.no_leidas);
+                    setAbierto((estaAbierto) => {
+                        if (estaAbierto) setNotificaciones(data.notificaciones);
+                        return estaAbierto;
+                    });
+                })
+                .catch(() => { /* silencioso: reintenta en el siguiente ciclo */ });
+        }, 45000);
+        return () => clearInterval(id);
+    }, []);
+
     const cargarNotificaciones = () => {
         setCargando(true);
         axios.get(route('notificaciones.index'))

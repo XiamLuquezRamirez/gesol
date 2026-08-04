@@ -8,8 +8,10 @@ class NotificacionController extends Controller
 {
     public function index()
     {
+        //solo mostrar notificvaciones no leidas
         $notificaciones = auth()->user()
             ->notifications()
+            ->whereNull('read_at')
             ->latest()
             ->limit(20)
             ->get()

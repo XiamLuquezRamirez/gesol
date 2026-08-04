@@ -22,8 +22,27 @@ class GuardarSolicitudOficinaRequest extends FormRequest
             'items.*.nombre'         => 'required|string|max:255',
             'items.*.categoria'      => 'required|in:producto,servicio',
             'items.*.cantidad'       => 'required|integer|min:1',
-            'items.*.costo_estimado' => 'required|numeric|min:0',
+            'items.*.costo_estimado' => 'nullable|numeric|min:0',
             'items.*.notas'          => 'nullable|string|max:500',
+        ];
+    }
+
+    /**
+     * Nombres legibles de los campos para los mensajes de error,
+     * asi el usuario ve "Departamento" y no "area id".
+     */
+    public function attributes(): array
+    {
+        return [
+            'beneficiario'           => 'beneficiario(s)',
+            'area_id'                => 'departamento',
+            'urgencia'               => 'urgencia',
+            'justificacion'          => 'justificación',
+            'items'                  => 'ítems',
+            'items.*.nombre'         => 'nombre del ítem',
+            'items.*.categoria'      => 'categoría del ítem',
+            'items.*.cantidad'       => 'cantidad del ítem',
+            'items.*.costo_estimado' => 'costo estimado',
         ];
     }
 }

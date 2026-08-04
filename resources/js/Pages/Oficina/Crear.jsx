@@ -54,7 +54,6 @@ export default function Crear({ areas, usuarios, solicitud, editar }) {
         beneficiario:  solicitable?.beneficiario ?? '',
         urgencia:         solicitable?.urgencia ?? 'media',
         justificacion:    solicitable?.justificacion ?? '',
-        fecha_solicitud:  solicitable?.fecha_solicitud ?? '',
         items:            solicitable?.items?.map(i => ({
             nombre:          i.nombre,
             categoria:       i.categoria,
@@ -63,6 +62,8 @@ export default function Crear({ areas, usuarios, solicitud, editar }) {
             notas:           i.notas ?? '',
         })) ?? [{ ...ITEM_VACIO }],
     });
+
+    //
 
     const agregarItem = () => setData('items', [...data.items, { ...ITEM_VACIO }]);
     const eliminarItem = (idx) => setData('items', data.items.filter((_, i) => i !== idx));
@@ -109,9 +110,7 @@ export default function Crear({ areas, usuarios, solicitud, editar }) {
                                     <option value="alta">Alta</option>
                                 </select>
                             </div>
-                            <TextField label="Fecha de solicitud:" name="fecha_solicitud" value={data.fecha_solicitud}
-                                onChange={(v) => setData('fecha_solicitud', v)}
-                                error={errors.fecha_solicitud} type="date" />
+                            
                         </div>
                         <TextField label="Justificación:" name="justificacion" value={data.justificacion}
                             onChange={(v) => setData('justificacion', v)} multiline
@@ -158,7 +157,7 @@ export default function Crear({ areas, usuarios, solicitud, editar }) {
                                                 onChange={(e) => actualizarItem(idx, 'cantidad', parseInt(e.target.value) || 1)}
                                                 className="w-full rounded-lg border border-slate-300 text-sm py-2 px-3 focus:ring-2 focus:ring-indigo-500 outline-none" />
                                         </div>
-                                        <CampoMoneda label="Costo estimado" value={item.costo_estimado}
+                                        <CampoMoneda label="Costo estimado (opcional)" value={item.costo_estimado}
                                             onChange={(v) => actualizarItem(idx, 'costo_estimado', v)}
                                             error={errors[`items.${idx}.costo_estimado`]} />
                                     </div>

@@ -2,8 +2,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\GuardarSolicitudOficinaRequest;
-use App\Models\{Area, Solicitud, SolicitudOficina, ItemOficina, TipoSolicitud, Usuario};
+use App\Models\{Area, CotizacionOficina, Solicitud, SolicitudOficina, ItemOficina, TipoSolicitud, Usuario};
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class OficinaController extends Controller
@@ -42,7 +44,10 @@ class OficinaController extends Controller
             ]);
 
             foreach ($request->items as $item) {
-                ItemOficina::create(array_merge($item, ['solicitud_oficina_id' => $cabecera->id, 'subtotal' => 0]));
+                ItemOficina::create(array_merge($this->normalizarItem($item), [
+                    'solicitud_oficina_id' => $cabecera->id,
+                    'subtotal'             => 0,
+                ]));
             }
 
             return $solicitud;
@@ -63,6 +68,7 @@ class OficinaController extends Controller
             'editar'    => true,
         ]);
     }
+//
 
     public function update(GuardarSolicitudOficinaRequest $request, Solicitud $solicitud)
     {
@@ -77,11 +83,83 @@ class OficinaController extends Controller
             ]);
             $cabecera->items()->delete();
             foreach ($request->items as $item) {
-                ItemOficina::create(array_merge($item, ['solicitud_oficina_id' => $cabecera->id, 'subtotal' => 0]));
+                ItemOficina::create(array_merge($this->normalizarItem($item), [
+                    'solicitud_oficina_id' => $cabecera->id,
+                    'subtotal'             => 0,
+                ]));
             }
         });
 
         return redirect()->route('solicitudes.show', $solicitud)
             ->with('success', 'Solicitud actualizada.');
+    }
+
+    /**
+     * Normaliza un item del formulario: el costo estimado vacio se guarda como null.
+     */
+    private function normalizarItem(array $item): array
+    {
+        $costo = $item['costo_estimado'] ?? null;
+        $item['costo_estimado'] = ($costo === '' || $costo === null) ? null : $costo;
+        return $item;
+    }
+
+    /**
+     * RR. HH. o el solicitante anexa cotizaciones (acumulativas) y el comentario
+     * para el contador. Cada subida agrega archivos; no reemplaza los anteriores.
+     */
+    public function anexarCotizacion(Request $request, Solicitud $solicitud)
+    {
+        $this->authorize('anexarCotizacion', $solicitud);
+
+        $request->validate([
+            'cotizaciones'        => 'nullable|array',
+            'cotizaciones.*'      => 'file|mimes:pdf,jpg,jpeg,png|max:5120', // 5 MB c/u
+            'comentario_contador' => 'nullable|string|max:2000',
+        ], [], [
+            'cotizaciones.*'      => 'cotización',
+            'comentario_contador' => 'comentario',
+        ]);
+
+        $cabecera = $solicitud->solicitable;
+
+        foreach ((array) $request->file('cotizaciones') as $archivo) {
+            $cabecera->cotizaciones()->create([
+                'path'            => $archivo->store('cotizaciones', 'local'),
+                'nombre_original' => $archivo->getClientOriginalName(),
+            ]);
+        }
+
+        if ($request->filled('comentario_contador')) {
+            $cabecera->update(['comentario_contador' => $request->comentario_contador]);
+        }
+
+        return back()->with('success', 'Cotización y comentario guardados.');
+    }
+
+    /**
+     * Elimina una cotizacion individual (solo quien puede anexar).
+     */
+    public function eliminarCotizacion(Solicitud $solicitud, CotizacionOficina $cotizacion)
+    {
+        $this->authorize('anexarCotizacion', $solicitud);
+        abort_unless($cotizacion->solicitud_oficina_id === $solicitud->solicitable->id, 404);
+
+        Storage::disk('local')->delete($cotizacion->path);
+        $cotizacion->delete();
+
+        return back()->with('success', 'Cotización eliminada.');
+    }
+
+    /**
+     * Descarga controlada de una cotizacion: solo quien puede ver la solicitud.
+     */
+    public function descargarCotizacion(Solicitud $solicitud, CotizacionOficina $cotizacion)
+    {
+        $this->authorize('verDetalle', $solicitud);
+        abort_unless($cotizacion->solicitud_oficina_id === $solicitud->solicitable->id, 404);
+        abort_unless(Storage::disk('local')->exists($cotizacion->path), 404);
+
+        return Storage::disk('local')->download($cotizacion->path, $cotizacion->nombre_original);
     }
 }

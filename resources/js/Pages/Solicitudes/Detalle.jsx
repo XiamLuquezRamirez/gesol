@@ -5,7 +5,7 @@ import ModalAccion from '@/Components/ModalAccion';
 import Modal from '@/Components/Modal';
 import { formatearMoneda, formatearFecha } from '@/lib/format';
 import { useState } from 'react';
-import { usePage, router } from '@inertiajs/react';
+import { usePage, router, useForm } from '@inertiajs/react';
 import { Head } from '@inertiajs/react';
 import { ArrowLeftIcon, ArrowRightIcon, ArrowUturnLeftIcon, CheckCircleIcon, CheckIcon, XCircleIcon, CreditCardIcon, PencilSquareIcon, PrinterIcon, EnvelopeIcon, EyeIcon } from '@heroicons/react/24/outline';
 
@@ -37,6 +37,7 @@ const COLORES_ACCION = {
     pagar:     'bg-violet-600 hover:bg-violet-700',
     liquidar:  'bg-teal-600 hover:bg-teal-700',
     enviar_revision: 'bg-blue-600 hover:bg-blue-700',
+    reenviar:  'bg-yellow-600 hover:bg-yellow-700',
     cerrar:    'bg-slate-600 hover:bg-slate-700',
 };
 
@@ -49,6 +50,7 @@ function IconoAccion({ accion }) {
     switch (accion) {
         case 'enviar':
         case 'enviar_revision':
+        case 'reenviar':
             return <ArrowRightIcon className={cls} />;
         case 'devolver':
             return <ArrowUturnLeftIcon className={cls} />;
@@ -98,7 +100,7 @@ function DetalleOficina({ solicitable }) {
                                 <tr key={i} className="text-slate-700 hover:bg-slate-50">
                                     <td className="px-3 py-2.5">{item.nombre}</td>
                                     <td className="px-3 py-2.5 text-center">{item.cantidad}</td>
-                                    <td className="px-3 py-2.5 text-right">{formatearMoneda(item.costo_estimado)}</td>
+                                    <td className="px-3 py-2.5 text-right">{item.costo_estimado == null ? '—' : formatearMoneda(item.costo_estimado)}</td>
                                     <td className="px-3 py-2.5 text-right font-medium">{formatearMoneda(item.subtotal)}</td>
                                 </tr>
                             ))}
@@ -337,6 +339,119 @@ function AvisoRechazo({ transicion, rutaEditar }) {
     );
 }
 
+function SeccionCotizacion({ solicitud, cotizacion }) {
+    const { data, setData, post, processing, errors, reset } = useForm({
+        cotizaciones: [],
+        comentario_contador: cotizacion.comentario ?? '',
+    });
+
+    const archivos = cotizacion.archivos ?? [];
+
+    const submit = (e) => {
+        e.preventDefault();
+        post(route('oficina.cotizacion.anexar', solicitud.id), {
+            preserveScroll: true,
+            forceFormData: true,
+            onSuccess: () => reset('cotizaciones'),
+        });
+    };
+
+    const eliminar = (cotizacionId) => {
+        router.delete(route('oficina.cotizacion.eliminar', [solicitud.id, cotizacionId]), { preserveScroll: true });
+    };
+
+    const tieneAlgo = archivos.length > 0 || cotizacion.comentario;
+
+    return (
+        <SeccionCard titulo="Cotización y comentario para el contador">
+            {/* Vista para todos: lo ya anexado */}
+            {tieneAlgo ? (
+                <div className="space-y-3 mb-4">
+                    {cotizacion.comentario && (
+                        <div>
+                            <p className="text-xs text-slate-500 mb-0.5">Comentario</p>
+                            <p className="text-sm text-slate-800 whitespace-pre-line">{cotizacion.comentario}</p>
+                        </div>
+                    )}
+                    {archivos.length > 0 && (
+                        <div>
+                            <p className="text-xs text-slate-500 mb-1">Archivos ({archivos.length})</p>
+                            <ul className="space-y-1.5">
+                                {archivos.map((a) => (
+                                    <li key={a.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 px-3 py-2">
+                                        <a
+                                            href={route('oficina.cotizacion.descargar', [solicitud.id, a.id])}
+                                            className="inline-flex items-center gap-2 text-sm font-medium text-indigo-600 hover:underline min-w-0"
+                                        >
+                                            <ArrowRightIcon className="w-4 h-4 shrink-0" />
+                                            <span className="truncate">{a.nombre}</span>
+                                        </a>
+                                        {cotizacion.puede_anexar && (
+                                            <button
+                                                type="button"
+                                                onClick={() => eliminar(a.id)}
+                                                className="p-1 rounded text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
+                                                title="Eliminar archivo"
+                                            >
+                                                <XCircleIcon className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                </div>
+            ) : (
+                !cotizacion.puede_anexar && (
+                    <p className="text-sm text-slate-400">Aún no se ha anexado cotización ni comentario.</p>
+                )
+            )}
+
+            {/* Formulario solo para RR. HH. / solicitante mientras el estado lo permita */}
+            {cotizacion.puede_anexar && (
+                <form onSubmit={submit} className="space-y-3 border-t border-slate-100 pt-4">
+                    <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">
+                            Agregar cotización(es) (PDF o imagen — puede seleccionar varios)
+                        </label>
+                        <input
+                            type="file"
+                            multiple
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            onChange={(e) => setData('cotizaciones', Array.from(e.target.files))}
+                            className="block w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                        />
+                        {(errors.cotizaciones || errors['cotizaciones.0']) && (
+                            <p className="text-red-500 text-xs mt-1">{errors.cotizaciones ?? errors['cotizaciones.0']}</p>
+                        )}
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-slate-600 mb-1">Comentario para el contador</label>
+                        <textarea
+                            rows={3}
+                            value={data.comentario_contador}
+                            onChange={(e) => setData('comentario_contador', e.target.value)}
+                            className="w-full rounded-lg border border-slate-300 text-sm px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                            placeholder="Notas o aclaraciones sobre la cotización…"
+                        />
+                        {errors.comentario_contador && <p className="text-red-500 text-xs mt-1">{errors.comentario_contador}</p>}
+                    </div>
+                    <div className="flex justify-end">
+                        <button
+                            type="submit"
+                            disabled={processing}
+                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg disabled:opacity-50"
+                        >
+                            <CheckCircleIcon className="w-4 h-4" /> {processing ? 'Guardando…' : 'Guardar'}
+                        </button>
+                    </div>
+                </form>
+            )}
+        </SeccionCard>
+    );
+}
+
 export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidacion }) {
     const [accionActiva, setAccionActiva] = useState(null);
     const { props } = usePage();
@@ -424,6 +539,11 @@ export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidaci
                         />
                     )}
                 </SeccionCard>
+
+                {/* Cotización y comentario para el contador (solo oficina) */}
+                {esOficina && solicitud.cotizacion && (
+                    <SeccionCotizacion solicitud={solicitud} cotizacion={solicitud.cotizacion} />
+                )}
 
                 {/* Línea de tiempo */}
                 <SeccionCard titulo="Historial de movimientos">
