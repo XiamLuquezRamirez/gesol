@@ -187,4 +187,50 @@ class CotizacionOficinaTest extends TestCase
             ])
             ->assertSessionHasErrors('cotizaciones.0');
     }
+
+    public function test_solo_el_autor_puede_eliminar_su_cotizacion(): void
+    {
+        Storage::fake('local');
+        $solicitud = $this->enviada();
+
+        // RR. HH. sube la cotizacion (queda como autor).
+        $this->actingAs($this->rrhh)->post(route('oficina.cotizacion.anexar', $solicitud), [
+            'cotizaciones' => [$this->pdf('a.pdf')],
+        ]);
+        $cotiz = $solicitud->solicitable->fresh()->cotizaciones()->first();
+
+        // El lider de area (otro usuario con rol de anexar) NO puede eliminarla.
+        $this->actingAs($this->liderArea)
+            ->delete(route('oficina.cotizacion.eliminar', [$solicitud, $cotiz->id]))
+            ->assertForbidden();
+
+        // El autor si puede.
+        $this->actingAs($this->rrhh)
+            ->delete(route('oficina.cotizacion.eliminar', [$solicitud, $cotiz->id]))
+            ->assertRedirect();
+        $this->assertEquals(0, $solicitud->solicitable->fresh()->cotizaciones()->count());
+    }
+
+    public function test_actualizar_reemplaza_el_archivo_del_autor(): void
+    {
+        Storage::fake('local');
+        $solicitud = $this->enviada();
+        $this->actingAs($this->rrhh)->post(route('oficina.cotizacion.anexar', $solicitud), [
+            'cotizaciones' => [$this->pdf('viejo.pdf')],
+        ]);
+        $cotiz = $solicitud->solicitable->fresh()->cotizaciones()->first();
+        $pathViejo = $cotiz->path;
+
+        $this->actingAs($this->rrhh)
+            ->post(route('oficina.cotizacion.actualizar', [$solicitud, $cotiz->id]), [
+                'cotizacion' => $this->pdf('nuevo.pdf'),
+            ])
+            ->assertRedirect();
+
+        $cotiz->refresh();
+        $this->assertEquals('nuevo.pdf', $cotiz->nombre_original);
+        $this->assertNotEquals($pathViejo, $cotiz->path);
+        Storage::disk('local')->assertMissing($pathViejo);
+        Storage::disk('local')->assertExists($cotiz->path);
+    }
 }

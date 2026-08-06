@@ -2,7 +2,7 @@
 
 namespace App\Policies;
 
-use App\Models\{Solicitud, Usuario};
+use App\Models\{CotizacionOficina, Solicitud, Usuario};
 use App\Services\MotorWorkflow;
 
 class SolicitudPolicy
@@ -44,6 +44,17 @@ class SolicitudPolicy
         return $solicitud->tipoSolicitud->clave === 'OFI'
             && $usuario->hasAnyRole(['rrhh', 'lider_area'])
             && in_array($solicitud->estado, ['enviada', 'verificada', 'rechazada']);
+    }
+
+    /**
+     * Solo el usuario que subio la cotizacion puede eliminarla o reemplazarla,
+     * y solo mientras la solicitud de oficina no este cerrada.
+     */
+    public function gestionarCotizacion(Usuario $usuario, Solicitud $solicitud, CotizacionOficina $cotizacion): bool
+    {
+        return $solicitud->tipoSolicitud->clave === 'OFI'
+            && $cotizacion->usuario_id === $usuario->id
+            && $solicitud->estado !== 'cerrada';
     }
 
     /**
