@@ -125,6 +125,7 @@ class OficinaController extends Controller
 
         foreach ((array) $request->file('cotizaciones') as $archivo) {
             $cabecera->cotizaciones()->create([
+                'usuario_id'      => auth()->id(),
                 'path'            => $archivo->store('cotizaciones', 'local'),
                 'nombre_original' => $archivo->getClientOriginalName(),
             ]);
@@ -138,17 +139,38 @@ class OficinaController extends Controller
     }
 
     /**
-     * Elimina una cotizacion individual (solo quien puede anexar).
+     * Elimina una cotizacion individual (solo su autor, mientras no este cerrada).
      */
     public function eliminarCotizacion(Solicitud $solicitud, CotizacionOficina $cotizacion)
     {
-        $this->authorize('anexarCotizacion', $solicitud);
         abort_unless($cotizacion->solicitud_oficina_id === $solicitud->solicitable->id, 404);
+        $this->authorize('gestionarCotizacion', [$solicitud, $cotizacion]);
 
         Storage::disk('local')->delete($cotizacion->path);
         $cotizacion->delete();
 
         return back()->with('success', 'Cotización eliminada.');
+    }
+
+    /**
+     * Reemplaza el archivo de una cotizacion. Solo su autor, mientras no este cerrada.
+     */
+    public function actualizarCotizacion(Request $request, Solicitud $solicitud, CotizacionOficina $cotizacion)
+    {
+        abort_unless($cotizacion->solicitud_oficina_id === $solicitud->solicitable->id, 404);
+        $this->authorize('gestionarCotizacion', [$solicitud, $cotizacion]);
+
+        $request->validate([
+            'cotizacion' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
+        ], [], ['cotizacion' => 'cotización']);
+
+        Storage::disk('local')->delete($cotizacion->path);
+        $cotizacion->update([
+            'path'            => $request->file('cotizacion')->store('cotizaciones', 'local'),
+            'nombre_original' => $request->file('cotizacion')->getClientOriginalName(),
+        ]);
+
+        return back()->with('success', 'Cotización actualizada.');
     }
 
     /**

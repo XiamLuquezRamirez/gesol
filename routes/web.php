@@ -22,6 +22,7 @@ Route::middleware(['auth','verified'])->group(function () {
     Route::post('/oficina/{solicitud}/cotizacion', [OficinaController::class, 'anexarCotizacion'])->name('oficina.cotizacion.anexar');
     Route::get('/oficina/{solicitud}/cotizacion/{cotizacion}',    [OficinaController::class, 'descargarCotizacion'])->name('oficina.cotizacion.descargar');
     Route::delete('/oficina/{solicitud}/cotizacion/{cotizacion}', [OficinaController::class, 'eliminarCotizacion'])->name('oficina.cotizacion.eliminar');
+    Route::post('/oficina/{solicitud}/cotizacion/{cotizacion}/actualizar', [OficinaController::class, 'actualizarCotizacion'])->name('oficina.cotizacion.actualizar');
 
     // Formato de liquidación por viajero (comisión cerrada)
     Route::get('/solicitudes/{solicitud}/viajeros/{viajero}/liquidacion.pdf', [LiquidacionPdfController::class, 'descargar'])->name('liquidacion.pdf');
