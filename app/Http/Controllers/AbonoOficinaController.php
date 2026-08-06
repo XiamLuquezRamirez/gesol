@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\RegistrarAbonoOficinaRequest;
 use App\Models\{AbonoOficina, Solicitud};
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class AbonoOficinaController extends Controller
@@ -16,18 +17,26 @@ class AbonoOficinaController extends Controller
         $this->authorize('registrarAbono', $solicitud);
         $cabecera = $solicitud->solicitable;
 
-        $cabecera->abonos()->create([
-            'monto'          => $request->monto,
-            'fecha_pago'     => $request->fecha_pago,
-            'soporte_path'   => $request->file('soporte')->store('soportes_pago', 'local'),
-            'soporte_nombre' => $request->file('soporte')->getClientOriginalName(),
-            'usuario_id'     => auth()->id(),
-            'observacion'    => $request->observacion,
-        ]);
+        // El archivo se guarda fuera de la transaccion de BD.
+        $soportePath   = $request->file('soporte')->store('soportes_pago', 'local');
+        $soporteNombre = $request->file('soporte')->getClientOriginalName();
 
-        if ($solicitud->estado === 'aprobada') {
-            $solicitud->update(['estado' => 'pendiente_cierre']);
-        }
+        // El abono y el avance de estado son una sola unidad atomica.
+        DB::transaction(function () use ($cabecera, $solicitud, $request, $soportePath, $soporteNombre) {
+            $cabecera->abonos()->create([
+                'monto'          => $request->monto,
+                'fecha_pago'     => $request->fecha_pago,
+                'soporte_path'   => $soportePath,
+                'soporte_nombre' => $soporteNombre,
+                'usuario_id'     => auth()->id(),
+                'observacion'    => $request->observacion,
+            ]);
+
+            // El primer abono lleva la solicitud de 'aprobada' a 'pendiente_cierre'.
+            if ($solicitud->estado === 'aprobada') {
+                $solicitud->update(['estado' => 'pendiente_cierre']);
+            }
+        });
 
         return back()->with('success', 'Abono registrado.');
     }

@@ -115,4 +115,42 @@ class AbonoOficinaTest extends TestCase
             ->get(route('oficina.abono.soporte', [$s, $abono->id]))
             ->assertOk();
     }
+
+    public function test_eliminar_abono_borra_registro_y_soporte(): void
+    {
+        Storage::fake('local');
+        $s  = $this->aprobada();
+        $cl = Usuario::where('email','contabilidad.lider@demo.test')->firstOrFail();
+
+        $this->actingAs($cl)->post(route('oficina.abono.store', $s), [
+            'monto' => 30000, 'fecha_pago' => '2026-08-06',
+            'soporte' => UploadedFile::fake()->create('a.pdf', 100, 'application/pdf'),
+        ]);
+        $abono = $s->solicitable->fresh()->abonos()->first();
+        $path  = $abono->soporte_path;
+
+        $this->actingAs($cl)
+            ->delete(route('oficina.abono.eliminar', [$s, $abono->id]))
+            ->assertRedirect();
+
+        $this->assertEquals(0, $s->solicitable->fresh()->abonos()->count());
+        Storage::disk('local')->assertMissing($path);
+    }
+
+    public function test_no_se_registra_abono_en_estado_no_permitido(): void
+    {
+        Storage::fake('local');
+        $s  = $this->aprobada();
+        $cl = Usuario::where('email','contabilidad.lider@demo.test')->firstOrFail();
+
+        // 'verificada' no esta entre los estados que permiten registrar abonos.
+        $s->update(['estado' => 'verificada']);
+
+        $this->actingAs($cl)->post(route('oficina.abono.store', $s), [
+            'monto' => 1000, 'fecha_pago' => '2026-08-06',
+            'soporte' => UploadedFile::fake()->create('x.pdf', 100, 'application/pdf'),
+        ])->assertForbidden();
+
+        $this->assertEquals(0, $s->solicitable->fresh()->abonos()->count());
+    }
 }
