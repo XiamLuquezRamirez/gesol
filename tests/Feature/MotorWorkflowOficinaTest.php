@@ -70,17 +70,15 @@ class MotorWorkflowOficinaTest extends TestCase
         $this->motor->aplicarTransicion($solicitud->fresh(), 'aprobar', $this->contabilidadLider);
         $this->assertEquals('aprobada', $solicitud->fresh()->estado);
 
-        $this->motor->aplicarTransicion($solicitud->fresh(), 'pagar', $this->contabilidadLider, null, [
-            'valor_pagado'  => 70000,
-            'fecha_pago'    => now()->toDateString(),
-            'comprobante'   => 'COMP-001',
-        ]);
-        $this->assertEquals('pagada', $solicitud->fresh()->estado);
+        // El abono (aprobada -> pendiente_cierre) se cubre en AbonoOficinaTest;
+        // aqui llevamos el estado a pendiente_cierre para probar el cierre del motor.
+        $solicitud->update(['estado' => 'pendiente_cierre']);
 
         $this->motor->aplicarTransicion($solicitud->fresh(), 'cerrar', $this->contabilidadLider);
         $this->assertEquals('cerrada', $solicitud->fresh()->estado);
 
-        $this->assertDatabaseCount('transiciones_solicitud', 5);
+        // enviar, verificar, aprobar, cerrar = 4 transiciones registradas.
+        $this->assertDatabaseCount('transiciones_solicitud', 4);
     }
 
     public function test_rol_incorrecto_lanza_excepcion(): void
