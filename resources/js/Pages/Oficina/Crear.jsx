@@ -45,13 +45,13 @@ function TextField({ label, name, value, onChange, error, multiline, ...props })
 
 const ITEM_VACIO = { nombre: '', categoria: 'producto', cantidad: 1, costo_estimado: '', notas: '' };
 
-export default function Crear({ areas, usuarios, solicitud, editar }) {
+export default function Crear({ areas, usuarios, empleados = [], solicitud, editar }) {
     const titulo = editar ? 'Editar solicitud de oficina' : 'Nueva solicitud de oficina';
     const solicitable = solicitud?.solicitable;
 
     const { data, setData, post, put, processing, errors } = useForm({
         area_id:          solicitud?.area_id ?? '',
-        beneficiario:  solicitable?.beneficiario ?? '',
+        beneficiarios:    solicitable?.beneficiarios?.map(b => b.id) ?? [],
         urgencia:         solicitable?.urgencia ?? 'media',
         justificacion:    solicitable?.justificacion ?? '',
         items:            solicitable?.items?.map(i => ({
@@ -95,9 +95,32 @@ export default function Crear({ areas, usuarios, solicitud, editar }) {
                             <SelectField label="Departamento:" name="area_id" value={data.area_id}
                                 onChange={(v) => setData('area_id', v)}
                                 options={areas} error={errors.area_id} placeholder="Seleccionar departamento" />
-                            <TextField label="Beneficiario(s):" value={data.beneficiario}
-                                onChange={(v) => setData('beneficiario', v)}
-                                error={errors.beneficiario} />
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Beneficiario(s):</label>
+                                <div className="border border-slate-300 rounded-lg p-3 max-h-40 overflow-y-auto space-y-1">
+                                    {empleados.length === 0 && (
+                                        <p className="text-xs text-slate-400">No hay empleados registrados.</p>
+                                    )}
+                                    {empleados.map((e) => (
+                                        <label key={e.id} className="flex items-center gap-2 text-sm text-slate-700">
+                                            <input
+                                                type="checkbox"
+                                                className="rounded border-slate-300 text-indigo-600"
+                                                checked={data.beneficiarios.includes(e.id)}
+                                                onChange={(ev) => {
+                                                    const next = ev.target.checked
+                                                        ? [...data.beneficiarios, e.id]
+                                                        : data.beneficiarios.filter((id) => id !== e.id);
+                                                    setData('beneficiarios', next);
+                                                }}
+                                            />
+                                            {e.nombres} {e.apellidos}
+                                            <span className="text-xs text-slate-400">({e.identificacion})</span>
+                                        </label>
+                                    ))}
+                                </div>
+                                {errors.beneficiarios && <p className="text-red-500 text-xs mt-1">{errors.beneficiarios}</p>}
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
