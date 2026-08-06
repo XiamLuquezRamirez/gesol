@@ -80,13 +80,10 @@ class CrearSolicitudOficinaTest extends TestCase
 
     public function test_crea_solicitud_con_varios_beneficiarios(): void
     {
-        $this->seed();
-        $lider = \App\Models\Usuario::where('email','lider.area@demo.test')->firstOrFail();
-        $area  = \App\Models\Area::first();
-        $empleados = \App\Models\Empleados::take(2)->pluck('id')->all();
+        $empleados = Empleados::take(2)->pluck('id')->all();
 
-        $this->actingAs($lider)->post(route('oficina.store'), [
-            'area_id'       => $area->id,
+        $this->actingAs($this->liderArea)->post(route('oficina.store'), [
+            'area_id'       => Area::first()->id,
             'beneficiarios' => $empleados,
             'urgencia'      => 'media',
             'justificacion' => 'Material para el equipo.',
@@ -95,5 +92,35 @@ class CrearSolicitudOficinaTest extends TestCase
 
         $cabecera = \App\Models\SolicitudOficina::latest('id')->first();
         $this->assertEqualsCanonicalizing($empleados, $cabecera->beneficiarios->pluck('id')->all());
+    }
+
+    public function test_editar_sincroniza_los_beneficiarios(): void
+    {
+        // Crea la solicitud con un beneficiario.
+        $unEmpleado = Empleados::take(1)->pluck('id')->all();
+        $this->actingAs($this->liderArea)->post(route('oficina.store'), [
+            'area_id'       => Area::first()->id,
+            'beneficiarios' => $unEmpleado,
+            'urgencia'      => 'media',
+            'justificacion' => 'Version inicial.',
+            'items'         => [['nombre'=>'Mouse','categoria'=>'producto','cantidad'=>1,'costo_estimado'=>1000,'notas'=>'']],
+        ])->assertRedirect();
+
+        $solicitud = \App\Models\Solicitud::latest('id')->first();
+        $otrosDos  = Empleados::take(2)->pluck('id')->all();
+
+        // Al editar, se reemplaza el conjunto de beneficiarios por los dos nuevos.
+        $this->actingAs($this->liderArea)->put(route('oficina.update', $solicitud), [
+            'area_id'       => Area::first()->id,
+            'beneficiarios' => $otrosDos,
+            'urgencia'      => 'alta',
+            'justificacion' => 'Version editada.',
+            'items'         => [['nombre'=>'Teclado','categoria'=>'producto','cantidad'=>1,'costo_estimado'=>2000,'notas'=>'']],
+        ])->assertRedirect();
+
+        $this->assertEqualsCanonicalizing(
+            $otrosDos,
+            $solicitud->solicitable->fresh()->beneficiarios->pluck('id')->all()
+        );
     }
 }
