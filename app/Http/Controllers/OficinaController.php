@@ -2,7 +2,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\GuardarSolicitudOficinaRequest;
-use App\Models\{Area, CotizacionOficina, Solicitud, SolicitudOficina, ItemOficina, TipoSolicitud, Usuario};
+use App\Models\{Area, CotizacionOficina, Empleados, Solicitud, SolicitudOficina, ItemOficina, TipoSolicitud, Usuario};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -14,8 +14,9 @@ class OficinaController extends Controller
     {
         $this->authorize('create', Solicitud::class);
         return Inertia::render('Oficina/Crear', [
-            'areas'    => Area::orderBy('nombre')->get(['id','nombre']),
-            'usuarios' => Usuario::orderBy('name')->get(['id','name']),
+            'areas'     => Area::orderBy('nombre')->get(['id','nombre']),
+            'usuarios'  => Usuario::orderBy('name')->get(['id','name']),
+            'empleados' => Empleados::orderBy('nombres')->get(['id','nombres','apellidos','identificacion']),
         ]);
     }
 
@@ -28,10 +29,11 @@ class OficinaController extends Controller
 
         $solicitud = DB::transaction(function () use ($request, $tipo) {
             $cabecera = SolicitudOficina::create([
-                'beneficiario' => $request->beneficiario,
+                'beneficiario' => '',
                 'urgencia'     => $request->urgencia,
                 'justificacion'=> $request->justificacion,
             ]);
+            $cabecera->beneficiarios()->sync($request->beneficiarios);
 
             $solicitud = Solicitud::create([
                 'tipo_solicitud_id' => $tipo->id,
@@ -60,11 +62,12 @@ class OficinaController extends Controller
     public function edit(Solicitud $solicitud)
     {
         $this->authorize('editar', $solicitud);
-        $solicitud->load('solicitable.items');
+        $solicitud->load('solicitable.items', 'solicitable.beneficiarios');
         return Inertia::render('Oficina/Crear', [
             'solicitud' => $solicitud,
             'areas'     => Area::orderBy('nombre')->get(['id','nombre']),
             'usuarios'  => Usuario::orderBy('name')->get(['id','name']),
+            'empleados' => Empleados::orderBy('nombres')->get(['id','nombres','apellidos','identificacion']),
             'editar'    => true,
         ]);
     }
@@ -77,10 +80,11 @@ class OficinaController extends Controller
 
         DB::transaction(function () use ($request, $cabecera) {
             $cabecera->update([
-                'beneficiario' => $request->beneficiario,
-                'urgencia'        => $request->urgencia,
-                'justificacion'   => $request->justificacion,
+                'beneficiario'  => '',
+                'urgencia'      => $request->urgencia,
+                'justificacion' => $request->justificacion,
             ]);
+            $cabecera->beneficiarios()->sync($request->beneficiarios);
             $cabecera->items()->delete();
             foreach ($request->items as $item) {
                 ItemOficina::create(array_merge($this->normalizarItem($item), [

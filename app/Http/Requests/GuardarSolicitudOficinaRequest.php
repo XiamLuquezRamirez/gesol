@@ -14,7 +14,8 @@ class GuardarSolicitudOficinaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'beneficiario'           => 'required|string|max:255',
+            'beneficiarios'          => 'required|array|min:1',
+            'beneficiarios.*'        => 'exists:empleados,id',
             'area_id'                => 'required|exists:areas,id',
             'urgencia'               => 'required|in:baja,media,alta',
             'justificacion'          => 'required|string|max:2000',
@@ -34,7 +35,8 @@ class GuardarSolicitudOficinaRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'beneficiario'           => 'beneficiario(s)',
+            'beneficiarios'          => 'beneficiarios',
+            'beneficiarios.*'        => 'beneficiario',
             'area_id'                => 'departamento',
             'urgencia'               => 'urgencia',
             'justificacion'          => 'justificación',

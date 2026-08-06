@@ -1,7 +1,7 @@
 <?php
 namespace Tests\Feature;
 
-use App\Models\{Area, Usuario};
+use App\Models\{Area, Empleados, Usuario};
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -22,7 +22,7 @@ class CrearSolicitudOficinaTest extends TestCase
     {
         return [
             'area_id'       => Area::first()->id,
-            'beneficiario'  => 'Juan Pérez',
+            'beneficiarios' => Empleados::take(1)->pluck('id')->all(),
             'urgencia'      => 'media',
             'justificacion' => 'Se requieren insumos.',
             'items'         => [array_merge([
@@ -61,20 +61,39 @@ class CrearSolicitudOficinaTest extends TestCase
 
     public function test_campos_obligatorios_muestran_nombre_legible(): void
     {
-        // Falta el departamento (area_id) y el beneficiario.
+        // Falta el departamento (area_id) y los beneficiarios.
         $payload = $this->payloadBase();
-        unset($payload['area_id'], $payload['beneficiario']);
+        unset($payload['area_id'], $payload['beneficiarios']);
 
         $response = $this->actingAs($this->liderArea)
             ->from(route('oficina.crear'))
             ->post(route('oficina.store'), $payload);
 
-        $response->assertSessionHasErrors(['area_id', 'beneficiario']);
+        $response->assertSessionHasErrors(['area_id', 'beneficiarios']);
 
         $errores = session('errors');
         // El mensaje usa el nombre legible, no el nombre tecnico del campo.
         $this->assertStringContainsString('departamento', mb_strtolower($errores->first('area_id')));
         $this->assertStringNotContainsString('area_id', $errores->first('area_id'));
-        $this->assertStringContainsString('beneficiario', mb_strtolower($errores->first('beneficiario')));
+        $this->assertStringContainsString('beneficiario', mb_strtolower($errores->first('beneficiarios')));
+    }
+
+    public function test_crea_solicitud_con_varios_beneficiarios(): void
+    {
+        $this->seed();
+        $lider = \App\Models\Usuario::where('email','lider.area@demo.test')->firstOrFail();
+        $area  = \App\Models\Area::first();
+        $empleados = \App\Models\Empleados::take(2)->pluck('id')->all();
+
+        $this->actingAs($lider)->post(route('oficina.store'), [
+            'area_id'       => $area->id,
+            'beneficiarios' => $empleados,
+            'urgencia'      => 'media',
+            'justificacion' => 'Material para el equipo.',
+            'items'         => [['nombre'=>'Mouse','categoria'=>'producto','cantidad'=>1,'costo_estimado'=>1000,'notas'=>'']],
+        ])->assertRedirect();
+
+        $cabecera = \App\Models\SolicitudOficina::latest('id')->first();
+        $this->assertEqualsCanonicalizing($empleados, $cabecera->beneficiarios->pluck('id')->all());
     }
 }
