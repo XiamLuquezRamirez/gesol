@@ -25,6 +25,22 @@ class SolicitudOficina extends Model
         return $this->belongsToMany(Empleados::class, 'beneficiarios_oficina', 'solicitud_oficina_id', 'empleado_id')
             ->withTimestamps();
     }
+
+    public function abonos()
+    {
+        return $this->hasMany(AbonoOficina::class, 'solicitud_oficina_id');
+    }
+
+    public function totalPagado(): float
+    {
+        return (float) $this->abonos()->sum('monto');
+    }
+
+    public function saldo(): float
+    {
+        return (float) $this->total - $this->totalPagado();
+    }
+
     public function solicitud()
     {
         return $this->morphOne(Solicitud::class, 'solicitable');
