@@ -1,0 +1,60 @@
+<?php
+namespace App\Http\Controllers;
+
+use App\Http\Requests\RegistrarAbonoOficinaRequest;
+use App\Models\{AbonoOficina, Solicitud};
+use Illuminate\Support\Facades\Storage;
+
+class AbonoOficinaController extends Controller
+{
+    /**
+     * Registra un abono. Al primer abono, la solicitud pasa de 'aprobada'
+     * a 'pendiente_cierre' automaticamente.
+     */
+    public function store(RegistrarAbonoOficinaRequest $request, Solicitud $solicitud)
+    {
+        $this->authorize('registrarAbono', $solicitud);
+        $cabecera = $solicitud->solicitable;
+
+        $cabecera->abonos()->create([
+            'monto'          => $request->monto,
+            'fecha_pago'     => $request->fecha_pago,
+            'soporte_path'   => $request->file('soporte')->store('soportes_pago', 'local'),
+            'soporte_nombre' => $request->file('soporte')->getClientOriginalName(),
+            'usuario_id'     => auth()->id(),
+            'observacion'    => $request->observacion,
+        ]);
+
+        if ($solicitud->estado === 'aprobada') {
+            $solicitud->update(['estado' => 'pendiente_cierre']);
+        }
+
+        return back()->with('success', 'Abono registrado.');
+    }
+
+    /**
+     * Elimina un abono (correccion). Solo mientras la solicitud no este cerrada.
+     */
+    public function destroy(Solicitud $solicitud, AbonoOficina $abono)
+    {
+        abort_unless($abono->solicitud_oficina_id === $solicitud->solicitable->id, 404);
+        $this->authorize('registrarAbono', $solicitud);
+
+        Storage::disk('local')->delete($abono->soporte_path);
+        $abono->delete();
+
+        return back()->with('success', 'Abono eliminado.');
+    }
+
+    /**
+     * Descarga controlada del soporte de pago: cualquiera que pueda ver el detalle.
+     */
+    public function descargarSoporte(Solicitud $solicitud, AbonoOficina $abono)
+    {
+        $this->authorize('verDetalle', $solicitud);
+        abort_unless($abono->solicitud_oficina_id === $solicitud->solicitable->id, 404);
+        abort_unless(Storage::disk('local')->exists($abono->soporte_path), 404);
+
+        return Storage::disk('local')->download($abono->soporte_path, $abono->soporte_nombre);
+    }
+}

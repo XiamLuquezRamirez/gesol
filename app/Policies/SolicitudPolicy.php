@@ -58,6 +58,17 @@ class SolicitudPolicy
     }
 
     /**
+     * El lider de contabilidad registra abonos mientras la solicitud de oficina
+     * este aprobada (en gerencia) o pendiente de cierre. Cerrada => inmutable.
+     */
+    public function registrarAbono(Usuario $usuario, Solicitud $solicitud): bool
+    {
+        return $solicitud->tipoSolicitud->clave === 'OFI'
+            && $usuario->hasRole('contabilidad_lider')
+            && in_array($solicitud->estado, ['aprobada', 'pendiente_cierre']);
+    }
+
+    /**
      * El contador puede trabajar la liquidacion de una comision de viaticos:
      * en 'enviada' presenta el informe por primera vez, y en 'liquidada' lo corrige
      * antes de enviarlo al lider de contabilidad.

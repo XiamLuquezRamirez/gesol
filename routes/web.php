@@ -1,5 +1,5 @@
 <?php
-use App\Http\Controllers\{ComisionesRrhhController, InicioController, LiquidacionPdfController, NotificacionController, OficinaController, ParametrosController, ProfileController, SolicitudController, UsuarioController, ViaticosController};
+use App\Http\Controllers\{AbonoOficinaController, ComisionesRrhhController, InicioController, LiquidacionPdfController, NotificacionController, OficinaController, ParametrosController, ProfileController, SolicitudController, UsuarioController, ViaticosController};
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -23,6 +23,10 @@ Route::middleware(['auth','verified'])->group(function () {
     Route::get('/oficina/{solicitud}/cotizacion/{cotizacion}',    [OficinaController::class, 'descargarCotizacion'])->name('oficina.cotizacion.descargar');
     Route::delete('/oficina/{solicitud}/cotizacion/{cotizacion}', [OficinaController::class, 'eliminarCotizacion'])->name('oficina.cotizacion.eliminar');
     Route::post('/oficina/{solicitud}/cotizacion/{cotizacion}/actualizar', [OficinaController::class, 'actualizarCotizacion'])->name('oficina.cotizacion.actualizar');
+    // Abonos (pagos parciales)
+    Route::post('/oficina/{solicitud}/abono',                 [AbonoOficinaController::class, 'store'])->name('oficina.abono.store');
+    Route::delete('/oficina/{solicitud}/abono/{abono}',       [AbonoOficinaController::class, 'destroy'])->name('oficina.abono.eliminar');
+    Route::get('/oficina/{solicitud}/abono/{abono}/soporte',  [AbonoOficinaController::class, 'descargarSoporte'])->name('oficina.abono.soporte');
 
     // Formato de liquidación por viajero (comisión cerrada)
     Route::get('/solicitudes/{solicitud}/viajeros/{viajero}/liquidacion.pdf', [LiquidacionPdfController::class, 'descargar'])->name('liquidacion.pdf');
