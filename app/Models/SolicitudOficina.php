@@ -19,6 +19,12 @@ class SolicitudOficina extends Model
     {
         return $this->hasMany(CotizacionOficina::class, 'solicitud_oficina_id');
     }
+
+    public function beneficiarios()
+    {
+        return $this->belongsToMany(Empleados::class, 'beneficiarios_oficina', 'solicitud_oficina_id', 'empleado_id')
+            ->withTimestamps();
+    }
     public function solicitud()
     {
         return $this->morphOne(Solicitud::class, 'solicitable');
