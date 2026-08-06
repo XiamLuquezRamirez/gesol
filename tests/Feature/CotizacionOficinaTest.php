@@ -233,4 +233,53 @@ class CotizacionOficinaTest extends TestCase
         Storage::disk('local')->assertMissing($pathViejo);
         Storage::disk('local')->assertExists($cotiz->path);
     }
+
+    public function test_no_autor_no_puede_actualizar_la_cotizacion(): void
+    {
+        Storage::fake('local');
+        $solicitud = $this->enviada();
+
+        // RR. HH. sube la cotizacion (queda como autor).
+        $this->actingAs($this->rrhh)->post(route('oficina.cotizacion.anexar', $solicitud), [
+            'cotizaciones' => [$this->pdf('a.pdf')],
+        ]);
+        $cotiz = $solicitud->solicitable->fresh()->cotizaciones()->first();
+
+        // Otro usuario (no autor) no puede reemplazar el archivo.
+        $this->actingAs($this->liderArea)
+            ->post(route('oficina.cotizacion.actualizar', [$solicitud, $cotiz->id]), [
+                'cotizacion' => $this->pdf('ajeno.pdf'),
+            ])
+            ->assertForbidden();
+
+        // El archivo original sigue intacto.
+        Storage::disk('local')->assertExists($cotiz->fresh()->path);
+    }
+
+    public function test_ni_el_autor_puede_gestionar_si_la_solicitud_esta_cerrada(): void
+    {
+        Storage::fake('local');
+        $solicitud = $this->enviada();
+
+        // RR. HH. sube la cotizacion (queda como autor).
+        $this->actingAs($this->rrhh)->post(route('oficina.cotizacion.anexar', $solicitud), [
+            'cotizaciones' => [$this->pdf('a.pdf')],
+        ]);
+        $cotiz = $solicitud->solicitable->fresh()->cotizaciones()->first();
+
+        // Una vez cerrada, ni el autor puede eliminar ni actualizar la cotizacion.
+        $solicitud->update(['estado' => 'cerrada']);
+
+        $this->actingAs($this->rrhh)
+            ->delete(route('oficina.cotizacion.eliminar', [$solicitud, $cotiz->id]))
+            ->assertForbidden();
+
+        $this->actingAs($this->rrhh)
+            ->post(route('oficina.cotizacion.actualizar', [$solicitud, $cotiz->id]), [
+                'cotizacion' => $this->pdf('nuevo.pdf'),
+            ])
+            ->assertForbidden();
+
+        $this->assertEquals(1, $solicitud->solicitable->fresh()->cotizaciones()->count());
+    }
 }
