@@ -113,7 +113,9 @@ class ComisionesRrhhTest extends TestCase
         $this->motor->aplicarTransicion($solicitud, 'enviar', $liderArea);
         $this->motor->aplicarTransicion($solicitud->fresh(), 'verificar', $this->rrhh);
         $this->motor->aplicarTransicion($solicitud->fresh(), 'aprobar', $this->contabilidadLider);
-        $this->motor->aplicarTransicion($solicitud->fresh(), 'pagar', $this->contabilidadLider);
+        // El pago se registra por abonos (fuera del motor); ese primer abono lleva
+        // la solicitud a 'pendiente_cierre'. Aqui simulamos ese estado directamente.
+        $solicitud->update(['estado' => 'pendiente_cierre']);
 
         $this->actingAs($this->contabilidadLider)
             ->post(route('solicitudes.transicion', $solicitud), ['accion' => 'cerrar']);
