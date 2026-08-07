@@ -25,11 +25,16 @@ class SolicitudController extends Controller
                 ->filter(fn($s) => !empty($this->motor->accionesDisponibles($s, $usuario)))
                 ->values();
         } elseif ($tab === 'pendientes_cierre') {
-            $solicitudes = Solicitud::with(['tipoSolicitud','solicitante'])
-                ->whereHas('tipoSolicitud', fn($q) => $q->where('clave', 'OFI'))
-                ->where('estado', 'pendiente_cierre')
-                ->latest()
-                ->get();
+            // Cola de solicitudes de oficina listas para cerrar. Solo la ven los roles
+            // que pueden cerrarlas (contabilidad y lider de area); para el resto va vacia.
+            $puedeVerCola = $usuario->hasAnyRole(['contabilidad_lider', 'lider_area']);
+            $solicitudes = $puedeVerCola
+                ? Solicitud::with(['tipoSolicitud','solicitante'])
+                    ->whereHas('tipoSolicitud', fn($q) => $q->where('clave', 'OFI'))
+                    ->where('estado', 'pendiente_cierre')
+                    ->latest()
+                    ->get()
+                : collect();
         } elseif ($tab === 'revisadas') {
             // Solicitudes donde el usuario ejecuto al menos una transicion:
             // conserva la trazabilidad de lo que reviso, en cualquier estado.
