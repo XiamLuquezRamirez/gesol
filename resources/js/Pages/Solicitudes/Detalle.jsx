@@ -398,12 +398,15 @@ function SeccionCotizacion({ solicitud, cotizacion }) {
                                                         className="hidden"
                                                         accept=".pdf,.jpg,.jpeg,.png"
                                                         onChange={(e) => {
-                                                            if (!e.target.files[0]) return;
+                                                            const archivo = e.target.files[0];
+                                                            if (!archivo) return;
                                                             router.post(
                                                                 route('oficina.cotizacion.actualizar', [solicitud.id, a.id]),
-                                                                { cotizacion: e.target.files[0] },
+                                                                { cotizacion: archivo },
                                                                 { forceFormData: true, preserveScroll: true }
                                                             );
+                                                            // Limpiar el input para poder re-subir el mismo archivo si hace falta.
+                                                            e.target.value = '';
                                                         }}
                                                     />
                                                 </label>
