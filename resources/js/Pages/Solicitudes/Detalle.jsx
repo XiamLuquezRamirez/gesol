@@ -476,6 +476,101 @@ function SeccionCotizacion({ solicitud, cotizacion }) {
     );
 }
 
+function SeccionPagos({ solicitud }) {
+    const pagos = solicitud.pagos;
+    const { data, setData, post, processing, errors, reset } = useForm({
+        monto: '', fecha_pago: '', soporte: null, observacion: '',
+    });
+
+    if (!pagos) return null;
+
+    const registrar = (e) => {
+        e.preventDefault();
+        post(route('oficina.abono.store', solicitud.id), {
+            forceFormData: true, preserveScroll: true,
+            onSuccess: () => reset(),
+        });
+    };
+
+    const haySaldo = pagos.saldo > 0;
+
+    return (
+        <div className="bg-white rounded-xl border border-slate-200 p-5 mt-6">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-4">Pagos</h3>
+
+            <div className="grid grid-cols-3 gap-4 mb-4">
+                <div><p className="text-xs text-slate-500">Total</p><p className="text-sm font-semibold text-slate-800">{formatearMoneda(pagos.total)}</p></div>
+                <div><p className="text-xs text-slate-500">Pagado</p><p className="text-sm font-semibold text-emerald-700">{formatearMoneda(pagos.pagado)}</p></div>
+                <div><p className="text-xs text-slate-500">Saldo</p><p className={`text-sm font-semibold ${haySaldo ? 'text-amber-700' : 'text-slate-500'}`}>{formatearMoneda(pagos.saldo)}</p></div>
+            </div>
+
+            {pagos.abonos.length > 0 && (
+                <ul className="mb-4 divide-y divide-slate-50">
+                    {pagos.abonos.map((ab) => (
+                        <li key={ab.id} className="flex items-center justify-between gap-2 py-2">
+                            <div className="min-w-0">
+                                <p className="text-sm text-slate-800">{formatearMoneda(ab.monto)} · {ab.fecha_pago}</p>
+                                <p className="text-xs text-slate-400">
+                                    {ab.autor}{ab.observacion ? ` — ${ab.observacion}` : ''}
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0">
+                                <a href={route('oficina.abono.soporte', [solicitud.id, ab.id])} className="text-xs text-indigo-600 hover:underline">Soporte</a>
+                                {pagos.puede_registrar && (
+                                    <button type="button"
+                                        onClick={() => router.delete(route('oficina.abono.eliminar', [solicitud.id, ab.id]), { preserveScroll: true })}
+                                        className="text-xs text-red-500 hover:underline">Eliminar</button>
+                                )}
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            )}
+
+            {pagos.puede_registrar && (
+                <form onSubmit={registrar} className="border-t border-slate-100 pt-4 space-y-3">
+                    <p className="text-xs font-medium text-slate-600">Registrar abono</p>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-xs text-slate-600 mb-1">Monto</label>
+                            <input type="number" step="0.01" min="0.01" value={data.monto}
+                                onChange={(e) => setData('monto', e.target.value)}
+                                className="w-full rounded-lg border-slate-300 text-sm" />
+                            {errors.monto && <p className="text-red-500 text-xs mt-1">{errors.monto}</p>}
+                        </div>
+                        <div>
+                            <label className="block text-xs text-slate-600 mb-1">Fecha de pago</label>
+                            <input type="date" value={data.fecha_pago}
+                                onChange={(e) => setData('fecha_pago', e.target.value)}
+                                className="w-full rounded-lg border-slate-300 text-sm" />
+                            {errors.fecha_pago && <p className="text-red-500 text-xs mt-1">{errors.fecha_pago}</p>}
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs text-slate-600 mb-1">Soporte de pago (PDF/imagen)</label>
+                        <input type="file" accept=".pdf,.jpg,.jpeg,.png"
+                            onChange={(e) => setData('soporte', e.target.files[0])}
+                            className="block w-full text-sm text-slate-600" />
+                        {errors.soporte && <p className="text-red-500 text-xs mt-1">{errors.soporte}</p>}
+                    </div>
+                    <div>
+                        <label className="block text-xs text-slate-600 mb-1">Observación (opcional)</label>
+                        <input type="text" value={data.observacion}
+                            onChange={(e) => setData('observacion', e.target.value)}
+                            className="w-full rounded-lg border-slate-300 text-sm" />
+                    </div>
+                    <div className="flex justify-end">
+                        <button type="submit" disabled={processing}
+                            className="px-4 py-2 text-sm text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50">
+                            Registrar abono
+                        </button>
+                    </div>
+                </form>
+            )}
+        </div>
+    );
+}
+
 export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidacion }) {
     const [accionActiva, setAccionActiva] = useState(null);
     const { props } = usePage();
@@ -568,6 +663,9 @@ export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidaci
                 {esOficina && solicitud.cotizacion && (
                     <SeccionCotizacion solicitud={solicitud} cotizacion={solicitud.cotizacion} />
                 )}
+
+                {/* Pagos (abonos) — solo oficina */}
+                {esOficina && solicitud.pagos && <SeccionPagos solicitud={solicitud} />}
 
                 {/* Línea de tiempo */}
                 <SeccionCard titulo="Historial de movimientos">
