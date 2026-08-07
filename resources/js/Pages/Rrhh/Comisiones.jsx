@@ -201,6 +201,7 @@ export default function Comisiones({ comisionados, oficina = [], filtros }) {
                         {oficina.length === 0 ? (
                             <p className="text-sm text-slate-400 text-center py-10">No hay solicitudes de oficina pagadas.</p>
                         ) : (
+                            <div className="overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
                                     <tr>
@@ -237,6 +238,7 @@ export default function Comisiones({ comisionados, oficina = [], filtros }) {
                                     ))}
                                 </tbody>
                             </table>
+                            </div>
                         )}
                     </div>
                 )}
