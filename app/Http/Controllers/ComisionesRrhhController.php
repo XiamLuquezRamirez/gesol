@@ -1,7 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
-use App\Models\ViajeroComision;
+use App\Models\{Solicitud, ViajeroComision};
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -54,8 +54,33 @@ class ComisionesRrhhController extends Controller
             ];
         })->values();
 
+        $oficina = Solicitud::with(['solicitante', 'solicitable.abonos', 'solicitable.beneficiarios'])
+            ->whereHas('tipoSolicitud', fn ($q) => $q->where('clave', 'OFI'))
+            ->whereIn('estado', ['pendiente_cierre', 'cerrada'])
+            ->latest()
+            ->get()
+            ->map(function ($s) {
+                $c = $s->solicitable;
+                return [
+                    'id'            => $s->id,
+                    'radicado'      => $s->radicado,
+                    'estado'        => $s->estado,
+                    'solicitante'   => $s->solicitante->name,
+                    'beneficiarios' => $c->beneficiarios->map(fn ($e) => trim($e->nombres.' '.$e->apellidos))->values(),
+                    'total'         => (float) $c->total,
+                    'pagado'        => $c->totalPagado(),
+                    'saldo'         => $c->saldo(),
+                    'abonos'        => $c->abonos->map(fn ($a) => [
+                        'id'         => $a->id,
+                        'monto'      => (float) $a->monto,
+                        'fecha_pago' => optional($a->fecha_pago)->toDateString(),
+                    ])->values(),
+                ];
+            });
+
         return Inertia::render('Rrhh/Comisiones', [
             'comisionados' => $comisionados,
+            'oficina'      => $oficina,
             'filtros'      => ['desde' => $desde, 'hasta' => $hasta, 'nombre' => $nombre, 'comision' => $comision],
         ]);
     }
