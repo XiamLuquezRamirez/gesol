@@ -10,12 +10,13 @@ const etiquetaRubro = (r) =>
 
 const ETIQUETAS_PAGO = { efectivo: 'Efectivo', transferencia: 'Transferencia' };
 
-export default function Comisiones({ comisionados, filtros }) {
+export default function Comisiones({ comisionados, oficina = [], filtros }) {
     const [desde, setDesde] = useState(filtros?.desde ?? '');
     const [hasta, setHasta] = useState(filtros?.hasta ?? '');
     const [nombre, setNombre] = useState(filtros?.nombre ?? '');
     const [comision, setComision] = useState(filtros?.comision ?? '');
     const [detalle, setDetalle] = useState(null); // comisionado seleccionado para ver rubros
+    const [pestana, setPestana] = useState('comisiones'); // 'comisiones' | 'oficina'
     const aplicar = (e) => {
         e?.preventDefault();
         router.get(route('rrhh.comisiones'),
@@ -57,9 +58,27 @@ export default function Comisiones({ comisionados, filtros }) {
                     </p>
                 </div>
 
+                {/* Pestañas */}
+                <div className="flex gap-1 border-b border-slate-200">
+                    {[
+                        { key: 'comisiones', label: 'Personal en comisión' },
+                        { key: 'oficina',    label: 'Solicitudes de oficina' },
+                    ].map(({ key, label }) => (
+                        <button key={key} onClick={() => setPestana(key)}
+                            className={[
+                                'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
+                                pestana === key ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700',
+                            ].join(' ')}>
+                            {label}
+                        </button>
+                    ))}
+                </div>
+
+                {pestana === 'comisiones' && (
+                <>
                 {/* Filtros */}
                 <form onSubmit={aplicar} className="bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap items-end gap-4">
-                    
+
                     {/* Filtro por nombre del empleado */}
                     <div>
                         <label className="block text-xs font-medium text-slate-600 mb-1">Nombre del empleado</label>
@@ -174,6 +193,53 @@ export default function Comisiones({ comisionados, filtros }) {
                         </div>
                     )}
                 </div>
+                </>
+                )}
+
+                {pestana === 'oficina' && (
+                    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                        {oficina.length === 0 ? (
+                            <p className="text-sm text-slate-400 text-center py-10">No hay solicitudes de oficina pagadas.</p>
+                        ) : (
+                            <table className="w-full text-sm">
+                                <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+                                    <tr>
+                                        <th className="text-left px-4 py-2">Radicado</th>
+                                        <th className="text-left px-4 py-2">Beneficiarios</th>
+                                        <th className="text-right px-4 py-2">Total</th>
+                                        <th className="text-right px-4 py-2">Pagado</th>
+                                        <th className="text-right px-4 py-2">Saldo</th>
+                                        <th className="text-left px-4 py-2">Estado</th>
+                                        <th className="text-left px-4 py-2">Soportes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {oficina.map((o) => (
+                                        <tr key={o.id} className="border-t border-slate-100">
+                                            <td className="px-4 py-2 font-mono text-xs">{o.radicado}</td>
+                                            <td className="px-4 py-2">{o.beneficiarios.join(', ') || '—'}</td>
+                                            <td className="px-4 py-2 text-right">{formatearMoneda(o.total)}</td>
+                                            <td className="px-4 py-2 text-right text-emerald-700">{formatearMoneda(o.pagado)}</td>
+                                            <td className="px-4 py-2 text-right">{formatearMoneda(o.saldo)}</td>
+                                            <td className="px-4 py-2"><BadgeEstado estado={o.estado} /></td>
+                                            <td className="px-4 py-2">
+                                                <div className="flex flex-col gap-0.5">
+                                                    {o.abonos.map((ab) => (
+                                                        <a key={ab.id}
+                                                            href={route('oficina.abono.soporte', [o.id, ab.id])}
+                                                            className="text-xs text-indigo-600 hover:underline">
+                                                            {formatearMoneda(ab.monto)} · {ab.fecha_pago}
+                                                        </a>
+                                                    ))}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
+                )}
 
             </div>
 
