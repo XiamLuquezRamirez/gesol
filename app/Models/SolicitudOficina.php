@@ -33,7 +33,13 @@ class SolicitudOficina extends Model
 
     public function totalPagado(): float
     {
-        return (float) $this->abonos()->sum('monto');
+        // Reusa la coleccion ya cargada (evita una query SUM por fila en listados
+        // con eager loading); solo agrega en BD si la relacion no viene cargada.
+        $suma = $this->relationLoaded('abonos')
+            ? $this->abonos->sum('monto')
+            : $this->abonos()->sum('monto');
+
+        return (float) $suma;
     }
 
     public function saldo(): float
