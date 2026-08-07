@@ -379,22 +379,43 @@ function SeccionCotizacion({ solicitud, cotizacion }) {
                             <ul className="space-y-1.5">
                                 {archivos.map((a) => (
                                     <li key={a.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 px-3 py-2">
-                                        <a
-                                            href={route('oficina.cotizacion.descargar', [solicitud.id, a.id])}
-                                            className="inline-flex items-center gap-2 text-sm font-medium text-indigo-600 hover:underline min-w-0"
-                                        >
-                                            <ArrowRightIcon className="w-4 h-4 shrink-0" />
-                                            <span className="truncate">{a.nombre}</span>
-                                        </a>
-                                        {cotizacion.puede_anexar && (
-                                            <button
-                                                type="button"
-                                                onClick={() => eliminar(a.id)}
-                                                className="p-1 rounded text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
-                                                title="Eliminar archivo"
+                                        <div className="min-w-0">
+                                            <a
+                                                href={route('oficina.cotizacion.descargar', [solicitud.id, a.id])}
+                                                className="inline-flex items-center gap-2 text-sm font-medium text-indigo-600 hover:underline min-w-0"
                                             >
-                                                <XCircleIcon className="w-4 h-4" />
-                                            </button>
+                                                <ArrowRightIcon className="w-4 h-4 shrink-0" />
+                                                <span className="truncate">{a.nombre}</span>
+                                            </a>
+                                            {a.autor && <p className="text-xs text-slate-400 pl-6">Subido por {a.autor}</p>}
+                                        </div>
+                                        {a.puede_gestionar && (
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                <label className="text-xs text-indigo-600 hover:underline cursor-pointer">
+                                                    Actualizar
+                                                    <input
+                                                        type="file"
+                                                        className="hidden"
+                                                        accept=".pdf,.jpg,.jpeg,.png"
+                                                        onChange={(e) => {
+                                                            if (!e.target.files[0]) return;
+                                                            router.post(
+                                                                route('oficina.cotizacion.actualizar', [solicitud.id, a.id]),
+                                                                { cotizacion: e.target.files[0] },
+                                                                { forceFormData: true, preserveScroll: true }
+                                                            );
+                                                        }}
+                                                    />
+                                                </label>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => eliminar(a.id)}
+                                                    className="p-1 rounded text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
+                                                    title="Eliminar archivo"
+                                                >
+                                                    <XCircleIcon className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         )}
                                     </li>
                                 ))}
