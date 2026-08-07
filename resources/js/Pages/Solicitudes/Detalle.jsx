@@ -4,7 +4,7 @@ import LineaTiempo from '@/Components/LineaTiempo';
 import ModalAccion from '@/Components/ModalAccion';
 import Modal from '@/Components/Modal';
 import { formatearMoneda, formatearFecha } from '@/lib/format';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { usePage, router, useForm } from '@inertiajs/react';
 import { Head } from '@inertiajs/react';
 import { ArrowLeftIcon, ArrowRightIcon, ArrowUturnLeftIcon, CheckCircleIcon, CheckIcon, XCircleIcon, CreditCardIcon, PencilSquareIcon, PrinterIcon, EnvelopeIcon, EyeIcon } from '@heroicons/react/24/outline';
@@ -72,12 +72,15 @@ function IconoAccion({ accion }) {
 
 const ETIQUETAS_URGENCIA = { alta: 'Alta', media: 'Media', baja: 'Baja' };
 
-function DetalleOficina({ solicitable }) {
+function DetalleOficina({ solicitable, beneficiarios = [] }) {
     if (!solicitable) return null;
+    const nombresBeneficiarios = beneficiarios.length > 0
+        ? beneficiarios.map((b) => b.nombre).join(', ')
+        : (solicitable.beneficiario || null);
     return (
         <>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-4 mb-5">
-                <Campo label="Beneficiario" valor={solicitable.beneficiario} />
+                <Campo label="Beneficiario(s)" valor={nombresBeneficiarios} />
                 <Campo label="Urgencia" valor={ETIQUETAS_URGENCIA[solicitable.urgencia] ?? solicitable.urgencia} />
                 <div className="col-span-2">
                     <Campo label="Justificación" valor={solicitable.justificacion} />
@@ -478,6 +481,7 @@ function SeccionCotizacion({ solicitud, cotizacion }) {
 
 function SeccionPagos({ solicitud }) {
     const pagos = solicitud.pagos;
+    const soporteRef = useRef(null);
     const { data, setData, post, processing, errors, reset } = useForm({
         monto: '', fecha_pago: '', soporte: null, observacion: '',
     });
@@ -488,7 +492,11 @@ function SeccionPagos({ solicitud }) {
         e.preventDefault();
         post(route('oficina.abono.store', solicitud.id), {
             forceFormData: true, preserveScroll: true,
-            onSuccess: () => reset(),
+            onSuccess: () => {
+                reset();
+                // Limpiar el input de archivo (no controlado por React).
+                if (soporteRef.current) soporteRef.current.value = '';
+            },
         });
     };
 
@@ -548,7 +556,7 @@ function SeccionPagos({ solicitud }) {
                     </div>
                     <div>
                         <label className="block text-xs text-slate-600 mb-1">Soporte de pago (PDF/imagen)</label>
-                        <input type="file" accept=".pdf,.jpg,.jpeg,.png"
+                        <input type="file" accept=".pdf,.jpg,.jpeg,.png" ref={soporteRef}
                             onChange={(e) => setData('soporte', e.target.files[0])}
                             className="block w-full text-sm text-slate-600" />
                         {errors.soporte && <p className="text-red-500 text-xs mt-1">{errors.soporte}</p>}
@@ -649,7 +657,7 @@ export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidaci
 
                 {/* Detalle del proceso */}
                 <SeccionCard titulo="Detalle">
-                    {esOficina && <DetalleOficina solicitable={solicitud.solicitable} />}
+                    {esOficina && <DetalleOficina solicitable={solicitud.solicitable} beneficiarios={solicitud.beneficiarios} />}
                     {esViaticos && (
                         <DetalleViaticos
                             solicitable={solicitud.solicitable}
