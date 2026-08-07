@@ -24,6 +24,12 @@ class SolicitudController extends Controller
                 ->get()
                 ->filter(fn($s) => !empty($this->motor->accionesDisponibles($s, $usuario)))
                 ->values();
+        } elseif ($tab === 'pendientes_cierre') {
+            $solicitudes = Solicitud::with(['tipoSolicitud','solicitante'])
+                ->whereHas('tipoSolicitud', fn($q) => $q->where('clave', 'OFI'))
+                ->where('estado', 'pendiente_cierre')
+                ->latest()
+                ->get();
         } elseif ($tab === 'revisadas') {
             // Solicitudes donde el usuario ejecuto al menos una transicion:
             // conserva la trazabilidad de lo que reviso, en cualquier estado.

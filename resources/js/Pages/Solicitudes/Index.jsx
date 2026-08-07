@@ -17,9 +17,10 @@ export default function Index({ solicitudes, filtros }) {
                 {/* Tabs */}
                 <div className="flex gap-1 mb-6 border-b border-slate-200">
                     {[
-                        { key: 'mias',       label: 'Mis solicitudes' },
-                        { key: 'pendientes', label: 'Pendientes de acción' },
-                        { key: 'revisadas',  label: 'Revisadas' },
+                        { key: 'mias',              label: 'Mis solicitudes' },
+                        { key: 'pendientes',        label: 'Pendientes de acción' },
+                        { key: 'pendientes_cierre', label: 'Pendientes por cerrar' },
+                        { key: 'revisadas',         label: 'Revisadas' },
                     ].map(({ key, label }) => (
                         <button
                             key={key}
@@ -46,7 +47,9 @@ export default function Index({ solicitudes, filtros }) {
                                 ? 'Aún no has revisado ninguna solicitud.'
                                 : tab === 'pendientes'
                                     ? 'No tienes solicitudes pendientes de acción.'
-                                    : 'No hay solicitudes para mostrar.'}
+                                    : tab === 'pendientes_cierre'
+                                        ? 'No hay solicitudes de oficina pendientes por cerrar.'
+                                        : 'No hay solicitudes para mostrar.'}
                         </p>
                         {tab === 'mias' && (
                             <div className="flex gap-3 justify-center mt-4">
