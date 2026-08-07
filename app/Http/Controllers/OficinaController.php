@@ -22,8 +22,6 @@ class OficinaController extends Controller
 
     public function store(GuardarSolicitudOficinaRequest $request)
     {
-
-       
         $this->authorize('create', Solicitud::class);
         $tipo = TipoSolicitud::where('clave','OFI')->firstOrFail();
 

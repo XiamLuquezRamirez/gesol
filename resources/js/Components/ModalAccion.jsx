@@ -10,15 +10,11 @@ function labelComentario(accion) {
 }
 
 export default function ModalAccion({ solicitudId, accion, onClose, icono }) {
-    const esPago       = accion?.accion === 'pagar';
     const requiereRazon = ACCIONES_CON_RAZON.includes(accion?.accion);
 
     const { data, setData, post, processing, errors, reset } = useForm({
-        accion:                    accion?.accion ?? '',
-        comentario:                '',
-        'metadatos[valor_pagado]': '',
-        'metadatos[fecha_pago]':   '',
-        'metadatos[comprobante]':  '',
+        accion:     accion?.accion ?? '',
+        comentario: '',
     });
 
     useEffect(() => {
@@ -60,29 +56,6 @@ export default function ModalAccion({ solicitudId, accion, onClose, icono }) {
                         />
                         {errors.comentario && <p className="text-red-500 text-xs mt-1">{errors.comentario}</p>}
                     </div>
-
-                    {esPago && (
-                        <>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Valor pagado (COP)</label>
-                                <input type="number" className="w-full rounded-lg border-slate-300 text-sm"
-                                    value={data['metadatos[valor_pagado]']}
-                                    onChange={e => setData('metadatos[valor_pagado]', e.target.value)} />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Fecha de pago</label>
-                                <input type="date" className="w-full rounded-lg border-slate-300 text-sm"
-                                    value={data['metadatos[fecha_pago]']}
-                                    onChange={e => setData('metadatos[fecha_pago]', e.target.value)} />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Comprobante</label>
-                                <input type="text" className="w-full rounded-lg border-slate-300 text-sm"
-                                    value={data['metadatos[comprobante]']}
-                                    onChange={e => setData('metadatos[comprobante]', e.target.value)} />
-                            </div>
-                        </>
-                    )}
 
                     {errors.accion && <p className="text-red-500 text-sm">{errors.accion}</p>}
 
