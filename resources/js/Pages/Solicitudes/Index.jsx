@@ -1,7 +1,7 @@
 import AppLayout from '@/Layouts/AppLayout';
 import BadgeEstado from '@/Components/BadgeEstado';
 import { formatearMoneda, formatearFecha } from '@/lib/format';
-import { Link, router } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { Head } from '@inertiajs/react';
 
 export default function Index({ solicitudes, filtros }) {
@@ -10,18 +10,24 @@ export default function Index({ solicitudes, filtros }) {
         router.get(route('solicitudes.index'), { tab: nuevoTab }, { preserveState: true, replace: true });
     };
 
+    const usuario = usePage().props.auth.user;
+    const esContador = usuario?.roles?.some((r) => r.name === 'contador');
+
+    const tabs = [
+        { key: 'mias',              label: 'Mis solicitudes' },
+        { key: 'pendientes',        label: 'Pendientes de acción' },
+        { key: 'pendientes_cierre', label: 'Pendientes por cerrar' },
+        ...(esContador ? [{ key: 'pendientes_lider', label: 'Pendientes del líder' }] : []),
+        { key: 'revisadas',         label: 'Revisadas' },
+    ];
+
     return (
         <AppLayout title="Solicitudes">
             <Head title="Solicitudes" />
             <div className="flex-1 flex flex-col p-6 w-full">
                 {/* Tabs */}
                 <div className="flex gap-1 mb-6 border-b border-slate-200">
-                    {[
-                        { key: 'mias',              label: 'Mis solicitudes' },
-                        { key: 'pendientes',        label: 'Pendientes de acción' },
-                        { key: 'pendientes_cierre', label: 'Pendientes por cerrar' },
-                        { key: 'revisadas',         label: 'Revisadas' },
-                    ].map(({ key, label }) => (
+                    {tabs.map(({ key, label }) => (
                         <button
                             key={key}
                             onClick={() => cambiarTab(key)}
@@ -49,7 +55,9 @@ export default function Index({ solicitudes, filtros }) {
                                     ? 'No tienes solicitudes pendientes de acción.'
                                     : tab === 'pendientes_cierre'
                                         ? 'No hay solicitudes de oficina pendientes por cerrar.'
-                                        : 'No hay solicitudes para mostrar.'}
+                                        : tab === 'pendientes_lider'
+                                            ? 'No hay solicitudes pendientes de aprobación del líder de contabilidad.'
+                                            : 'No hay solicitudes para mostrar.'}
                         </p>
                         {tab === 'mias' && (
                             <div className="flex gap-3 justify-center mt-4">
