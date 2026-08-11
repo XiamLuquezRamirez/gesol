@@ -89,4 +89,15 @@ class PendientesLiderContadorTest extends TestCase
         // Solo lectura: el motor no ofrece transiciones al contador en ese estado.
         $this->assertEmpty($this->motor->accionesDisponibles($s, $this->contador));
     }
+
+    public function test_contador_no_ve_oficina_en_estado_no_contemplado(): void
+    {
+        // Una oficina en 'enviada' (aun no verificada) no es visible para el contador:
+        // el acceso de lectura esta acotado a 'verificada'/'revisada', no es amplio.
+        $s = $this->oficinaVerificada();
+        $s->update(['estado' => 'enviada']);
+
+        $this->assertFalse($this->contador->can('verDetalle', $s->fresh()));
+        $this->actingAs($this->contador)->get(route('solicitudes.show', $s))->assertForbidden();
+    }
 }
