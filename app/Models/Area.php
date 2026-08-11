@@ -11,4 +11,9 @@ class Area extends Model
     {
         return $this->hasMany(Solicitud::class, 'area_id');
     }
+
+    public function empleados()
+    {
+        return $this->hasMany(Empleados::class, 'area_id');
+    }
 }
