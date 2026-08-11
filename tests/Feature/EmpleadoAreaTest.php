@@ -75,4 +75,40 @@ class EmpleadoAreaTest extends TestCase
                 'nombres'        => 'X', 'apellidos' => 'Y',
             ])->assertSessionHasErrors('area_id');
     }
+
+    public function test_no_se_puede_asignar_el_area_general_a_un_empleado(): void
+    {
+        $this->seed();
+        $admin   = \App\Models\Usuario::where('email', 'admin@demo.test')->firstOrFail();
+        $general = \App\Models\Area::where('es_general', true)->firstOrFail();
+
+        // El area institucional no es asignable a un empleado, ni por POST directo.
+        $this->actingAs($admin)
+            ->from(route('parametros.index'))
+            ->post(route('parametros.empleados.store'), [
+                'area_id'        => $general->id,
+                'identificacion' => '77003',
+                'nombres'        => 'X', 'apellidos' => 'Y',
+            ])->assertSessionHasErrors('area_id');
+
+        $this->assertDatabaseMissing('empleados', ['identificacion' => '77003']);
+    }
+
+    public function test_editar_empleado_reasigna_su_area(): void
+    {
+        $this->seed();
+        $admin    = \App\Models\Usuario::where('email', 'admin@demo.test')->firstOrFail();
+        $empleado = \App\Models\Empleados::whereNotNull('area_id')->firstOrFail();
+        $otra     = \App\Models\Area::where('es_general', false)
+            ->where('id', '!=', $empleado->area_id)->firstOrFail();
+
+        $this->actingAs($admin)->put(route('parametros.empleados.update', $empleado), [
+            'area_id'        => $otra->id,
+            'identificacion' => $empleado->identificacion,
+            'nombres'        => $empleado->nombres,
+            'apellidos'      => $empleado->apellidos,
+        ])->assertRedirect();
+
+        $this->assertEquals($otra->id, $empleado->fresh()->area_id);
+    }
 }

@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 
 use App\Models\{Area, Empleados, TarifaViatico};
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class ParametrosController extends Controller
@@ -45,7 +46,7 @@ class ParametrosController extends Controller
     public function storeEmpleado(Request $request)
     {
         $data = $request->validate([
-            'area_id'        => 'nullable|exists:areas,id',
+            'area_id'        => ['nullable', Rule::exists('areas', 'id')->where('es_general', 0)],
             'identificacion' => 'required|string|max:20|unique:empleados,identificacion',
             'nombres'        => 'required|string|max:100',
             'apellidos'      => 'required|string|max:100',
@@ -59,7 +60,7 @@ class ParametrosController extends Controller
     public function updateEmpleado(Request $request, Empleados $empleado)
     {
         $data = $request->validate([
-            'area_id'        => 'nullable|exists:areas,id',
+            'area_id'        => ['nullable', Rule::exists('areas', 'id')->where('es_general', 0)],
             'identificacion' => 'required|string|max:20|unique:empleados,identificacion,'.$empleado->id,
             'nombres'        => 'required|string|max:100',
             'apellidos'      => 'required|string|max:100',
