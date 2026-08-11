@@ -11,7 +11,18 @@ class AreaSeeder extends Seeder
     {
         $areas = ['Tecnología', 'Contabilidad', 'Recursos Humanos', 'Gerencia'];
         foreach ($areas as $nombre) {
-            DB::table('areas')->insertOrIgnore(['nombre' => $nombre, 'created_at' => now(), 'updated_at' => now()]);
+            DB::table('areas')->insertOrIgnore([
+                'nombre' => $nombre, 'es_general' => false,
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
         }
+
+        // Area institucional para solicitudes de consumo general (papeleria, aseo).
+        DB::table('areas')->insertOrIgnore([
+            'nombre'      => 'General',
+            'descripcion' => 'Solicitudes institucionales (papelería, aseo)',
+            'es_general'  => true,
+            'created_at'  => now(), 'updated_at' => now(),
+        ]);
     }
 }

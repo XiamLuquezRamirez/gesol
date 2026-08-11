@@ -29,4 +29,18 @@ class EmpleadoAreaTest extends TestCase
 
         $this->assertNull($empleado->fresh()->area_id);
     }
+
+    public function test_seeder_crea_area_general_y_asigna_areas_a_empleados(): void
+    {
+        $this->seed();
+
+        $general = \App\Models\Area::where('es_general', true)->first();
+        $this->assertNotNull($general);
+        $this->assertEquals('General', $general->nombre);
+
+        // Los empleados demo quedaron con area real (no la General).
+        $conArea = \App\Models\Empleados::whereNotNull('area_id')->count();
+        $this->assertGreaterThan(0, $conArea);
+        $this->assertEquals(0, \App\Models\Empleados::where('area_id', $general->id)->count());
+    }
 }
