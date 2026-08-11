@@ -2,6 +2,27 @@ import { useEffect, useRef, useState } from 'react';
 import { router } from '@inertiajs/react';
 import axios from 'axios';
 
+/**
+ * Renueva la cookie XSRF-TOKEN pidiendo una ruta GET de la app (StartSession
+ * la reemite en la respuesta). Sirve para recuperar la sesion tras un 419.
+ */
+function refrescarSesion() {
+    return axios.get(route('notificaciones.index'));
+}
+
+/**
+ * POST tolerante a "Pagina expirada" (419 CSRF): si la sesion caduco, refresca
+ * el token y reintenta una sola vez, en vez de dejar caer la pagina de error.
+ */
+function postConReintento(url) {
+    return axios.post(url).catch((error) => {
+        if (error?.response?.status === 419) {
+            return refrescarSesion().then(() => axios.post(url));
+        }
+        throw error;
+    });
+}
+
 const IconBell = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
         <path fillRule="evenodd" d="M5.25 9a6.75 6.75 0 0 1 13.5 0v.75c0 2.123.8 4.057 2.118 5.52a.75.75 0 0 1-.297 1.206c-1.544.57-3.16.99-4.831 1.243a3.75 3.75 0 1 1-7.48 0 24.585 24.585 0 0 1-4.831-1.244.75.75 0 0 1-.298-1.205A8.217 8.217 0 0 0 5.25 9.75V9Zm4.502 8.9a2.25 2.25 0 1 0 4.496 0 25.057 25.057 0 0 1-4.496 0Z" clipRule="evenodd" />
@@ -129,8 +150,9 @@ export default function PanelNotificaciones({ noLeidasIniciales = 0 }) {
 
     // Sondeo automatico: refresca el contador (y la lista si el panel esta abierto)
     // cada 45s, para que las notificaciones nuevas aparezcan sin recargar la pagina.
+    // Ademas, cada GET reemite la cookie XSRF-TOKEN, manteniendo viva la sesion.
     useEffect(() => {
-        const id = setInterval(() => {
+        const sondear = () => {
             if (document.hidden) return; // no sondear en pestañas en segundo plano
             axios.get(route('notificaciones.index'))
                 .then(({ data }) => {
@@ -141,8 +163,18 @@ export default function PanelNotificaciones({ noLeidasIniciales = 0 }) {
                     });
                 })
                 .catch(() => { /* silencioso: reintenta en el siguiente ciclo */ });
-        }, 45000);
-        return () => clearInterval(id);
+        };
+
+        const id = setInterval(sondear, 45000);
+        // Al volver el foco a la pestaña, sondear de inmediato: refresca la lista
+        // y renueva la sesion antes de que el usuario haga clic (evita el 419).
+        const onVisible = () => { if (!document.hidden) sondear(); };
+        document.addEventListener('visibilitychange', onVisible);
+
+        return () => {
+            clearInterval(id);
+            document.removeEventListener('visibilitychange', onVisible);
+        };
     }, []);
 
     const cargarNotificaciones = () => {
@@ -165,18 +197,18 @@ export default function PanelNotificaciones({ noLeidasIniciales = 0 }) {
         setSeleccionada(n);
         setAbierto(false);
         if (!n.leida) {
-            axios.post(route('notificaciones.leer', n.id)).then(() => {
+            postConReintento(route('notificaciones.leer', n.id)).then(() => {
                 setNotificaciones((prev) => prev.map((x) => x.id === n.id ? { ...x, leida: true } : x));
                 setNoLeidas((c) => Math.max(0, c - 1));
-            });
+            }).catch(() => { /* si aun falla, el detalle ya se abrio; se reintenta al proximo clic */ });
         }
     };
 
     const marcarTodasLeidas = () => {
-        axios.post(route('notificaciones.leer-todas')).then(() => {
+        postConReintento(route('notificaciones.leer-todas')).then(() => {
             setNotificaciones((prev) => prev.map((x) => ({ ...x, leida: true })));
             setNoLeidas(0);
-        });
+        }).catch(() => { /* silencioso: la sesion se recupera en el proximo ciclo */ });
     };
 
     return (
