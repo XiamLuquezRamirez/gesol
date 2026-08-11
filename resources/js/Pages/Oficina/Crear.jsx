@@ -63,21 +63,20 @@ export default function Crear({ areas, usuarios, empleados = [], solicitud, edit
         })) ?? [{ ...ITEM_VACIO }],
     });
 
-    const areaElegida = areas.find((a) => String(a.id) === String(data.area_id));
-    const esGeneral = !!areaElegida?.es_general;
-    const empleadosDelArea = empleados.filter((e) => String(e.area_id) === String(data.area_id));
+    // Helpers unicos de "area general" y "empleados de un area", usados tanto por
+    // el estado derivado del render como por el handler de cambio de area.
+    const esAreaGeneral = (id) => !!areas.find((a) => String(a.id) === String(id))?.es_general;
+    const empleadosPorArea = (id) => empleados.filter((e) => String(e.area_id) === String(id));
+
+    const esGeneral = esAreaGeneral(data.area_id);
+    const empleadosDelArea = empleadosPorArea(data.area_id);
 
     const cambiarArea = (v) => {
         setData('area_id', v);
-        const area = areas.find((a) => String(a.id) === String(v));
-        if (area?.es_general) {
-            setData('beneficiarios', []);
-        } else {
-            const validos = empleados
-                .filter((e) => String(e.area_id) === String(v))
-                .map((e) => e.id);
-            setData('beneficiarios', data.beneficiarios.filter((id) => validos.includes(id)));
-        }
+        // En un area general no hay beneficiarios; en una normal se conservan solo
+        // los que pertenecen a la nueva area. Filtrar contra [] cubre ambos casos.
+        const validos = esAreaGeneral(v) ? [] : empleadosPorArea(v).map((e) => e.id);
+        setData('beneficiarios', data.beneficiarios.filter((id) => validos.includes(id)));
     };
 
     const agregarItem = () => setData('items', [...data.items, { ...ITEM_VACIO }]);
