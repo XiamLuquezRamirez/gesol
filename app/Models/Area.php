@@ -5,7 +5,8 @@ use Illuminate\Database\Eloquent\Model;
 class Area extends Model
 {
     protected $table = 'areas';
-    protected $fillable = ['nombre', 'descripcion'];
+    protected $fillable = ['nombre', 'descripcion', 'es_general'];
+    protected $casts = ['es_general' => 'boolean'];
 
     public function solicitudes()
     {
