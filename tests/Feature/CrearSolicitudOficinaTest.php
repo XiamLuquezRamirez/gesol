@@ -20,9 +20,10 @@ class CrearSolicitudOficinaTest extends TestCase
 
     private function payloadBase(array $itemOverride = []): array
     {
+        $area = Area::where('es_general', false)->whereHas('empleados')->first();
         return [
-            'area_id'       => Area::first()->id,
-            'beneficiarios' => Empleados::take(1)->pluck('id')->all(),
+            'area_id'       => $area->id,
+            'beneficiarios' => $area->empleados()->take(1)->pluck('id')->all(),
             'urgencia'      => 'media',
             'justificacion' => 'Se requieren insumos.',
             'items'         => [array_merge([
@@ -80,10 +81,11 @@ class CrearSolicitudOficinaTest extends TestCase
 
     public function test_crea_solicitud_con_varios_beneficiarios(): void
     {
-        $empleados = Empleados::take(2)->pluck('id')->all();
+        $area = Area::where('es_general', false)->has('empleados', '>=', 2)->first();
+        $empleados = $area->empleados()->take(2)->pluck('id')->all();
 
         $this->actingAs($this->liderArea)->post(route('oficina.store'), [
-            'area_id'       => Area::first()->id,
+            'area_id'       => $area->id,
             'beneficiarios' => $empleados,
             'urgencia'      => 'media',
             'justificacion' => 'Material para el equipo.',
@@ -96,30 +98,31 @@ class CrearSolicitudOficinaTest extends TestCase
 
     public function test_editar_sincroniza_los_beneficiarios(): void
     {
-        // Crea la solicitud con un beneficiario.
-        $unEmpleado = Empleados::take(1)->pluck('id')->all();
+        $area = Area::where('es_general', false)->has('empleados', '>=', 2)->first();
+        $todos = $area->empleados()->pluck('id')->all();
+        $inicial = [$todos[0]];
+        $nuevos  = array_slice($todos, 0, 2);
+
         $this->actingAs($this->liderArea)->post(route('oficina.store'), [
-            'area_id'       => Area::first()->id,
-            'beneficiarios' => $unEmpleado,
+            'area_id'       => $area->id,
+            'beneficiarios' => $inicial,
             'urgencia'      => 'media',
             'justificacion' => 'Version inicial.',
             'items'         => [['nombre'=>'Mouse','categoria'=>'producto','cantidad'=>1,'costo_estimado'=>1000,'notas'=>'']],
         ])->assertRedirect();
 
         $solicitud = \App\Models\Solicitud::latest('id')->first();
-        $otrosDos  = Empleados::take(2)->pluck('id')->all();
 
-        // Al editar, se reemplaza el conjunto de beneficiarios por los dos nuevos.
         $this->actingAs($this->liderArea)->put(route('oficina.update', $solicitud), [
-            'area_id'       => Area::first()->id,
-            'beneficiarios' => $otrosDos,
+            'area_id'       => $area->id,
+            'beneficiarios' => $nuevos,
             'urgencia'      => 'alta',
             'justificacion' => 'Version editada.',
             'items'         => [['nombre'=>'Teclado','categoria'=>'producto','cantidad'=>1,'costo_estimado'=>2000,'notas'=>'']],
         ])->assertRedirect();
 
         $this->assertEqualsCanonicalizing(
-            $otrosDos,
+            $nuevos,
             $solicitud->solicitable->fresh()->beneficiarios->pluck('id')->all()
         );
     }
