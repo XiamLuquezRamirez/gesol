@@ -1,7 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
-use App\Models\{Empleados, TarifaViatico};
+use App\Models\{Area, Empleados, TarifaViatico};
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -11,7 +11,8 @@ class ParametrosController extends Controller
     {
         return Inertia::render('Parametros/Index', [
             'tarifas'   => TarifaViatico::all(),
-            'empleados' => Empleados::orderBy('apellidos')->orderBy('nombres')->get(),
+            'empleados' => Empleados::with('area:id,nombre')->orderBy('apellidos')->orderBy('nombres')->get(),
+            'areas'     => Area::where('es_general', false)->orderBy('nombre')->get(['id','nombre']),
         ]);
     }
 
@@ -44,6 +45,7 @@ class ParametrosController extends Controller
     public function storeEmpleado(Request $request)
     {
         $data = $request->validate([
+            'area_id'        => 'nullable|exists:areas,id',
             'identificacion' => 'required|string|max:20|unique:empleados,identificacion',
             'nombres'        => 'required|string|max:100',
             'apellidos'      => 'required|string|max:100',
@@ -57,6 +59,7 @@ class ParametrosController extends Controller
     public function updateEmpleado(Request $request, Empleados $empleado)
     {
         $data = $request->validate([
+            'area_id'        => 'nullable|exists:areas,id',
             'identificacion' => 'required|string|max:20|unique:empleados,identificacion,'.$empleado->id,
             'nombres'        => 'required|string|max:100',
             'apellidos'      => 'required|string|max:100',

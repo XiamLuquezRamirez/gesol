@@ -43,4 +43,36 @@ class EmpleadoAreaTest extends TestCase
         $this->assertGreaterThan(0, $conArea);
         $this->assertEquals(0, \App\Models\Empleados::where('area_id', $general->id)->count());
     }
+
+    public function test_crear_empleado_con_area_desde_parametros(): void
+    {
+        $this->seed();
+        $admin = \App\Models\Usuario::where('email', 'admin@demo.test')->firstOrFail();
+        $area  = \App\Models\Area::where('es_general', false)->first();
+
+        $this->actingAs($admin)->post(route('parametros.empleados.store'), [
+            'area_id'        => $area->id,
+            'identificacion' => '77001',
+            'nombres'        => 'Nuevo',
+            'apellidos'      => 'Empleado',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('empleados', [
+            'identificacion' => '77001', 'area_id' => $area->id,
+        ]);
+    }
+
+    public function test_area_invalida_al_crear_empleado_es_rechazada(): void
+    {
+        $this->seed();
+        $admin = \App\Models\Usuario::where('email', 'admin@demo.test')->firstOrFail();
+
+        $this->actingAs($admin)
+            ->from(route('parametros.index'))
+            ->post(route('parametros.empleados.store'), [
+                'area_id'        => 99999,
+                'identificacion' => '77002',
+                'nombres'        => 'X', 'apellidos' => 'Y',
+            ])->assertSessionHasErrors('area_id');
+    }
 }
