@@ -14,9 +14,9 @@ class OficinaController extends Controller
     {
         $this->authorize('create', Solicitud::class);
         return Inertia::render('Oficina/Crear', [
-            'areas'     => Area::orderBy('nombre')->get(['id','nombre']),
+            'areas'     => Area::orderBy('nombre')->get(['id','nombre','es_general']),
             'usuarios'  => Usuario::orderBy('name')->get(['id','name']),
-            'empleados' => Empleados::orderBy('nombres')->get(['id','nombres','apellidos','identificacion']),
+            'empleados' => Empleados::orderBy('nombres')->get(['id','nombres','apellidos','identificacion','area_id']),
         ]);
     }
 
@@ -31,7 +31,7 @@ class OficinaController extends Controller
                 'urgencia'     => $request->urgencia,
                 'justificacion'=> $request->justificacion,
             ]);
-            $cabecera->beneficiarios()->sync($request->beneficiarios);
+            $cabecera->beneficiarios()->sync($this->beneficiariosASincronizar($request));
 
             $solicitud = Solicitud::create([
                 'tipo_solicitud_id' => $tipo->id,
@@ -63,9 +63,9 @@ class OficinaController extends Controller
         $solicitud->load('solicitable.items', 'solicitable.beneficiarios');
         return Inertia::render('Oficina/Crear', [
             'solicitud' => $solicitud,
-            'areas'     => Area::orderBy('nombre')->get(['id','nombre']),
+            'areas'     => Area::orderBy('nombre')->get(['id','nombre','es_general']),
             'usuarios'  => Usuario::orderBy('name')->get(['id','name']),
-            'empleados' => Empleados::orderBy('nombres')->get(['id','nombres','apellidos','identificacion']),
+            'empleados' => Empleados::orderBy('nombres')->get(['id','nombres','apellidos','identificacion','area_id']),
             'editar'    => true,
         ]);
     }
@@ -82,7 +82,7 @@ class OficinaController extends Controller
                 'urgencia'      => $request->urgencia,
                 'justificacion' => $request->justificacion,
             ]);
-            $cabecera->beneficiarios()->sync($request->beneficiarios);
+            $cabecera->beneficiarios()->sync($this->beneficiariosASincronizar($request));
             $cabecera->items()->delete();
             foreach ($request->items as $item) {
                 ItemOficina::create(array_merge($this->normalizarItem($item), [
@@ -104,6 +104,18 @@ class OficinaController extends Controller
         $costo = $item['costo_estimado'] ?? null;
         $item['costo_estimado'] = ($costo === '' || $costo === null) ? null : $costo;
         return $item;
+    }
+
+    /**
+     * En un area institucional (General) la solicitud no lleva beneficiarios.
+     */
+    private function beneficiariosASincronizar($request): array
+    {
+        $area = \App\Models\Area::find($request->area_id);
+        if ($area?->es_general) {
+            return [];
+        }
+        return (array) $request->beneficiarios;
     }
 
     /**
