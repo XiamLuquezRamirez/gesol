@@ -111,8 +111,7 @@ class OficinaController extends Controller
      */
     private function beneficiariosASincronizar($request): array
     {
-        $area = \App\Models\Area::find($request->area_id);
-        if ($area?->es_general) {
+        if (Area::esGeneral($request->area_id)) {
             return [];
         }
         return (array) $request->beneficiarios;

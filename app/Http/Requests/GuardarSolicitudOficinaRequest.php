@@ -20,8 +20,7 @@ class GuardarSolicitudOficinaRequest extends FormRequest
     private function areaEsGeneral(): bool
     {
         if ($this->esGeneral === null) {
-            $area = Area::find($this->input('area_id'));
-            $this->esGeneral = (bool) ($area?->es_general);
+            $this->esGeneral = Area::esGeneral($this->input('area_id'));
         }
         return $this->esGeneral;
     }
