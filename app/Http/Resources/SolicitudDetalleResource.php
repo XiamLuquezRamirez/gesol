@@ -26,6 +26,7 @@ class SolicitudDetalleResource extends JsonResource
                 'nombre'         => trim($e->nombres.' '.$e->apellidos),
                 'identificacion' => $e->identificacion,
             ])->values()),
+            'institucional' => $this->when($esOficina, fn () => (bool) ($this->area?->es_general)),
             'cotizacion'  => $this->when($esOficina, fn () => [
                 'comentario'   => $this->solicitable->comentario_contador,
                 'archivos'     => $this->solicitable->cotizaciones->map(fn ($c) => [
