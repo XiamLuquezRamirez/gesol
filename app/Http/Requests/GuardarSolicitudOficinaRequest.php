@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Area;
+use App\Models\Empleados;
 use Illuminate\Foundation\Http\FormRequest;
 
 class GuardarSolicitudOficinaRequest extends FormRequest
@@ -11,11 +13,16 @@ class GuardarSolicitudOficinaRequest extends FormRequest
         return true;
     }
 
+    /** El area elegida es la institucional (General). */
+    private function areaEsGeneral(): bool
+    {
+        $area = Area::find($this->input('area_id'));
+        return (bool) ($area?->es_general);
+    }
+
     public function rules(): array
     {
-        return [
-            'beneficiarios'          => 'required|array|min:1',
-            'beneficiarios.*'        => 'exists:empleados,id',
+        $reglas = [
             'area_id'                => 'required|exists:areas,id',
             'urgencia'               => 'required|in:baja,media,alta',
             'justificacion'          => 'required|string|max:2000',
@@ -26,12 +33,42 @@ class GuardarSolicitudOficinaRequest extends FormRequest
             'items.*.costo_estimado' => 'nullable|numeric|min:0',
             'items.*.notas'          => 'nullable|string|max:500',
         ];
+
+        if ($this->areaEsGeneral()) {
+            // Institucional: sin beneficiarios (se ignora lo que venga).
+            $reglas['beneficiarios']   = 'nullable|array';
+        } else {
+            // Area normal: al menos un beneficiario, todos del area elegida.
+            $reglas['beneficiarios']   = 'required|array|min:1';
+            $reglas['beneficiarios.*'] = 'exists:empleados,id';
+        }
+
+        return $reglas;
     }
 
     /**
-     * Nombres legibles de los campos para los mensajes de error,
-     * asi el usuario ve "Departamento" y no "area id".
+     * Regla estricta: en un area normal, cada beneficiario debe pertenecer al
+     * area elegida. Un empleado sin area, o de otra area, se rechaza.
      */
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            if ($this->areaEsGeneral()) {
+                return;
+            }
+            $ids = (array) $this->input('beneficiarios', []);
+            if (empty($ids)) {
+                return; // ya lo cubre required|min:1
+            }
+            $ajenos = Empleados::whereIn('id', $ids)
+                ->where(fn ($q) => $q->where('area_id', '!=', $this->input('area_id'))->orWhereNull('area_id'))
+                ->exists();
+            if ($ajenos) {
+                $validator->errors()->add('beneficiarios', 'Todos los beneficiarios deben pertenecer al departamento seleccionado.');
+            }
+        });
+    }
+
     public function attributes(): array
     {
         return [
