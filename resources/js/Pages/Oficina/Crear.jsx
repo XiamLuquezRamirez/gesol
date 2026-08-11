@@ -63,7 +63,22 @@ export default function Crear({ areas, usuarios, empleados = [], solicitud, edit
         })) ?? [{ ...ITEM_VACIO }],
     });
 
-    //
+    const areaElegida = areas.find((a) => String(a.id) === String(data.area_id));
+    const esGeneral = !!areaElegida?.es_general;
+    const empleadosDelArea = empleados.filter((e) => String(e.area_id) === String(data.area_id));
+
+    const cambiarArea = (v) => {
+        setData('area_id', v);
+        const area = areas.find((a) => String(a.id) === String(v));
+        if (area?.es_general) {
+            setData('beneficiarios', []);
+        } else {
+            const validos = empleados
+                .filter((e) => String(e.area_id) === String(v))
+                .map((e) => e.id);
+            setData('beneficiarios', data.beneficiarios.filter((id) => validos.includes(id)));
+        }
+    };
 
     const agregarItem = () => setData('items', [...data.items, { ...ITEM_VACIO }]);
     const eliminarItem = (idx) => setData('items', data.items.filter((_, i) => i !== idx));
@@ -93,33 +108,44 @@ export default function Crear({ areas, usuarios, empleados = [], solicitud, edit
                         <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Información general</h3>
                         <div className="grid grid-cols-2 gap-4">
                             <SelectField label="Departamento:" name="area_id" value={data.area_id}
-                                onChange={(v) => setData('area_id', v)}
+                                onChange={cambiarArea}
                                 options={areas} error={errors.area_id} placeholder="Seleccionar departamento" />
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Beneficiario(s):</label>
-                                <div className="border border-slate-300 rounded-lg p-3 max-h-40 overflow-y-auto space-y-1">
-                                    {empleados.length === 0 && (
-                                        <p className="text-xs text-slate-400">No hay empleados registrados.</p>
-                                    )}
-                                    {empleados.map((e) => (
-                                        <label key={e.id} className="flex items-center gap-2 text-sm text-slate-700">
-                                            <input
-                                                type="checkbox"
-                                                className="rounded border-slate-300 text-indigo-600"
-                                                checked={data.beneficiarios.includes(e.id)}
-                                                onChange={(ev) => {
-                                                    const next = ev.target.checked
-                                                        ? [...data.beneficiarios, e.id]
-                                                        : data.beneficiarios.filter((id) => id !== e.id);
-                                                    setData('beneficiarios', next);
-                                                }}
-                                            />
-                                            {e.nombres} {e.apellidos}
-                                            <span className="text-xs text-slate-400">({e.identificacion})</span>
-                                        </label>
-                                    ))}
-                                </div>
-                                {errors.beneficiarios && <p className="text-red-500 text-xs mt-1">{errors.beneficiarios}</p>}
+                                {esGeneral ? (
+                                    <p className="text-sm text-slate-500 border border-slate-200 rounded-lg p-3 bg-slate-50">
+                                        Solicitud institucional (papelería, aseo): aplica a toda la organización.
+                                    </p>
+                                ) : (
+                                    <>
+                                        <div className="border border-slate-300 rounded-lg p-3 max-h-40 overflow-y-auto space-y-1">
+                                            {!data.area_id && (
+                                                <p className="text-xs text-slate-400">Seleccione primero un departamento.</p>
+                                            )}
+                                            {data.area_id && empleadosDelArea.length === 0 && (
+                                                <p className="text-xs text-slate-400">Este departamento no tiene empleados.</p>
+                                            )}
+                                            {empleadosDelArea.map((e) => (
+                                                <label key={e.id} className="flex items-center gap-2 text-sm text-slate-700">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="rounded border-slate-300 text-indigo-600"
+                                                        checked={data.beneficiarios.includes(e.id)}
+                                                        onChange={(ev) => {
+                                                            const next = ev.target.checked
+                                                                ? [...data.beneficiarios, e.id]
+                                                                : data.beneficiarios.filter((id) => id !== e.id);
+                                                            setData('beneficiarios', next);
+                                                        }}
+                                                    />
+                                                    {e.nombres} {e.apellidos}
+                                                    <span className="text-xs text-slate-400">({e.identificacion})</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                        {errors.beneficiarios && <p className="text-red-500 text-xs mt-1">{errors.beneficiarios}</p>}
+                                    </>
+                                )}
                             </div>
                         </div>
 
