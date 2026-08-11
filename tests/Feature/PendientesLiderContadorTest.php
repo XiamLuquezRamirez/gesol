@@ -100,4 +100,48 @@ class PendientesLiderContadorTest extends TestCase
         $this->assertFalse($this->contador->can('verDetalle', $s->fresh()));
         $this->actingAs($this->contador)->get(route('solicitudes.show', $s))->assertForbidden();
     }
+
+    public function test_tab_pendientes_lider_lista_oficina_verificada_y_viaticos_revisada(): void
+    {
+        $ofi = $this->oficinaVerificada();
+        $via = $this->viaticosRevisada();
+
+        $this->actingAs($this->contador)
+            ->get(route('solicitudes.index', ['tab' => 'pendientes_lider']))
+            ->assertInertia(fn ($page) => $page
+                ->component('Solicitudes/Index')
+                ->has('solicitudes.data', 2)
+            );
+    }
+
+    public function test_tab_pendientes_lider_excluye_otros_estados(): void
+    {
+        // Una oficina en 'enviada' (aun no verificada) no debe aparecer.
+        $tipo = TipoSolicitud::where('clave', 'OFI')->firstOrFail();
+        $cab  = SolicitudOficina::create(['beneficiario' => '', 'urgencia' => 'media', 'justificacion' => 'x']);
+        ItemOficina::create([
+            'solicitud_oficina_id' => $cab->id, 'nombre' => 'Mouse',
+            'categoria' => 'producto', 'cantidad' => 1, 'costo_estimado' => 1000, 'subtotal' => 1000,
+        ]);
+        $s = Solicitud::create([
+            'tipo_solicitud_id' => $tipo->id, 'solicitante_id' => $this->liderArea->id, 'area_id' => Area::first()->id,
+            'solicitable_type' => SolicitudOficina::class, 'solicitable_id' => $cab->id, 'estado' => 'borrador',
+            'radicado' => Solicitud::generarRadicado($tipo),
+        ]);
+        $this->motor->aplicarTransicion($s, 'enviar', $this->liderArea); // queda 'enviada'
+
+        $this->actingAs($this->contador)
+            ->get(route('solicitudes.index', ['tab' => 'pendientes_lider']))
+            ->assertInertia(fn ($page) => $page->has('solicitudes.data', 0));
+    }
+
+    public function test_tab_pendientes_lider_vacio_para_no_contador(): void
+    {
+        $this->oficinaVerificada();
+
+        // RR. HH. no ve esta cola (es exclusiva del contador).
+        $this->actingAs($this->rrhh)
+            ->get(route('solicitudes.index', ['tab' => 'pendientes_lider']))
+            ->assertInertia(fn ($page) => $page->has('solicitudes.data', 0));
+    }
 }

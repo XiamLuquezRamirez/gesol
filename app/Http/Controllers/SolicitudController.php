@@ -35,6 +35,20 @@ class SolicitudController extends Controller
                     ->latest()
                     ->get()
                 : collect();
+        } elseif ($tab === 'pendientes_lider') {
+            // Solicitudes esperando accion del lider de contabilidad. Solo el contador
+            // las ve, para dar seguimiento y evitar que el proceso se demore.
+            $solicitudes = $usuario->hasRole('contador')
+                ? Solicitud::with(['tipoSolicitud','solicitante'])
+                    ->where(function ($q) {
+                        $q->where(fn ($q) => $q->whereHas('tipoSolicitud', fn ($t) => $t->where('clave', 'OFI'))
+                                ->where('estado', 'verificada'))
+                          ->orWhere(fn ($q) => $q->whereHas('tipoSolicitud', fn ($t) => $t->where('clave', 'VIA'))
+                                ->where('estado', 'revisada'));
+                    })
+                    ->oldest() // las mas antiguas primero: prioriza lo que mas se demora
+                    ->get()
+                : collect();
         } elseif ($tab === 'revisadas') {
             // Solicitudes donde el usuario ejecuto al menos una transicion:
             // conserva la trazabilidad de lo que reviso, en cualquier estado.
