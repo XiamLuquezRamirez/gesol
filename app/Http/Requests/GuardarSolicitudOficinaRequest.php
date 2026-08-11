@@ -8,6 +8,9 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class GuardarSolicitudOficinaRequest extends FormRequest
 {
+    /** Memoiza el resultado para consultar el area una sola vez por request. */
+    private ?bool $esGeneral = null;
+
     public function authorize(): bool
     {
         return true;
@@ -16,8 +19,11 @@ class GuardarSolicitudOficinaRequest extends FormRequest
     /** El area elegida es la institucional (General). */
     private function areaEsGeneral(): bool
     {
-        $area = Area::find($this->input('area_id'));
-        return (bool) ($area?->es_general);
+        if ($this->esGeneral === null) {
+            $area = Area::find($this->input('area_id'));
+            $this->esGeneral = (bool) ($area?->es_general);
+        }
+        return $this->esGeneral;
     }
 
     public function rules(): array
