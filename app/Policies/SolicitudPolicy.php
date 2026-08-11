@@ -17,6 +17,16 @@ class SolicitudPolicy
     public function verDetalle(Usuario $usuario, Solicitud $solicitud): bool
     {
         if ($usuario->id === $solicitud->solicitante_id) return true;
+
+        // El contador puede consultar (solo lectura) lo que espera al lider de
+        // contabilidad: oficina 'verificada' y viaticos 'revisada'.
+        $clave = $solicitud->tipoSolicitud->clave;
+        if ($usuario->hasRole('contador')
+            && (($clave === 'OFI' && $solicitud->estado === 'verificada')
+                || ($clave === 'VIA' && $solicitud->estado === 'revisada'))) {
+            return true;
+        }
+
         $rolesUsuario = $usuario->getRoleNames()->toArray();
         return collect($solicitud->tipoSolicitud->transiciones)
             ->pluck('roles')->flatten()->unique()
