@@ -72,11 +72,13 @@ function IconoAccion({ accion }) {
 
 const ETIQUETAS_URGENCIA = { alta: 'Alta', media: 'Media', baja: 'Baja' };
 
-function DetalleOficina({ solicitable, beneficiarios = [] }) {
+function DetalleOficina({ solicitable, beneficiarios = [], institucional = false }) {
     if (!solicitable) return null;
-    const nombresBeneficiarios = beneficiarios.length > 0
-        ? beneficiarios.map((b) => b.nombre).join(', ')
-        : (solicitable.beneficiario || null);
+    const nombresBeneficiarios = institucional
+        ? 'Institucional (todos)'
+        : (beneficiarios.length > 0
+            ? beneficiarios.map((b) => b.nombre).join(', ')
+            : (solicitable.beneficiario || null));
     return (
         <>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-4 mb-5">
@@ -657,7 +659,7 @@ export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidaci
 
                 {/* Detalle del proceso */}
                 <SeccionCard titulo="Detalle">
-                    {esOficina && <DetalleOficina solicitable={solicitud.solicitable} beneficiarios={solicitud.beneficiarios} />}
+                    {esOficina && <DetalleOficina solicitable={solicitud.solicitable} beneficiarios={solicitud.beneficiarios} institucional={solicitud.institucional} />}
                     {esViaticos && (
                         <DetalleViaticos
                             solicitable={solicitud.solicitable}
