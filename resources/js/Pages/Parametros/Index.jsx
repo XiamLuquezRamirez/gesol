@@ -176,9 +176,9 @@ function TabTarifas({ tarifas }) {
 }
 
 /* ─── Tab Empleados ───────────────────────────────────── */
-const VACIO = { identificacion: '', nombres: '', apellidos: '', email: '', telefono: '' };
+const VACIO = { area_id: '', identificacion: '', nombres: '', apellidos: '', email: '', telefono: '' };
 
-function TabEmpleados({ empleados }) {
+function TabEmpleados({ empleados, areas }) {
     const [panel, setPanel] = useState(null); // null | { tipo: 'crear'|'editar', id: null|number }
     const [confirmarId, setConfirmarId] = useState(null);
 
@@ -191,7 +191,7 @@ function TabEmpleados({ empleados }) {
     };
 
     const abrirEditar = (emp) => {
-        setData({ identificacion: emp.identificacion, nombres: emp.nombres, apellidos: emp.apellidos, email: emp.email ?? '', telefono: emp.telefono ?? '' });
+        setData({ area_id: emp.area_id ?? '', identificacion: emp.identificacion, nombres: emp.nombres, apellidos: emp.apellidos, email: emp.email ?? '', telefono: emp.telefono ?? '' });
         clearErrors();
         setPanel({ tipo: 'editar', id: emp.id });
     };
@@ -274,6 +274,18 @@ function TabEmpleados({ empleados }) {
                                     placeholder="3001234567"
                                 />
                             </Field>
+                            <Field label="Departamento" error={errors.area_id}>
+                                <select
+                                    value={data.area_id}
+                                    onChange={(e) => setData('area_id', e.target.value)}
+                                    className="w-full rounded-lg border border-slate-300 text-sm py-2 px-3 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                >
+                                    <option value="">— Sin departamento —</option>
+                                    {areas.map((a) => (
+                                        <option key={a.id} value={a.id}>{a.nombre}</option>
+                                    ))}
+                                </select>
+                            </Field>
                         </div>
                         <div className="flex justify-end gap-3 pt-1">
                             <button
@@ -307,6 +319,7 @@ function TabEmpleados({ empleados }) {
                                 <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Identificación</th>
                                 <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Nombres</th>
                                 <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Apellidos</th>
+                                <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Departamento</th>
                                 <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Correo</th>
                                 <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Teléfono</th>
                                 <th className="px-4 py-3 w-24"></th>
@@ -318,6 +331,7 @@ function TabEmpleados({ empleados }) {
                                     <td className="px-4 py-3 font-mono text-slate-700">{emp.identificacion}</td>
                                     <td className="px-4 py-3 text-slate-700">{emp.nombres}</td>
                                     <td className="px-4 py-3 text-slate-700">{emp.apellidos}</td>
+                                    <td className="px-4 py-3 text-slate-500">{emp.area?.nombre ?? '—'}</td>
                                     <td className="px-4 py-3 text-slate-500">{emp.email ?? '—'}</td>
                                     <td className="px-4 py-3 text-slate-500">{emp.telefono ?? '—'}</td>
                                     <td className="px-4 py-3">
@@ -375,7 +389,7 @@ const TABS = [
     { id: 'empleados', label: 'Empleados' },
 ];
 
-export default function Index({ tarifas, empleados }) {
+export default function Index({ tarifas, empleados, areas = [] }) {
     const { props } = usePage();
     const flash = props.flash ?? {};
     const [tab, setTab] = useState('tarifas');
@@ -426,7 +440,7 @@ export default function Index({ tarifas, empleados }) {
 
                 {/* Contenido del tab */}
                 {tab === 'tarifas'   && <TabTarifas   tarifas={tarifas} />}
-                {tab === 'empleados' && <TabEmpleados empleados={empleados} />}
+                {tab === 'empleados' && <TabEmpleados empleados={empleados} areas={areas} />}
 
             </div>
         </AppLayout>
