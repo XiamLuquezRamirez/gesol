@@ -89,4 +89,25 @@ class OficinaInstitucionalTest extends TestCase
         $cabecera = SolicitudOficina::latest('id')->first();
         $this->assertEquals(0, $cabecera->beneficiarios()->count());
     }
+
+    public function test_editar_de_area_normal_a_general_limpia_los_beneficiarios(): void
+    {
+        [$area, $emp] = $this->areaConEmpleados();
+
+        // Se crea con beneficiarios en un area normal.
+        $this->actingAs($this->liderArea)
+            ->post(route('oficina.store'), $this->payload(['area_id'=>$area->id,'beneficiarios'=>$emp]))
+            ->assertRedirect();
+
+        $solicitud = \App\Models\Solicitud::latest('id')->first();
+        $this->assertGreaterThan(0, $solicitud->solicitable->beneficiarios()->count());
+
+        // Al editar hacia el area General (institucional), los beneficiarios se limpian.
+        $general = Area::where('es_general', true)->firstOrFail();
+        $this->actingAs($this->liderArea)
+            ->put(route('oficina.update', $solicitud), $this->payload(['area_id'=>$general->id]))
+            ->assertRedirect();
+
+        $this->assertEquals(0, $solicitud->solicitable->fresh()->beneficiarios()->count());
+    }
 }

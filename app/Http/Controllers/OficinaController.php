@@ -69,7 +69,6 @@ class OficinaController extends Controller
             'editar'    => true,
         ]);
     }
-//
 
     public function update(GuardarSolicitudOficinaRequest $request, Solicitud $solicitud)
     {
