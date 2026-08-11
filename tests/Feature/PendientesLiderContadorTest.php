@@ -144,4 +144,31 @@ class PendientesLiderContadorTest extends TestCase
             ->get(route('solicitudes.index', ['tab' => 'pendientes_lider']))
             ->assertInertia(fn ($page) => $page->has('solicitudes.data', 0));
     }
+
+    public function test_tab_pendientes_lider_excluye_viaticos_en_otro_estado(): void
+    {
+        // Una comision en 'liquidada' (aun no enviada al lider) no debe aparecer.
+        $via = $this->viaticosRevisada();
+        $via->update(['estado' => 'liquidada']);
+
+        $this->actingAs($this->contador)
+            ->get(route('solicitudes.index', ['tab' => 'pendientes_lider']))
+            ->assertInertia(fn ($page) => $page->has('solicitudes.data', 0));
+    }
+
+    public function test_tab_pendientes_lider_ordena_las_mas_antiguas_primero(): void
+    {
+        // Dos solicitudes verificadas; la creada antes debe salir primero.
+        $vieja = $this->oficinaVerificada();
+        $vieja->update(['created_at' => now()->subDays(3)]);
+        $nueva = $this->oficinaVerificada();
+        $nueva->update(['created_at' => now()->subDay()]);
+
+        $this->actingAs($this->contador)
+            ->get(route('solicitudes.index', ['tab' => 'pendientes_lider']))
+            ->assertInertia(fn ($page) => $page
+                ->has('solicitudes.data', 2)
+                ->where('solicitudes.data.0.id', $vieja->id)
+            );
+    }
 }
