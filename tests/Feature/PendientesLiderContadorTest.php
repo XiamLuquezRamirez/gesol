@@ -90,6 +90,19 @@ class PendientesLiderContadorTest extends TestCase
         $this->assertEmpty($this->motor->accionesDisponibles($s, $this->contador));
     }
 
+    public function test_el_detalle_no_expone_acciones_al_contador(): void
+    {
+        $s = $this->oficinaVerificada();
+
+        // La vista de detalle no debe traer botones de accion para el contador.
+        $this->actingAs($this->contador)
+            ->get(route('solicitudes.show', $s))
+            ->assertInertia(fn ($page) => $page
+                ->component('Solicitudes/Detalle')
+                ->where('acciones', [])
+            );
+    }
+
     public function test_contador_no_ve_oficina_en_estado_no_contemplado(): void
     {
         // Una oficina en 'enviada' (aun no verificada) no es visible para el contador:
