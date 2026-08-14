@@ -4,7 +4,7 @@ import { formatearMoneda, formatearFecha } from '@/lib/format';
 import { Link, router, usePage } from '@inertiajs/react';
 import { Head } from '@inertiajs/react';
 
-export default function Index({ solicitudes, filtros }) {
+export default function Index({ solicitudes, filtros, conteos = {} }) {
     const tab = filtros?.tab ?? 'mias';
     const cambiarTab = (nuevoTab) => {
         router.get(route('solicitudes.index'), { tab: nuevoTab }, { preserveState: true, replace: true });
@@ -39,6 +39,14 @@ export default function Index({ solicitudes, filtros }) {
                             ].join(' ')}
                         >
                             {label}
+                            {conteos[key] > 0 && (
+                                <span className={[
+                                    'ml-2 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-xs font-semibold',
+                                    tab === key ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600',
+                                ].join(' ')}>
+                                    {conteos[key]}
+                                </span>
+                            )}
                         </button>
                     ))}
                 </div>
