@@ -559,8 +559,9 @@ function SeccionPagos({ solicitud }) {
                                     onChange={(e) => setData('total_a_pagar', e.target.value)}
                                     className="w-full rounded-lg border-slate-300 text-sm" />
                                 <button type="button"
+                                    disabled={!data.total_a_pagar}
                                     onClick={() => setData('monto', data.total_a_pagar)}
-                                    className="shrink-0 px-3 py-2 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg">
+                                    className="shrink-0 px-3 py-2 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
                                     Pago total
                                 </button>
                             </div>
