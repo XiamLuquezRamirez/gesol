@@ -7,6 +7,7 @@ use App\Http\Resources\{SolicitudDetalleResource, SolicitudResource};
 use App\Models\{Solicitud, SolicitudOficina, SolicitudViaticos, Usuario};
 use App\Notifications\ComisionCerradaNotification;
 use App\Services\MotorWorkflow;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Inertia;
@@ -71,7 +72,7 @@ class SolicitudController extends Controller
      * Query de la cola "pendientes por cerrar" (OFI en pendiente_cierre), o null si
      * el usuario no puede verla. Devolver el query permite contar o listar sin repetir el gate.
      */
-    private function queryPendientesCierre(Usuario $usuario)
+    private function queryPendientesCierre(Usuario $usuario): ?Builder
     {
         if (! $usuario->hasAnyRole(['contabilidad_lider', 'lider_area'])) {
             return null;
@@ -85,7 +86,7 @@ class SolicitudController extends Controller
      * Query de la cola "pendientes del lider" (OFI verificada u VIA revisada), o null
      * si el usuario no es contador.
      */
-    private function queryPendientesLider(Usuario $usuario)
+    private function queryPendientesLider(Usuario $usuario): ?Builder
     {
         if (! $usuario->hasRole('contador')) {
             return null;
