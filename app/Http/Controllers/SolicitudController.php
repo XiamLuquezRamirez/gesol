@@ -21,8 +21,12 @@ class SolicitudController extends Controller
         $usuario = auth()->user();
         $tab     = request('tab', 'mias');
 
+        // "Pendientes de accion" se resuelve en PHP (recorre el motor por solicitud),
+        // asi que se computa una sola vez y se reutiliza para los datos y el conteo.
+        $pendientes = $this->colaPendientes($usuario);
+
         if ($tab === 'pendientes') {
-            $solicitudes = $this->colaPendientes($usuario);
+            $solicitudes = $pendientes;
         } elseif ($tab === 'pendientes_cierre') {
             $q = $this->queryPendientesCierre($usuario);
             $solicitudes = $q ? $q->latest()->get() : collect();
@@ -44,7 +48,7 @@ class SolicitudController extends Controller
         }
 
         $conteos = [
-            'pendientes'        => $this->colaPendientes($usuario)->count(),
+            'pendientes'        => $pendientes->count(),
             'pendientes_cierre' => optional($this->queryPendientesCierre($usuario))->count() ?? 0,
             'pendientes_lider'  => optional($this->queryPendientesLider($usuario))->count() ?? 0,
         ];
