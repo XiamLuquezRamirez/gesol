@@ -219,7 +219,7 @@ export default function Comisiones({ comisionados, oficina = [], filtros }) {
                                         <tr key={o.id} className="border-t border-slate-100">
                                             <td className="px-4 py-2 font-mono text-xs">{o.radicado}</td>
                                             <td className="px-4 py-2">{o.beneficiarios.join(', ') || '—'}</td>
-                                            <td className="px-4 py-2 text-right">{formatearMoneda(o.total)}</td>
+                                            <td className="px-4 py-2 text-right">{o.total != null ? formatearMoneda(o.total) : '—'}</td>
                                             <td className="px-4 py-2 text-right text-emerald-700">{formatearMoneda(o.pagado)}</td>
                                             <td className="px-4 py-2 text-right">{formatearMoneda(o.saldo)}</td>
                                             <td className="px-4 py-2"><BadgeEstado estado={o.estado} /></td>
