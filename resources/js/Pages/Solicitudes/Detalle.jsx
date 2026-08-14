@@ -485,7 +485,7 @@ function SeccionPagos({ solicitud }) {
     const pagos = solicitud.pagos;
     const soporteRef = useRef(null);
     const { data, setData, post, processing, errors, reset } = useForm({
-        monto: '', fecha_pago: '', soporte: null, observacion: '',
+        total_a_pagar: '', monto: '', fecha_pago: '', soporte: null, observacion: '',
     });
 
     if (!pagos) return null;
@@ -502,16 +502,27 @@ function SeccionPagos({ solicitud }) {
         });
     };
 
-    const haySaldo = pagos.saldo > 0;
-
     return (
         <div className="bg-white rounded-xl border border-slate-200 p-5 mt-6">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-4">Pagos</h3>
 
             <div className="grid grid-cols-3 gap-4 mb-4">
-                <div><p className="text-xs text-slate-500">Total</p><p className="text-sm font-semibold text-slate-800">{formatearMoneda(pagos.total)}</p></div>
+                <div>
+                    <p className="text-xs text-slate-500">{pagos.tiene_total ? 'Total a pagar' : 'Total estimado'}</p>
+                    <p className="text-sm font-semibold text-slate-800">
+                        {formatearMoneda(pagos.tiene_total ? pagos.total_a_pagar : pagos.total_estimado)}
+                    </p>
+                    {!pagos.tiene_total && (
+                        <p className="text-[11px] text-slate-400">Se confirmará al registrar el primer pago.</p>
+                    )}
+                </div>
                 <div><p className="text-xs text-slate-500">Pagado</p><p className="text-sm font-semibold text-emerald-700">{formatearMoneda(pagos.pagado)}</p></div>
-                <div><p className="text-xs text-slate-500">Saldo</p><p className={`text-sm font-semibold ${haySaldo ? 'text-amber-700' : 'text-slate-500'}`}>{formatearMoneda(pagos.saldo)}</p></div>
+                <div>
+                    <p className="text-xs text-slate-500">Saldo</p>
+                    <p className={`text-sm font-semibold ${pagos.saldo > 0 ? 'text-amber-700' : 'text-slate-500'}`}>
+                        {pagos.tiene_total ? formatearMoneda(pagos.saldo) : '—'}
+                    </p>
+                </div>
             </div>
 
             {pagos.abonos.length > 0 && (
@@ -537,9 +548,27 @@ function SeccionPagos({ solicitud }) {
                 </ul>
             )}
 
-            {pagos.puede_registrar && (
+            {pagos.puede_registrar && !(pagos.tiene_total && pagos.saldo <= 0) && (
                 <form onSubmit={registrar} className="border-t border-slate-100 pt-4 space-y-3">
                     <p className="text-xs font-medium text-slate-600">Registrar abono</p>
+                    {!pagos.tiene_total ? (
+                        <div>
+                            <label className="block text-xs text-slate-600 mb-1">Total a pagar</label>
+                            <div className="flex gap-2">
+                                <input type="number" step="0.01" min="0.01" value={data.total_a_pagar}
+                                    onChange={(e) => setData('total_a_pagar', e.target.value)}
+                                    className="w-full rounded-lg border-slate-300 text-sm" />
+                                <button type="button"
+                                    onClick={() => setData('monto', data.total_a_pagar)}
+                                    className="shrink-0 px-3 py-2 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg">
+                                    Pago total
+                                </button>
+                            </div>
+                            {errors.total_a_pagar && <p className="text-red-500 text-xs mt-1">{errors.total_a_pagar}</p>}
+                        </div>
+                    ) : (
+                        <p className="text-xs text-slate-500">Saldo pendiente: <span className="font-semibold">{formatearMoneda(pagos.saldo)}</span></p>
+                    )}
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="block text-xs text-slate-600 mb-1">Monto</label>
