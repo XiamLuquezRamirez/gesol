@@ -23,6 +23,11 @@ class AbonoOficinaController extends Controller
 
         // El abono y el avance de estado son una sola unidad atomica.
         DB::transaction(function () use ($cabecera, $solicitud, $request, $soportePath, $soporteNombre) {
+            // El primer abono define el total real a pagar de la solicitud.
+            if ($cabecera->total_a_pagar === null) {
+                $cabecera->update(['total_a_pagar' => $request->total_a_pagar]);
+            }
+
             $cabecera->abonos()->create([
                 'monto'          => $request->monto,
                 'fecha_pago'     => $request->fecha_pago,
