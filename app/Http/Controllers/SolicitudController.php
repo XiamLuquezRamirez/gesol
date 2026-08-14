@@ -7,6 +7,7 @@ use App\Http\Resources\{SolicitudDetalleResource, SolicitudResource};
 use App\Models\{Solicitud, SolicitudOficina, SolicitudViaticos, Usuario};
 use App\Notifications\ComisionCerradaNotification;
 use App\Services\MotorWorkflow;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Inertia;
 
@@ -20,35 +21,13 @@ class SolicitudController extends Controller
         $tab     = request('tab', 'mias');
 
         if ($tab === 'pendientes') {
-            $solicitudes = Solicitud::with(['tipoSolicitud','solicitante'])
-                ->get()
-                ->filter(fn($s) => !empty($this->motor->accionesDisponibles($s, $usuario)))
-                ->values();
+            $solicitudes = $this->colaPendientes($usuario);
         } elseif ($tab === 'pendientes_cierre') {
-            // Cola de solicitudes de oficina listas para cerrar. Solo la ven los roles
-            // que pueden cerrarlas (contabilidad y lider de area); para el resto va vacia.
-            $puedeVerCola = $usuario->hasAnyRole(['contabilidad_lider', 'lider_area']);
-            $solicitudes = $puedeVerCola
-                ? Solicitud::with(['tipoSolicitud','solicitante'])
-                    ->whereHas('tipoSolicitud', fn($q) => $q->where('clave', 'OFI'))
-                    ->where('estado', 'pendiente_cierre')
-                    ->latest()
-                    ->get()
-                : collect();
+            $q = $this->queryPendientesCierre($usuario);
+            $solicitudes = $q ? $q->latest()->get() : collect();
         } elseif ($tab === 'pendientes_lider') {
-            // Solicitudes esperando accion del lider de contabilidad. Solo el contador
-            // las ve, para dar seguimiento y evitar que el proceso se demore.
-            $solicitudes = $usuario->hasRole('contador')
-                ? Solicitud::with(['tipoSolicitud','solicitante'])
-                    ->where(function ($q) {
-                        $q->where(fn ($q) => $q->whereHas('tipoSolicitud', fn ($t) => $t->where('clave', 'OFI'))
-                                ->where('estado', 'verificada'))
-                          ->orWhere(fn ($q) => $q->whereHas('tipoSolicitud', fn ($t) => $t->where('clave', 'VIA'))
-                                ->where('estado', 'revisada'));
-                    })
-                    ->oldest() // las mas antiguas primero: prioriza lo que mas se demora
-                    ->get()
-                : collect();
+            $q = $this->queryPendientesLider($usuario);
+            $solicitudes = $q ? $q->oldest()->get() : collect();
         } elseif ($tab === 'revisadas') {
             // Solicitudes donde el usuario ejecuto al menos una transicion:
             // conserva la trazabilidad de lo que reviso, en cualquier estado.
@@ -63,11 +42,61 @@ class SolicitudController extends Controller
                 ->get();
         }
 
+        $conteos = [
+            'pendientes'        => $this->colaPendientes($usuario)->count(),
+            'pendientes_cierre' => optional($this->queryPendientesCierre($usuario))->count() ?? 0,
+            'pendientes_lider'  => optional($this->queryPendientesLider($usuario))->count() ?? 0,
+        ];
 
         return Inertia::render('Solicitudes/Index', [
             'solicitudes' => ['data' => SolicitudResource::collection($solicitudes)->resolve()],
             'filtros'     => ['tab' => $tab],
+            'conteos'     => $conteos,
         ]);
+    }
+
+    /**
+     * Solicitudes donde el usuario tiene alguna accion disponible. Se resuelve en
+     * PHP porque "accion disponible" depende del motor de workflow, no de SQL.
+     */
+    private function colaPendientes(Usuario $usuario): Collection
+    {
+        return Solicitud::with(['tipoSolicitud','solicitante'])
+            ->get()
+            ->filter(fn ($s) => !empty($this->motor->accionesDisponibles($s, $usuario)))
+            ->values();
+    }
+
+    /**
+     * Query de la cola "pendientes por cerrar" (OFI en pendiente_cierre), o null si
+     * el usuario no puede verla. Devolver el query permite contar o listar sin repetir el gate.
+     */
+    private function queryPendientesCierre(Usuario $usuario)
+    {
+        if (! $usuario->hasAnyRole(['contabilidad_lider', 'lider_area'])) {
+            return null;
+        }
+        return Solicitud::with(['tipoSolicitud','solicitante'])
+            ->whereHas('tipoSolicitud', fn ($q) => $q->where('clave', 'OFI'))
+            ->where('estado', 'pendiente_cierre');
+    }
+
+    /**
+     * Query de la cola "pendientes del lider" (OFI verificada u VIA revisada), o null
+     * si el usuario no es contador.
+     */
+    private function queryPendientesLider(Usuario $usuario)
+    {
+        if (! $usuario->hasRole('contador')) {
+            return null;
+        }
+        return Solicitud::with(['tipoSolicitud','solicitante'])
+            ->where(function ($q) {
+                $q->where(fn ($q) => $q->whereHas('tipoSolicitud', fn ($t) => $t->where('clave', 'OFI'))
+                        ->where('estado', 'verificada'))
+                  ->orWhere(fn ($q) => $q->whereHas('tipoSolicitud', fn ($t) => $t->where('clave', 'VIA'))
+                        ->where('estado', 'revisada'));
+            });
     }
 
     public function show(Solicitud $solicitud)
