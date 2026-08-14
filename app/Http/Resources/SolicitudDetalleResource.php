@@ -38,9 +38,11 @@ class SolicitudDetalleResource extends JsonResource
                 'puede_anexar' => $usuario?->can('anexarCotizacion', $this->resource) ?? false,
             ]),
             'pagos'       => $this->when($esOficina, fn () => [
-                'total'           => (float) $this->solicitable->total,
+                'total_a_pagar'   => $this->solicitable->total_a_pagar !== null ? (float) $this->solicitable->total_a_pagar : null,
+                'total_estimado'  => (float) $this->solicitable->total,
+                'tiene_total'     => $this->solicitable->total_a_pagar !== null,
                 'pagado'          => $this->solicitable->totalPagado(),
-                'saldo'           => $this->solicitable->saldo(),
+                'saldo'           => $this->solicitable->saldoPendiente(),
                 'puede_registrar' => $usuario?->can('registrarAbono', $this->resource) ?? false,
                 'abonos'          => $this->solicitable->abonos->map(fn ($a) => [
                     'id'          => $a->id,

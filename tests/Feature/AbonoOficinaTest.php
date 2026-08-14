@@ -17,7 +17,7 @@ class AbonoOficinaTest extends TestCase
         $this->seed();
         $usuario = Usuario::where('email', 'contabilidad.lider@demo.test')->firstOrFail();
         $cabecera = SolicitudOficina::create([
-            'beneficiario' => '', 'urgencia' => 'media', 'justificacion' => 'x', 'total' => 100000,
+            'beneficiario' => '', 'urgencia' => 'media', 'justificacion' => 'x', 'total' => 100000, 'total_a_pagar' => 100000,
         ]);
 
         AbonoOficina::create([
@@ -30,7 +30,7 @@ class AbonoOficinaTest extends TestCase
         ]);
 
         $this->assertEquals(65000.0, $cabecera->fresh()->totalPagado());
-        $this->assertEquals(35000.0, $cabecera->fresh()->saldo());
+        $this->assertEquals(35000.0, $cabecera->fresh()->saldoPendiente());
     }
 
     private function aprobada(): Solicitud
@@ -62,13 +62,13 @@ class AbonoOficinaTest extends TestCase
         $cl = Usuario::where('email','contabilidad.lider@demo.test')->firstOrFail();
 
         $this->actingAs($cl)->post(route('oficina.abono.store', $s), [
-            'monto' => 40000, 'fecha_pago' => '2026-08-06',
+            'monto' => 40000, 'total_a_pagar' => 100000, 'fecha_pago' => '2026-08-06',
             'soporte' => UploadedFile::fake()->create('pago1.pdf', 100, 'application/pdf'),
         ])->assertRedirect();
 
         $this->assertEquals('pendiente_cierre', $s->fresh()->estado);
         $this->assertEquals(40000.0, $s->solicitable->fresh()->totalPagado());
-        $this->assertEquals(60000.0, $s->solicitable->fresh()->saldo());
+        $this->assertEquals(60000.0, $s->solicitable->fresh()->saldoPendiente());
     }
 
     public function test_un_abono_puede_cubrir_la_totalidad(): void
@@ -78,11 +78,11 @@ class AbonoOficinaTest extends TestCase
         $cl = Usuario::where('email','contabilidad.lider@demo.test')->firstOrFail();
 
         $this->actingAs($cl)->post(route('oficina.abono.store', $s), [
-            'monto' => 100000, 'fecha_pago' => '2026-08-06',
+            'monto' => 100000, 'total_a_pagar' => 100000, 'fecha_pago' => '2026-08-06',
             'soporte' => UploadedFile::fake()->create('total.pdf', 100, 'application/pdf'),
         ])->assertRedirect();
 
-        $this->assertEquals(0.0, $s->solicitable->fresh()->saldo());
+        $this->assertEquals(0.0, $s->solicitable->fresh()->saldoPendiente());
         $this->assertEquals('pendiente_cierre', $s->fresh()->estado);
     }
 
@@ -93,7 +93,7 @@ class AbonoOficinaTest extends TestCase
         $cont = Usuario::where('email','contador@demo.test')->firstOrFail();
 
         $this->actingAs($cont)->post(route('oficina.abono.store', $s), [
-            'monto' => 1000, 'fecha_pago' => '2026-08-06',
+            'monto' => 1000, 'total_a_pagar' => 100000, 'fecha_pago' => '2026-08-06',
             'soporte' => UploadedFile::fake()->create('x.pdf', 100, 'application/pdf'),
         ])->assertForbidden();
     }
@@ -106,7 +106,7 @@ class AbonoOficinaTest extends TestCase
         $rrhh = Usuario::where('email','rrhh@demo.test')->firstOrFail();
 
         $this->actingAs($cl)->post(route('oficina.abono.store', $s), [
-            'monto' => 50000, 'fecha_pago' => '2026-08-06',
+            'monto' => 50000, 'total_a_pagar' => 100000, 'fecha_pago' => '2026-08-06',
             'soporte' => UploadedFile::fake()->create('soporte.pdf', 100, 'application/pdf'),
         ]);
         $abono = $s->solicitable->fresh()->abonos()->first();
@@ -123,7 +123,7 @@ class AbonoOficinaTest extends TestCase
         $cl = Usuario::where('email','contabilidad.lider@demo.test')->firstOrFail();
 
         $this->actingAs($cl)->post(route('oficina.abono.store', $s), [
-            'monto' => 30000, 'fecha_pago' => '2026-08-06',
+            'monto' => 30000, 'total_a_pagar' => 100000, 'fecha_pago' => '2026-08-06',
             'soporte' => UploadedFile::fake()->create('a.pdf', 100, 'application/pdf'),
         ]);
         $abono = $s->solicitable->fresh()->abonos()->first();
@@ -147,7 +147,7 @@ class AbonoOficinaTest extends TestCase
         $s->update(['estado' => 'verificada']);
 
         $this->actingAs($cl)->post(route('oficina.abono.store', $s), [
-            'monto' => 1000, 'fecha_pago' => '2026-08-06',
+            'monto' => 1000, 'total_a_pagar' => 100000, 'fecha_pago' => '2026-08-06',
             'soporte' => UploadedFile::fake()->create('x.pdf', 100, 'application/pdf'),
         ])->assertForbidden();
 

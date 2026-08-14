@@ -67,9 +67,9 @@ class ComisionesRrhhController extends Controller
                     'estado'        => $s->estado,
                     'solicitante'   => $s->solicitante->name,
                     'beneficiarios' => $c->beneficiarios->map(fn ($e) => trim($e->nombres.' '.$e->apellidos))->values(),
-                    'total'         => (float) $c->total,
+                    'total'         => $c->total_a_pagar !== null ? (float) $c->total_a_pagar : null,
                     'pagado'        => $c->totalPagado(),
-                    'saldo'         => $c->saldo(),
+                    'saldo'         => $c->saldoPendiente(),
                     'abonos'        => $c->abonos->map(fn ($a) => [
                         'id'         => $a->id,
                         'monto'      => (float) $a->monto,
