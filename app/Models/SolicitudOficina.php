@@ -8,8 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 class SolicitudOficina extends Model
 {
     protected $table = 'solicitudes_oficina';
-    protected $fillable = ['beneficiario', 'urgencia', 'justificacion', 'total', 'valor_pagado', 'fecha_pago', 'comprobante', 'cotizacion_path', 'comentario_contador'];
-    protected $casts = ['urgencia' => UrgenciaOficina::class, 'fecha_pago' => 'date'];
+    protected $fillable = ['beneficiario', 'urgencia', 'justificacion', 'total', 'total_a_pagar', 'valor_pagado', 'fecha_pago', 'comprobante', 'cotizacion_path', 'comentario_contador'];
+    protected $casts = ['urgencia' => UrgenciaOficina::class, 'fecha_pago' => 'date', 'total_a_pagar' => 'decimal:2'];
 
     public function items()
     {
@@ -42,9 +42,18 @@ class SolicitudOficina extends Model
         return (float) $suma;
     }
 
-    public function saldo(): float
+    public function saldoPendiente(): float
     {
-        return (float) $this->total - $this->totalPagado();
+        // Antes de fijar el total real (sin pagos aun), no hay saldo aplicable.
+        if ($this->total_a_pagar === null) {
+            return 0.0;
+        }
+        return (float) $this->total_a_pagar - $this->totalPagado();
+    }
+
+    public function estaPagadaCompleta(): bool
+    {
+        return $this->total_a_pagar !== null && $this->totalPagado() >= (float) $this->total_a_pagar;
     }
 
     public function solicitud()
