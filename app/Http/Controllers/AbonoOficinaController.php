@@ -2,7 +2,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\RegistrarAbonoOficinaRequest;
-use App\Models\{AbonoOficina, Solicitud};
+use App\Models\{AbonoOficina, SolicitudOficina, Solicitud};
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -23,10 +23,19 @@ class AbonoOficinaController extends Controller
 
         // El abono y el avance de estado son una sola unidad atomica.
         DB::transaction(function () use ($cabecera, $solicitud, $request, $soportePath, $soporteNombre) {
+            // Bloqueo pesimista de la cabecera: relee el estado de pago con lock
+            // para que dos abonos simultaneos no sobrepasen el total (defensa en
+            // profundidad; la validacion amigable ya corrio en el FormRequest).
+            $cabecera = SolicitudOficina::whereKey($cabecera->id)->lockForUpdate()->firstOrFail();
+
             // El primer abono define el total real a pagar de la solicitud.
             if ($cabecera->total_a_pagar === null) {
                 $cabecera->update(['total_a_pagar' => $request->total_a_pagar]);
             }
+
+            // Red de seguridad ante concurrencia: el monto no puede exceder el saldo.
+            abort_if((float) $request->monto > $cabecera->fresh()->saldoPendiente(), 422,
+                'El monto supera el saldo pendiente.');
 
             $cabecera->abonos()->create([
                 'monto'          => $request->monto,
