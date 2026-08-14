@@ -34,8 +34,11 @@ class AbonoOficinaController extends Controller
             }
 
             // Red de seguridad ante concurrencia: el monto no puede exceder el saldo.
-            abort_if((float) $request->monto > $cabecera->fresh()->saldoPendiente(), 422,
-                'El monto supera el saldo pendiente.');
+            // Si dispara, se borra el soporte ya subido para no dejarlo huerfano.
+            if ((float) $request->monto > $cabecera->fresh()->saldoPendiente()) {
+                Storage::disk('local')->delete($soportePath);
+                abort(422, 'El monto supera el saldo pendiente.');
+            }
 
             $cabecera->abonos()->create([
                 'monto'          => $request->monto,
