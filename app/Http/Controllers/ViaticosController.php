@@ -15,6 +15,7 @@ class ViaticosController extends Controller
         return Inertia::render('Viaticos/Crear', [
             'empleados'  => Empleados::orderBy('nombres')->get(['id','nombres','apellidos','identificacion']),
             'municipios' => Municipio::orderBy('nombre')->get(['id','nombre']),
+            'contratos'  => \App\Models\Contrato::orderBy('descripcion')->get(['id','descripcion','objeto']),
         ]);
     }
 
@@ -35,15 +36,7 @@ class ViaticosController extends Controller
 
             // Datos individuales por empleado comisionado
             foreach ($request->viajeros as $v) {
-                ViajeroComision::create([
-                    'solicitud_viaticos_id' => $cabecera->id,
-                    'empleado_id'           => $v['empleado_id'],
-                    'motivo'                => $v['motivo'],
-                    'fecha_salida'          => $v['fecha_salida'],
-                    'hora_salida'           => $v['hora_salida'],
-                    'fecha_regreso'         => $v['fecha_regreso'],
-                    'hora_regreso'          => $v['hora_regreso'],
-                ]);
+                ViajeroComision::create($this->atributosViajero($cabecera->id, $v));
             }
 
             return Solicitud::create([
@@ -63,11 +56,12 @@ class ViaticosController extends Controller
     public function edit(Solicitud $solicitud)
     {
         $this->authorize('editar', $solicitud);
-        $solicitud->load(['solicitable.viajeros.empleado', 'solicitable.municipios']);
+        $solicitud->load(['solicitable.viajeros.empleado', 'solicitable.viajeros.contrato', 'solicitable.municipios']);
         return Inertia::render('Viaticos/Crear', [
             'solicitud'  => $solicitud,
             'empleados'  => Empleados::orderBy('nombres')->get(['id','nombres','apellidos','identificacion']),
             'municipios' => Municipio::orderBy('nombre')->get(['id','nombre']),
+            'contratos'  => \App\Models\Contrato::orderBy('descripcion')->get(['id','descripcion','objeto']),
             'editar'     => true,
         ]);
     }
@@ -86,15 +80,7 @@ class ViaticosController extends Controller
             $cabecera->municipios()->sync($request->municipios);
             $cabecera->viajeros()->delete();
             foreach ($request->viajeros as $v) {
-                ViajeroComision::create([
-                    'solicitud_viaticos_id' => $cabecera->id,
-                    'empleado_id'           => $v['empleado_id'],
-                    'motivo'                => $v['motivo'],
-                    'fecha_salida'          => $v['fecha_salida'],
-                    'hora_salida'           => $v['hora_salida'],
-                    'fecha_regreso'         => $v['fecha_regreso'],
-                    'hora_regreso'          => $v['hora_regreso'],
-                ]);
+                ViajeroComision::create($this->atributosViajero($cabecera->id, $v));
             }
         });
 
@@ -110,6 +96,24 @@ class ViaticosController extends Controller
     private function municipiosComoTexto(array $municipioIds): string
     {
         return Municipio::whereIn('id', $municipioIds)->orderBy('nombre')->pluck('nombre')->implode(', ');
+    }
+
+    /** Mapea un viajero del request a los atributos persistibles, resolviendo empleado vs externo. */
+    private function atributosViajero(int $cabeceraId, array $v): array
+    {
+        $externo = filter_var($v['es_externo'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        return [
+            'solicitud_viaticos_id'  => $cabeceraId,
+            'empleado_id'            => $externo ? null : ($v['empleado_id'] ?? null),
+            'contrato_id'            => $v['contrato_id'] ?? null,
+            'nombre_externo'         => $externo ? ($v['nombre_externo'] ?? null) : null,
+            'identificacion_externo' => $externo ? ($v['identificacion_externo'] ?? null) : null,
+            'motivo'                 => $v['motivo'],
+            'fecha_salida'           => $v['fecha_salida'],
+            'hora_salida'            => $v['hora_salida'],
+            'fecha_regreso'          => $v['fecha_regreso'],
+            'hora_regreso'           => $v['hora_regreso'],
+        ];
     }
 
     public function liquidacion(Solicitud $solicitud)

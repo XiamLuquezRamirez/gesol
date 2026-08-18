@@ -90,4 +90,40 @@ class ViajerosBloqueBTest extends TestCase
             ]))
             ->assertSessionHasErrors('viajeros.0.empleado_id');
     }
+
+    public function test_persiste_contrato_y_viajero_externo(): void
+    {
+        $this->seed();
+        $lider = \App\Models\Usuario::where('email', 'lider.comite@demo.test')->firstOrFail();
+        $contrato = Contrato::create(['descripcion' => 'D', 'objeto' => 'O']);
+        $emp = Empleados::first();
+
+        $this->actingAs($lider)->post(route('viaticos.store'), [
+            'nombre_comision' => 'C',
+            'municipios'      => Municipio::take(1)->pluck('id')->all(),
+            'observacion'     => 'x',
+            'viajeros'        => [
+                [
+                    'es_externo' => false, 'empleado_id' => $emp->id, 'contrato_id' => $contrato->id,
+                    'motivo' => 'm', 'fecha_salida' => '2026-08-20', 'hora_salida' => '08:00',
+                    'fecha_regreso' => '2026-08-21', 'hora_regreso' => '17:00',
+                ],
+                [
+                    'es_externo' => true, 'nombre_externo' => 'Ana Externa', 'identificacion_externo' => '555',
+                    'motivo' => 'm', 'fecha_salida' => '2026-08-20', 'hora_salida' => '08:00',
+                    'fecha_regreso' => '2026-08-21', 'hora_regreso' => '17:00',
+                ],
+            ],
+        ])->assertRedirect();
+
+        $cab = SolicitudViaticos::latest('id')->first();
+        $viajeros = $cab->viajeros()->orderBy('id')->get();
+
+        $this->assertEquals($emp->id, $viajeros[0]->empleado_id);
+        $this->assertEquals($contrato->id, $viajeros[0]->contrato_id);
+        $this->assertNull($viajeros[1]->empleado_id);
+        $this->assertNull($viajeros[1]->contrato_id);
+        $this->assertEquals('Ana Externa', $viajeros[1]->nombre_externo);
+        $this->assertEquals('555', $viajeros[1]->identificacion_externo);
+    }
 }
