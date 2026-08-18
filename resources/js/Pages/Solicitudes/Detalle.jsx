@@ -138,7 +138,14 @@ function DetalleViaticos({ solicitable, solicitudId, cerrada }) {
             {/* Información general */}
             <dl className="grid grid-cols-2 gap-x-6 gap-y-4">
                 <Campo label="Nombre de la comisión" valor={solicitable.nombre_comision} />
-                <Campo label="Municipio destino" valor={solicitable.municipio_destino} />
+                <Campo
+                    label="Municipios destino"
+                    valor={
+                        solicitable.municipios?.length > 0
+                            ? solicitable.municipios.map((m) => m.nombre).join(', ')
+                            : (solicitable.municipio_destino || '—')
+                    }
+                />
                 <Campo label="Total asignado" valor={formatearMoneda(solicitable.total)} />
                 {solicitable.observacion && (
                     <div className="col-span-2">
