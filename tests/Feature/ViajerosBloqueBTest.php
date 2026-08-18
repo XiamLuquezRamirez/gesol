@@ -54,4 +54,40 @@ class ViajerosBloqueBTest extends TestCase
 
         $this->assertEquals(1, $contrato->fresh()->viajeros()->count());
     }
+
+    private function payloadBase(array $viajero): array
+    {
+        return [
+            'nombre_comision' => 'C',
+            'municipios'      => Municipio::take(1)->pluck('id')->all(),
+            'observacion'     => 'x',
+            'viajeros'        => [$viajero],
+        ];
+    }
+
+    public function test_externo_sin_nombre_es_invalido(): void
+    {
+        $this->seed();
+        $lider = \App\Models\Usuario::where('email', 'lider.comite@demo.test')->firstOrFail();
+        $this->actingAs($lider)->from(route('viaticos.crear'))
+            ->post(route('viaticos.store'), $this->payloadBase([
+                'es_externo' => true, 'identificacion_externo' => '123',
+                'motivo' => 'm', 'fecha_salida' => '2026-08-20', 'hora_salida' => '08:00',
+                'fecha_regreso' => '2026-08-21', 'hora_regreso' => '17:00',
+            ]))
+            ->assertSessionHasErrors('viajeros.0.nombre_externo');
+    }
+
+    public function test_no_externo_sin_empleado_es_invalido(): void
+    {
+        $this->seed();
+        $lider = \App\Models\Usuario::where('email', 'lider.comite@demo.test')->firstOrFail();
+        $this->actingAs($lider)->from(route('viaticos.crear'))
+            ->post(route('viaticos.store'), $this->payloadBase([
+                'es_externo' => false,
+                'motivo' => 'm', 'fecha_salida' => '2026-08-20', 'hora_salida' => '08:00',
+                'fecha_regreso' => '2026-08-21', 'hora_regreso' => '17:00',
+            ]))
+            ->assertSessionHasErrors('viajeros.0.empleado_id');
+    }
 }

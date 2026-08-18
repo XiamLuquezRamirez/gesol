@@ -14,18 +14,41 @@ class GuardarSolicitudViaticosRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nombre_comision'             => 'required|string|max:255',
-            'municipios'                  => 'required|array|min:1',
-            'municipios.*'                => 'exists:municipios,id',
-            'observacion'                 => 'nullable|string|max:2000',
-            'viajeros'                    => 'required|array|min:1',
-            'viajeros.*.empleado_id'      => 'required|exists:empleados,id',
-            'viajeros.*.motivo'           => 'required|string|max:2000',
-            'viajeros.*.fecha_salida'     => 'required|date',
-            'viajeros.*.hora_salida'      => 'required|string|max:5',
-            'viajeros.*.fecha_regreso'    => 'required|date',
-            'viajeros.*.hora_regreso'     => 'required|string|max:5',
+            'nombre_comision'                    => 'required|string|max:255',
+            'municipios'                         => 'required|array|min:1',
+            'municipios.*'                       => 'exists:municipios,id',
+            'observacion'                        => 'nullable|string|max:2000',
+            'viajeros'                           => 'required|array|min:1',
+            'viajeros.*.es_externo'              => 'nullable|boolean',
+            'viajeros.*.contrato_id'             => 'nullable|exists:contratos,id',
+            'viajeros.*.empleado_id'             => 'nullable|exists:empleados,id',
+            'viajeros.*.nombre_externo'          => 'nullable|string|max:255',
+            'viajeros.*.identificacion_externo'  => 'nullable|string|max:50',
+            'viajeros.*.motivo'                  => 'required|string|max:2000',
+            'viajeros.*.fecha_salida'            => 'required|date',
+            'viajeros.*.hora_salida'             => 'required|string|max:5',
+            'viajeros.*.fecha_regreso'           => 'required|date',
+            'viajeros.*.hora_regreso'            => 'required|string|max:5',
         ];
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            foreach ((array) $this->input('viajeros', []) as $i => $v) {
+                $externo = filter_var($v['es_externo'] ?? false, FILTER_VALIDATE_BOOLEAN);
+                if ($externo) {
+                    if (empty($v['nombre_externo'])) {
+                        $validator->errors()->add("viajeros.$i.nombre_externo", 'Ingrese el nombre del viajero externo.');
+                    }
+                    if (empty($v['identificacion_externo'])) {
+                        $validator->errors()->add("viajeros.$i.identificacion_externo", 'Ingrese la identificación del viajero externo.');
+                    }
+                } elseif (empty($v['empleado_id'])) {
+                    $validator->errors()->add("viajeros.$i.empleado_id", 'Seleccione el empleado o marque viajero externo.');
+                }
+            }
+        });
     }
 
     public function messages(): array
