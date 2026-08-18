@@ -101,7 +101,7 @@ export default function Index({ solicitudes, filtros, conteos = {} }) {
                                         </p>
                                     </div>
                                     <div className="text-right shrink-0">
-                                        <p className="text-sm font-semibold text-slate-800">{formatearMoneda(s.total)}</p>
+                                        <p className="text-sm font-semibold text-slate-800">{s.total != null ? formatearMoneda(s.total) : '—'}</p>
                                     </div>
                                 </div>
                             </Link>

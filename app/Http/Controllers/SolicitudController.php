@@ -36,12 +36,12 @@ class SolicitudController extends Controller
         } elseif ($tab === 'revisadas') {
             // Solicitudes donde el usuario ejecuto al menos una transicion:
             // conserva la trazabilidad de lo que reviso, en cualquier estado.
-            $solicitudes = Solicitud::with(['tipoSolicitud','solicitante'])
+            $solicitudes = Solicitud::with(['tipoSolicitud','solicitante','solicitable'])
                 ->whereHas('transiciones', fn($q) => $q->where('usuario_id', $usuario->id))
                 ->latest()
                 ->get();
         } else {
-            $solicitudes = Solicitud::with(['tipoSolicitud','solicitante'])
+            $solicitudes = Solicitud::with(['tipoSolicitud','solicitante','solicitable'])
                 ->where('solicitante_id', $usuario->id)
                 ->latest()
                 ->get();
@@ -66,7 +66,7 @@ class SolicitudController extends Controller
      */
     private function colaPendientes(Usuario $usuario): Collection
     {
-        return Solicitud::with(['tipoSolicitud','solicitante'])
+        return Solicitud::with(['tipoSolicitud','solicitante','solicitable'])
             ->get()
             ->filter(fn ($s) => !empty($this->motor->accionesDisponibles($s, $usuario)))
             ->values();
@@ -81,7 +81,7 @@ class SolicitudController extends Controller
         if (! $usuario->hasAnyRole(['contabilidad_lider', 'lider_area'])) {
             return null;
         }
-        return Solicitud::with(['tipoSolicitud','solicitante'])
+        return Solicitud::with(['tipoSolicitud','solicitante','solicitable'])
             ->whereHas('tipoSolicitud', fn ($q) => $q->where('clave', 'OFI'))
             ->where('estado', 'pendiente_cierre');
     }
@@ -95,7 +95,7 @@ class SolicitudController extends Controller
         if (! $usuario->hasRole('contador')) {
             return null;
         }
-        return Solicitud::with(['tipoSolicitud','solicitante'])
+        return Solicitud::with(['tipoSolicitud','solicitante','solicitable'])
             ->where(function ($q) {
                 $q->where(fn ($q) => $q->whereHas('tipoSolicitud', fn ($t) => $t->where('clave', 'OFI'))
                         ->where('estado', 'verificada'))
