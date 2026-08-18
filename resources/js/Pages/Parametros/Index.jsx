@@ -1,5 +1,6 @@
 import AppLayout from '@/Layouts/AppLayout';
 import CampoMoneda from '@/Components/CampoMoneda';
+import MultiSelectBuscador from '@/Components/MultiSelectBuscador';
 import { Head, useForm, usePage, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { CheckCircleIcon, PencilSquareIcon, PlusCircleIcon, TrashIcon, UserPlusIcon, XCircleIcon } from '@heroicons/react/24/outline';
@@ -408,9 +409,6 @@ function TabContratos({ contratos, municipios }) {
         if (confirmarId !== c.id) { setConfirmarId(c.id); return; }
         router.delete(route('parametros.contratos.destroy', c.id), { onSuccess: () => setConfirmarId(null) });
     };
-    const toggleMunicipio = (id, checked) => {
-        setData('municipios', checked ? [...data.municipios, id] : data.municipios.filter((x) => x !== id));
-    };
 
     return (
         <div className="space-y-4">
@@ -437,16 +435,13 @@ function TabContratos({ contratos, municipios }) {
                         </Field>
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">Municipios</label>
-                            <div className="border border-slate-300 rounded-lg p-3 max-h-40 overflow-y-auto space-y-1">
-                                {municipios.map((m) => (
-                                    <label key={m.id} className="flex items-center gap-2 text-sm text-slate-700">
-                                        <input type="checkbox" className="rounded border-slate-300 text-indigo-600"
-                                            checked={data.municipios.includes(m.id)}
-                                            onChange={(e) => toggleMunicipio(m.id, e.target.checked)} />
-                                        {m.nombre}
-                                    </label>
-                                ))}
-                            </div>
+                            <MultiSelectBuscador
+                                opciones={municipios}
+                                seleccionados={data.municipios}
+                                onChange={(ids) => setData('municipios', ids)}
+                                placeholder="Buscar municipio…"
+                                vacio="No hay municipios registrados."
+                            />
                             {errors.municipios && <p className="text-red-500 text-xs mt-1">{errors.municipios}</p>}
                         </div>
                         <div className="flex justify-end gap-3 pt-1">

@@ -1,4 +1,5 @@
 import AppLayout from '@/Layouts/AppLayout';
+import MultiSelectBuscador from '@/Components/MultiSelectBuscador';
 import { useForm, Head } from '@inertiajs/react';
 import { useState } from 'react';
 import { XCircleIcon, CheckCircleIcon, PlusCircleIcon } from '@heroicons/react/24/outline';
@@ -149,27 +150,13 @@ export default function Crear({ empleados, solicitud = null, editar = false, mun
                                 />
                             </Field>
                             <Field label="Municipios destino" error={errors.municipios}>
-                                <div className="border border-slate-300 rounded-lg p-3 max-h-40 overflow-y-auto space-y-1">
-                                    {municipios.length === 0 && (
-                                        <p className="text-xs text-slate-400">No hay municipios registrados.</p>
-                                    )}
-                                    {municipios.map((m) => (
-                                        <label key={m.id} className="flex items-center gap-2 text-sm text-slate-700">
-                                            <input
-                                                type="checkbox"
-                                                className="rounded border-slate-300 text-indigo-600"
-                                                checked={data.municipios.includes(m.id)}
-                                                onChange={(ev) => {
-                                                    const next = ev.target.checked
-                                                        ? [...data.municipios, m.id]
-                                                        : data.municipios.filter((id) => id !== m.id);
-                                                    setData('municipios', next);
-                                                }}
-                                            />
-                                            {m.nombre}
-                                        </label>
-                                    ))}
-                                </div>
+                                <MultiSelectBuscador
+                                    opciones={municipios}
+                                    seleccionados={data.municipios}
+                                    onChange={(ids) => setData('municipios', ids)}
+                                    placeholder="Buscar municipio…"
+                                    vacio="No hay municipios registrados."
+                                />
                             </Field>
                         </div>
                         <Field label="Observación general" error={errors.observacion}>
