@@ -18,6 +18,11 @@ class ViajeroComision extends Model
     public function solicitudViaticos() { return $this->belongsTo(SolicitudViaticos::class, 'solicitud_viaticos_id'); }
     public function asignaciones()      { return $this->hasMany(AsignacionViatico::class, 'viajero_comision_id'); }
 
+    public function archivos()
+    {
+        return $this->hasMany(ArchivoViajero::class, 'viajero_comision_id');
+    }
+
     /** Nombre a mostrar: empleado de la BD o nombre libre del viajero externo. */
     public function getNombreMostradoAttribute(): string
     {
