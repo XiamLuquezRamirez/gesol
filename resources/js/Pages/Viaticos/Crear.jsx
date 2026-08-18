@@ -63,7 +63,7 @@ function IconPlus() {
     );
 }
 
-export default function Crear({ empleados, solicitud = null, editar = false }) {
+export default function Crear({ empleados, solicitud = null, editar = false, municipios = [] }) {
     const solicitable = solicitud?.solicitable ?? null;
 
     const viajerosIniciales = (solicitable?.viajeros ?? []).map((v) => ({
@@ -78,7 +78,7 @@ export default function Crear({ empleados, solicitud = null, editar = false }) {
 
     const { data, setData, post, put, processing, errors } = useForm({
         nombre_comision:   solicitable?.nombre_comision   ?? '',
-        municipio_destino: solicitable?.municipio_destino ?? '',
+        municipios: solicitable?.municipios?.map((m) => m.id) ?? [],
         observacion:       solicitable?.observacion       ?? '',
         viajeros:          viajerosIniciales,
     });
@@ -148,13 +148,28 @@ export default function Crear({ empleados, solicitud = null, editar = false }) {
                                     placeholder="Ej. Visita técnica regional"
                                 />
                             </Field>
-                            <Field label="Municipio destino" error={errors.municipio_destino}>
-                                <Input
-                                    value={data.municipio_destino}
-                                    onChange={(e) => setData('municipio_destino', e.target.value)}
-                                    error={errors.municipio_destino}
-                                    placeholder="Ej. Becerril"
-                                />
+                            <Field label="Municipios destino" error={errors.municipios}>
+                                <div className="border border-slate-300 rounded-lg p-3 max-h-40 overflow-y-auto space-y-1">
+                                    {municipios.length === 0 && (
+                                        <p className="text-xs text-slate-400">No hay municipios registrados.</p>
+                                    )}
+                                    {municipios.map((m) => (
+                                        <label key={m.id} className="flex items-center gap-2 text-sm text-slate-700">
+                                            <input
+                                                type="checkbox"
+                                                className="rounded border-slate-300 text-indigo-600"
+                                                checked={data.municipios.includes(m.id)}
+                                                onChange={(ev) => {
+                                                    const next = ev.target.checked
+                                                        ? [...data.municipios, m.id]
+                                                        : data.municipios.filter((id) => id !== m.id);
+                                                    setData('municipios', next);
+                                                }}
+                                            />
+                                            {m.nombre}
+                                        </label>
+                                    ))}
+                                </div>
                             </Field>
                         </div>
                         <Field label="Observación general" error={errors.observacion}>
