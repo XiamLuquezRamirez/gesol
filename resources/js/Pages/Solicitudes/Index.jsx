@@ -49,9 +49,7 @@ export default function Index({ solicitudes, filtros, conteos = {} }) {
                             )}
                         </button>
                     ))}
-                </div>
-
-                
+                </div>                
 
                 {/* Lista */}
                 {solicitudes.data.length === 0 ? (
