@@ -115,7 +115,7 @@ export default function Liquidacion({ solicitud, tarifas, rubros }) {
                                         <p className="text-sm font-semibold text-slate-800">
                                             {viajero.empleado
                                                 ? `${viajero.empleado.nombres} ${viajero.empleado.apellidos}`
-                                                : '—'}
+                                                : (viajero.nombre_externo || '—')}
                                         </p>
                                         <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
                                             <span>

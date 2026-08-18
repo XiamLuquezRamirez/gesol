@@ -30,7 +30,7 @@ class LiquidacionPdf
             ->firstWhere('accion', 'aprobar');
 
         return [
-            'empleado'         => trim(($viajero->empleado->nombres ?? '').' '.($viajero->empleado->apellidos ?? '')),
+            'empleado'         => $viajero->nombreMostrado,
             'lugar'            => $comision->municipio_destino ?? '—',
             'fecha_comision'   => optional($viajero->fecha_salida)->format('d/m/Y') ?? $viajero->fecha_salida,
             'fecha_documento'  => now()->format('d/m/Y'),
@@ -54,7 +54,7 @@ class LiquidacionPdf
 
     public function nombreArchivo(Solicitud $solicitud, ViajeroComision $viajero): string
     {
-        $empleado = str_replace(' ', '_', trim(($viajero->empleado->nombres ?? '').'_'.($viajero->empleado->apellidos ?? '')));
+        $empleado = str_replace(' ', '_', $viajero->nombreMostrado ?: 'viajero');
         return 'liquidacion_'.$solicitud->radicado.'_'.$empleado.'.pdf';
     }
 
