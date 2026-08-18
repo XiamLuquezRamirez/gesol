@@ -5,7 +5,7 @@ import { formatearMoneda } from '@/lib/format';
 import { useForm, Head } from '@inertiajs/react';
 import { useState } from 'react';
 import { PlusCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import { rubrosPorDefecto } from '@/lib/rubros';
+import { rubrosPorDefecto, diasComision } from '@/lib/rubros';
 
 const etiquetaRubro = (r) =>
     r.charAt(0).toUpperCase() + r.slice(1).replace(/[_-]/g, ' ');
@@ -69,7 +69,7 @@ export default function Liquidacion({ solicitud, tarifas, rubros }) {
                 viajero_comision_id: viajeroId,
                 rubro,
                 valor_unitario: tarifas[rubro]?.valor_sugerido ?? 0,
-                dias: diasEntre(viajero?.fecha_salida, viajero?.fecha_regreso),
+                dias: diasComision(viajero?.fecha_salida, viajero?.fecha_regreso),
             },
         ]);
         setRubroSel((p) => ({ ...p, [viajeroId]: '' }));
