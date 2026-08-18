@@ -42,7 +42,10 @@ export default function Index({ solicitudes, filtros, conteos = {} }) {
                             {conteos[key] > 0 && (
                                 <span className={[
                                     'ml-2 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-xs font-semibold',
-                                    tab === key ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600',
+                                    // La cola del lider se resalta en rojo para que salte a la vista.
+                                    key === 'pendientes_lider'
+                                        ? 'bg-red-600 text-white'
+                                        : tab === key ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600',
                                 ].join(' ')}>
                                     {conteos[key]}
                                 </span>
