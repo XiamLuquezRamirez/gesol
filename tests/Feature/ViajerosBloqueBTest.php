@@ -38,4 +38,20 @@ class ViajerosBloqueBTest extends TestCase
         $this->assertEquals('Juan Externo', $externo->fresh()->nombreMostrado);
         $this->assertEquals('999', $externo->fresh()->identificacionMostrada);
     }
+
+    public function test_contrato_tiene_viajeros(): void
+    {
+        $this->seed();
+        $contrato = Contrato::create(['descripcion' => 'D', 'objeto' => 'O']);
+        $contrato->municipios()->sync(Municipio::take(1)->pluck('id')->all());
+        $cab = SolicitudViaticos::create(['nombre_comision' => 'C', 'municipio_destino' => '', 'observacion' => 'x']);
+        ViajeroComision::create([
+            'solicitud_viaticos_id' => $cab->id, 'empleado_id' => Empleados::first()->id,
+            'contrato_id' => $contrato->id,
+            'motivo' => 'm', 'fecha_salida' => '2026-08-20', 'hora_salida' => '08:00',
+            'fecha_regreso' => '2026-08-21', 'hora_regreso' => '17:00',
+        ]);
+
+        $this->assertEquals(1, $contrato->fresh()->viajeros()->count());
+    }
 }
