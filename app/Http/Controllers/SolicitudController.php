@@ -114,7 +114,7 @@ class SolicitudController extends Controller
             'area',
             'solicitable' => fn ($morphTo) => $morphTo->morphWith([
                 SolicitudOficina::class  => ['items', 'cotizaciones.usuario', 'beneficiarios', 'abonos.usuario'],
-                SolicitudViaticos::class => ['viajeros.empleado', 'viajeros.asignaciones'],
+                SolicitudViaticos::class => ['viajeros.empleado', 'viajeros.asignaciones', 'municipios'],
             ]),
             'transiciones.usuario',
         ]);

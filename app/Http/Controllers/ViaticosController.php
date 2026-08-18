@@ -2,7 +2,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\{GuardarSolicitudViaticosRequest, ActualizarAsignacionesRequest};
-use App\Models\{AsignacionViatico, Solicitud, SolicitudViaticos, TarifaViatico, TipoSolicitud, Usuario, ViajeroComision, Empleados};
+use App\Models\{AsignacionViatico, Municipio, Solicitud, SolicitudViaticos, TarifaViatico, TipoSolicitud, Usuario, ViajeroComision, Empleados};
 use App\Services\MotorWorkflow;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -13,7 +13,8 @@ class ViaticosController extends Controller
     public function create()
     {
         return Inertia::render('Viaticos/Crear', [
-            'empleados' => Empleados::orderBy('nombres')->get(['id','nombres','apellidos','identificacion']),
+            'empleados'  => Empleados::orderBy('nombres')->get(['id','nombres','apellidos','identificacion']),
+            'municipios' => \App\Models\Municipio::orderBy('nombre')->get(['id','nombre']),
         ]);
     }
 
@@ -25,9 +26,10 @@ class ViaticosController extends Controller
             // Datos generales de la comisión
             $cabecera = SolicitudViaticos::create([
                 'nombre_comision'   => $request->nombre_comision,
-                'municipio_destino' => $request->municipio_destino,
+                'municipio_destino' => '',
                 'observacion'       => $request->observacion,
             ]);
+            $cabecera->municipios()->sync($request->municipios);
 
             // Datos individuales por empleado comisionado
             foreach ($request->viajeros as $v) {
@@ -59,11 +61,12 @@ class ViaticosController extends Controller
     public function edit(Solicitud $solicitud)
     {
         $this->authorize('editar', $solicitud);
-        $solicitud->load(['solicitable.viajeros.empleado']);
+        $solicitud->load(['solicitable.viajeros.empleado', 'solicitable.municipios']);
         return Inertia::render('Viaticos/Crear', [
-            'solicitud' => $solicitud,
-            'empleados' => Empleados::orderBy('nombres')->get(['id','nombres','apellidos','identificacion']),
-            'editar'    => true,
+            'solicitud'  => $solicitud,
+            'empleados'  => Empleados::orderBy('nombres')->get(['id','nombres','apellidos','identificacion']),
+            'municipios' => \App\Models\Municipio::orderBy('nombre')->get(['id','nombre']),
+            'editar'     => true,
         ]);
     }
 
@@ -75,9 +78,10 @@ class ViaticosController extends Controller
         DB::transaction(function () use ($request, $cabecera) {
             $cabecera->update([
                 'nombre_comision'   => $request->nombre_comision,
-                'municipio_destino' => $request->municipio_destino,
+                'municipio_destino' => '',
                 'observacion'       => $request->observacion,
             ]);
+            $cabecera->municipios()->sync($request->municipios);
             $cabecera->viajeros()->delete();
             foreach ($request->viajeros as $v) {
                 ViajeroComision::create([

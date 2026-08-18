@@ -28,4 +28,45 @@ class MunicipiosComisionTest extends TestCase
         $this->assertEquals(3, $cab->fresh()->municipios()->count());
         $this->assertEqualsCanonicalizing($ids, $cab->fresh()->municipios->pluck('id')->all());
     }
+
+    public function test_crear_comision_via_http_guarda_municipios(): void
+    {
+        $this->seed();
+        $lider = \App\Models\Usuario::where('email', 'lider.comite@demo.test')->firstOrFail();
+        $emp   = \App\Models\Empleados::first();
+        $muni  = \App\Models\Municipio::take(2)->pluck('id')->all();
+
+        $this->actingAs($lider)->post(route('viaticos.store'), [
+            'nombre_comision' => 'Comisión técnica',
+            'municipios'      => $muni,
+            'observacion'     => 'x',
+            'viajeros'        => [[
+                'empleado_id' => $emp->id, 'motivo' => 'Visita',
+                'fecha_salida' => '2026-08-20', 'hora_salida' => '08:00',
+                'fecha_regreso' => '2026-08-22', 'hora_regreso' => '17:00',
+            ]],
+        ])->assertRedirect();
+
+        $cab = \App\Models\SolicitudViaticos::latest('id')->first();
+        $this->assertEqualsCanonicalizing($muni, $cab->municipios->pluck('id')->all());
+    }
+
+    public function test_comision_sin_municipios_es_invalida(): void
+    {
+        $this->seed();
+        $lider = \App\Models\Usuario::where('email', 'lider.comite@demo.test')->firstOrFail();
+        $emp   = \App\Models\Empleados::first();
+
+        $this->actingAs($lider)
+            ->from(route('viaticos.crear'))
+            ->post(route('viaticos.store'), [
+                'nombre_comision' => 'Comisión técnica',
+                'observacion'     => 'x',
+                'viajeros'        => [[
+                    'empleado_id' => $emp->id, 'motivo' => 'Visita',
+                    'fecha_salida' => '2026-08-20', 'hora_salida' => '08:00',
+                    'fecha_regreso' => '2026-08-22', 'hora_regreso' => '17:00',
+                ]],
+            ])->assertSessionHasErrors('municipios');
+    }
 }
