@@ -69,4 +69,62 @@ class MunicipiosComisionTest extends TestCase
                 ]],
             ])->assertSessionHasErrors('municipios');
     }
+
+    public function test_municipio_destino_se_deriva_de_los_municipios(): void
+    {
+        // El campo texto municipio_destino (que leen correo/PDF/notificacion/RR.HH.)
+        // se llena con los nombres de los municipios seleccionados.
+        $this->seed();
+        $lider = \App\Models\Usuario::where('email', 'lider.comite@demo.test')->firstOrFail();
+        $emp   = \App\Models\Empleados::first();
+        $muni  = \App\Models\Municipio::whereIn('nombre', ['Valledupar', 'Becerril'])->pluck('id')->all();
+
+        $this->actingAs($lider)->post(route('viaticos.store'), [
+            'nombre_comision' => 'C', 'municipios' => $muni, 'observacion' => 'x',
+            'viajeros' => [[
+                'empleado_id' => $emp->id, 'motivo' => 'Visita',
+                'fecha_salida' => '2026-08-20', 'hora_salida' => '08:00',
+                'fecha_regreso' => '2026-08-22', 'hora_regreso' => '17:00',
+            ]],
+        ])->assertRedirect();
+
+        $cab = \App\Models\SolicitudViaticos::latest('id')->first();
+        // Orden alfabetico por nombre: Becerril, Valledupar.
+        $this->assertEquals('Becerril, Valledupar', $cab->municipio_destino);
+    }
+
+    public function test_editar_comision_resincroniza_municipios(): void
+    {
+        $this->seed();
+        $lider = \App\Models\Usuario::where('email', 'lider.comite@demo.test')->firstOrFail();
+        $emp   = \App\Models\Empleados::first();
+        $muni  = \App\Models\Municipio::take(3)->pluck('id')->all();
+
+        // Crea con un municipio.
+        $this->actingAs($lider)->post(route('viaticos.store'), [
+            'nombre_comision' => 'C', 'municipios' => [$muni[0]], 'observacion' => 'x',
+            'viajeros' => [[
+                'empleado_id' => $emp->id, 'motivo' => 'Visita',
+                'fecha_salida' => '2026-08-20', 'hora_salida' => '08:00',
+                'fecha_regreso' => '2026-08-22', 'hora_regreso' => '17:00',
+            ]],
+        ])->assertRedirect();
+
+        $solicitud = \App\Models\Solicitud::latest('id')->first();
+
+        // Edita reemplazando por otros dos municipios.
+        $this->actingAs($lider)->put(route('viaticos.update', $solicitud), [
+            'nombre_comision' => 'C editada', 'municipios' => [$muni[1], $muni[2]], 'observacion' => 'x',
+            'viajeros' => [[
+                'empleado_id' => $emp->id, 'motivo' => 'Visita',
+                'fecha_salida' => '2026-08-20', 'hora_salida' => '08:00',
+                'fecha_regreso' => '2026-08-22', 'hora_regreso' => '17:00',
+            ]],
+        ])->assertRedirect();
+
+        $this->assertEqualsCanonicalizing(
+            [$muni[1], $muni[2]],
+            $solicitud->solicitable->fresh()->municipios->pluck('id')->all()
+        );
+    }
 }

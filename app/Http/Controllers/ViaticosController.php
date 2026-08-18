@@ -14,7 +14,7 @@ class ViaticosController extends Controller
     {
         return Inertia::render('Viaticos/Crear', [
             'empleados'  => Empleados::orderBy('nombres')->get(['id','nombres','apellidos','identificacion']),
-            'municipios' => \App\Models\Municipio::orderBy('nombre')->get(['id','nombre']),
+            'municipios' => Municipio::orderBy('nombre')->get(['id','nombre']),
         ]);
     }
 
@@ -23,10 +23,12 @@ class ViaticosController extends Controller
         $tipo = TipoSolicitud::where('clave','VIA')->firstOrFail();
 
         $solicitud = DB::transaction(function () use ($request, $tipo) {
-            // Datos generales de la comisión
+            // Datos generales de la comisión. municipio_destino se deriva de los
+            // municipios seleccionados (texto legible) para que correo, notificación,
+            // PDF y demás consumidores del campo sigan mostrando el destino.
             $cabecera = SolicitudViaticos::create([
                 'nombre_comision'   => $request->nombre_comision,
-                'municipio_destino' => '',
+                'municipio_destino' => $this->municipiosComoTexto($request->municipios),
                 'observacion'       => $request->observacion,
             ]);
             $cabecera->municipios()->sync($request->municipios);
@@ -65,7 +67,7 @@ class ViaticosController extends Controller
         return Inertia::render('Viaticos/Crear', [
             'solicitud'  => $solicitud,
             'empleados'  => Empleados::orderBy('nombres')->get(['id','nombres','apellidos','identificacion']),
-            'municipios' => \App\Models\Municipio::orderBy('nombre')->get(['id','nombre']),
+            'municipios' => Municipio::orderBy('nombre')->get(['id','nombre']),
             'editar'     => true,
         ]);
     }
@@ -78,7 +80,7 @@ class ViaticosController extends Controller
         DB::transaction(function () use ($request, $cabecera) {
             $cabecera->update([
                 'nombre_comision'   => $request->nombre_comision,
-                'municipio_destino' => '',
+                'municipio_destino' => $this->municipiosComoTexto($request->municipios),
                 'observacion'       => $request->observacion,
             ]);
             $cabecera->municipios()->sync($request->municipios);
@@ -98,6 +100,16 @@ class ViaticosController extends Controller
 
         return redirect()->route('solicitudes.show', $solicitud)
             ->with('success', 'Solicitud actualizada.');
+    }
+
+    /**
+     * Texto legible de los municipios seleccionados (nombres separados por coma),
+     * que se guarda en municipio_destino para los consumidores que leen ese campo
+     * (panel RR. HH., correo al viajero, notificación de comisión, PDF de liquidación).
+     */
+    private function municipiosComoTexto(array $municipioIds): string
+    {
+        return Municipio::whereIn('id', $municipioIds)->orderBy('nombre')->pluck('nombre')->implode(', ');
     }
 
     public function liquidacion(Solicitud $solicitud)
