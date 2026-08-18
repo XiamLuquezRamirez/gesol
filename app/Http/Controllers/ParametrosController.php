@@ -79,14 +79,20 @@ class ParametrosController extends Controller
         return back()->with('success', 'Empleado eliminado.');
     }
 
+    /** Reglas compartidas por crear y editar un contrato. */
+    private function reglasContrato(): array
+    {
+        return [
+            'descripcion'  => 'required|string|max:255',
+            'objeto'       => 'required|string|max:2000',
+            'municipios'   => 'required|array|min:1',
+            'municipios.*' => 'exists:municipios,id',
+        ];
+    }
+
     public function storeContrato(Request $request)
     {
-        $data = $request->validate([
-            'descripcion' => 'required|string|max:255',
-            'objeto'      => 'required|string|max:2000',
-            'municipios'  => 'required|array|min:1',
-            'municipios.*'=> 'exists:municipios,id',
-        ]);
+        $data = $request->validate($this->reglasContrato());
         $contrato = Contrato::create(['descripcion' => $data['descripcion'], 'objeto' => $data['objeto']]);
         $contrato->municipios()->sync($data['municipios']);
         return back()->with('success', 'Contrato creado.');
@@ -94,12 +100,7 @@ class ParametrosController extends Controller
 
     public function updateContrato(Request $request, Contrato $contrato)
     {
-        $data = $request->validate([
-            'descripcion' => 'required|string|max:255',
-            'objeto'      => 'required|string|max:2000',
-            'municipios'  => 'required|array|min:1',
-            'municipios.*'=> 'exists:municipios,id',
-        ]);
+        $data = $request->validate($this->reglasContrato());
         $contrato->update(['descripcion' => $data['descripcion'], 'objeto' => $data['objeto']]);
         $contrato->municipios()->sync($data['municipios']);
         return back()->with('success', 'Contrato actualizado.');
