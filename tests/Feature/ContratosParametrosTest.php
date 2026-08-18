@@ -1,7 +1,7 @@
 <?php
 namespace Tests\Feature;
 
-use App\Models\{Contrato, Municipio};
+use App\Models\{Contrato, Municipio, Usuario};
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -46,5 +46,60 @@ class ContratosParametrosTest extends TestCase
 
         $this->expectException(\Illuminate\Database\QueryException::class);
         $muni->delete();
+    }
+
+    public function test_crear_contrato_con_municipios_desde_parametros(): void
+    {
+        $this->seed();
+        $admin = Usuario::where('email', 'admin@demo.test')->firstOrFail();
+        $muni  = Municipio::take(2)->pluck('id')->all();
+
+        $this->actingAs($admin)->post(route('parametros.contratos.store'), [
+            'descripcion' => 'Contrato 2026-01', 'objeto' => 'Suministro de insumos',
+            'municipios'  => $muni,
+        ])->assertRedirect();
+
+        $c = Contrato::latest('id')->first();
+        $this->assertEquals('Contrato 2026-01', $c->descripcion);
+        $this->assertEqualsCanonicalizing($muni, $c->municipios->pluck('id')->all());
+    }
+
+    public function test_editar_contrato_resincroniza_municipios(): void
+    {
+        $this->seed();
+        $admin = Usuario::where('email', 'admin@demo.test')->firstOrFail();
+        $todos = Municipio::take(3)->pluck('id')->all();
+        $c = Contrato::create(['descripcion' => 'X', 'objeto' => 'Y']);
+        $c->municipios()->sync([$todos[0]]);
+
+        $this->actingAs($admin)->put(route('parametros.contratos.update', $c), [
+            'descripcion' => 'X editado', 'objeto' => 'Y',
+            'municipios'  => [$todos[1], $todos[2]],
+        ])->assertRedirect();
+
+        $this->assertEquals('X editado', $c->fresh()->descripcion);
+        $this->assertEqualsCanonicalizing([$todos[1], $todos[2]], $c->fresh()->municipios->pluck('id')->all());
+    }
+
+    public function test_contrato_sin_municipios_es_rechazado(): void
+    {
+        $this->seed();
+        $admin = Usuario::where('email', 'admin@demo.test')->firstOrFail();
+
+        $this->actingAs($admin)
+            ->from(route('parametros.index'))
+            ->post(route('parametros.contratos.store'), [
+                'descripcion' => 'Sin municipios', 'objeto' => 'Z',
+            ])->assertSessionHasErrors('municipios');
+    }
+
+    public function test_eliminar_contrato(): void
+    {
+        $this->seed();
+        $admin = Usuario::where('email', 'admin@demo.test')->firstOrFail();
+        $c = Contrato::create(['descripcion' => 'Borrar', 'objeto' => 'Z']);
+
+        $this->actingAs($admin)->delete(route('parametros.contratos.destroy', $c))->assertRedirect();
+        $this->assertDatabaseMissing('contratos', ['id' => $c->id]);
     }
 }

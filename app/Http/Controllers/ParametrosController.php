@@ -1,7 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
-use App\Models\{Area, Empleados, TarifaViatico};
+use App\Models\{Area, Contrato, Empleados, Municipio, TarifaViatico};
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -14,6 +14,8 @@ class ParametrosController extends Controller
             'tarifas'   => TarifaViatico::all(),
             'empleados' => Empleados::with('area:id,nombre')->orderBy('apellidos')->orderBy('nombres')->get(),
             'areas'     => Area::where('es_general', false)->orderBy('nombre')->get(['id','nombre']),
+            'contratos'  => Contrato::with('municipios:id,nombre')->orderBy('descripcion')->get(),
+            'municipios' => Municipio::orderBy('nombre')->get(['id','nombre']),
         ]);
     }
 
@@ -75,5 +77,38 @@ class ParametrosController extends Controller
     {
         $empleado->delete();
         return back()->with('success', 'Empleado eliminado.');
+    }
+
+    public function storeContrato(Request $request)
+    {
+        $data = $request->validate([
+            'descripcion' => 'required|string|max:255',
+            'objeto'      => 'required|string|max:2000',
+            'municipios'  => 'required|array|min:1',
+            'municipios.*'=> 'exists:municipios,id',
+        ]);
+        $contrato = Contrato::create(['descripcion' => $data['descripcion'], 'objeto' => $data['objeto']]);
+        $contrato->municipios()->sync($data['municipios']);
+        return back()->with('success', 'Contrato creado.');
+    }
+
+    public function updateContrato(Request $request, Contrato $contrato)
+    {
+        $data = $request->validate([
+            'descripcion' => 'required|string|max:255',
+            'objeto'      => 'required|string|max:2000',
+            'municipios'  => 'required|array|min:1',
+            'municipios.*'=> 'exists:municipios,id',
+        ]);
+        $contrato->update(['descripcion' => $data['descripcion'], 'objeto' => $data['objeto']]);
+        $contrato->municipios()->sync($data['municipios']);
+        return back()->with('success', 'Contrato actualizado.');
+    }
+
+    public function destroyContrato(Contrato $contrato)
+    {
+        // Nota (Bloque B): cuando exista la relacion viajero-contrato, abortar si tiene viajeros.
+        $contrato->delete();
+        return back()->with('success', 'Contrato eliminado.');
     }
 }
