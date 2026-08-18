@@ -383,13 +383,133 @@ function TabEmpleados({ empleados, areas }) {
     );
 }
 
+/* ─── Tab Contratos ───────────────────────────────────── */
+const CONTRATO_VACIO = { descripcion: '', objeto: '', municipios: [] };
+
+function TabContratos({ contratos, municipios }) {
+    const [panel, setPanel] = useState(null); // null | { tipo, id }
+    const [confirmarId, setConfirmarId] = useState(null);
+    const { data, setData, post, put, reset, processing, errors, clearErrors } = useForm(CONTRATO_VACIO);
+
+    const abrirCrear = () => { reset(); clearErrors(); setPanel({ tipo: 'crear', id: null }); };
+    const abrirEditar = (c) => {
+        setData({ descripcion: c.descripcion, objeto: c.objeto, municipios: c.municipios.map((m) => m.id) });
+        clearErrors();
+        setPanel({ tipo: 'editar', id: c.id });
+    };
+    const cancelar = () => { setPanel(null); clearErrors(); };
+
+    const submit = (e) => {
+        e.preventDefault();
+        if (panel.tipo === 'crear') post(route('parametros.contratos.store'), { onSuccess: () => setPanel(null) });
+        else put(route('parametros.contratos.update', panel.id), { onSuccess: () => setPanel(null) });
+    };
+    const eliminar = (c) => {
+        if (confirmarId !== c.id) { setConfirmarId(c.id); return; }
+        router.delete(route('parametros.contratos.destroy', c.id), { onSuccess: () => setConfirmarId(null) });
+    };
+    const toggleMunicipio = (id, checked) => {
+        setData('municipios', checked ? [...data.municipios, id] : data.municipios.filter((x) => x !== id));
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="flex justify-end">
+                <button type="button" onClick={abrirCrear}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors">
+                    Nuevo contrato
+                </button>
+            </div>
+
+            {panel && (
+                <div className="bg-white rounded-xl border border-indigo-200 p-5">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-indigo-500 mb-4">
+                        {panel.tipo === 'crear' ? 'Nuevo contrato' : 'Editar contrato'}
+                    </p>
+                    <form onSubmit={submit} className="space-y-4">
+                        <Field label="Descripción" error={errors.descripcion}>
+                            <Input value={data.descripcion} onChange={(e) => setData('descripcion', e.target.value)} error={errors.descripcion} />
+                        </Field>
+                        <Field label="Objeto del contrato" error={errors.objeto}>
+                            <textarea value={data.objeto} onChange={(e) => setData('objeto', e.target.value)} rows={3}
+                                className="w-full rounded-lg border border-slate-300 text-sm py-2 px-3 focus:ring-2 focus:ring-indigo-500 outline-none" />
+                            {errors.objeto && <p className="text-red-500 text-xs mt-1">{errors.objeto}</p>}
+                        </Field>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">Municipios</label>
+                            <div className="border border-slate-300 rounded-lg p-3 max-h-40 overflow-y-auto space-y-1">
+                                {municipios.map((m) => (
+                                    <label key={m.id} className="flex items-center gap-2 text-sm text-slate-700">
+                                        <input type="checkbox" className="rounded border-slate-300 text-indigo-600"
+                                            checked={data.municipios.includes(m.id)}
+                                            onChange={(e) => toggleMunicipio(m.id, e.target.checked)} />
+                                        {m.nombre}
+                                    </label>
+                                ))}
+                            </div>
+                            {errors.municipios && <p className="text-red-500 text-xs mt-1">{errors.municipios}</p>}
+                        </div>
+                        <div className="flex justify-end gap-3 pt-1">
+                            <button type="button" onClick={cancelar}
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50">
+                                Cancelar
+                            </button>
+                            <button type="submit" disabled={processing}
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg disabled:opacity-50">
+                                {processing ? 'Guardando…' : panel.tipo === 'crear' ? 'Crear contrato' : 'Guardar cambios'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            )}
+
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                {contratos.length === 0 ? (
+                    <p className="text-sm text-slate-400 text-center py-10">No hay contratos registrados.</p>
+                ) : (
+                    <table className="w-full text-sm">
+                        <thead className="bg-slate-50 border-b border-slate-100">
+                            <tr>
+                                <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Descripción</th>
+                                <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Objeto</th>
+                                <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Municipios</th>
+                                <th className="px-4 py-3 w-24"></th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                            {contratos.map((c) => (
+                                <tr key={c.id} className="hover:bg-slate-50/50">
+                                    <td className="px-4 py-3 text-slate-700">{c.descripcion}</td>
+                                    <td className="px-4 py-3 text-slate-500">{c.objeto}</td>
+                                    <td className="px-4 py-3 text-slate-500">{c.municipios.map((m) => m.nombre).join(', ') || '—'}</td>
+                                    <td className="px-4 py-3">
+                                        <div className="flex items-center justify-end gap-1">
+                                            <button type="button" onClick={() => abrirEditar(c)}
+                                                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50" title="Editar">✎</button>
+                                            <button type="button" onClick={() => eliminar(c)}
+                                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50" title="Eliminar">
+                                                {confirmarId === c.id ? '¿Confirmar?' : '🗑'}
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
+            </div>
+        </div>
+    );
+}
+
 /* ─── Página principal ────────────────────────────────── */
 const TABS = [
     { id: 'tarifas',   label: 'Tarifas de viáticos' },
     { id: 'empleados', label: 'Empleados' },
+    { id: 'contratos', label: 'Contratos' },
 ];
 
-export default function Index({ tarifas, empleados, areas = [] }) {
+export default function Index({ tarifas, empleados, areas = [], contratos = [], municipios = [] }) {
     const { props } = usePage();
     const flash = props.flash ?? {};
     const [tab, setTab] = useState('tarifas');
@@ -441,6 +561,7 @@ export default function Index({ tarifas, empleados, areas = [] }) {
                 {/* Contenido del tab */}
                 {tab === 'tarifas'   && <TabTarifas   tarifas={tarifas} />}
                 {tab === 'empleados' && <TabEmpleados empleados={empleados} areas={areas} />}
+                {tab === 'contratos' && <TabContratos contratos={contratos} municipios={municipios} />}
 
             </div>
         </AppLayout>
