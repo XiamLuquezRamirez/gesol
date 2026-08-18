@@ -13,6 +13,7 @@ return new class extends Migration
             $table->foreignId('contrato_id')->constrained('contratos')->cascadeOnDelete();
             $table->foreignId('municipio_id')->constrained('municipios');
             $table->timestamps();
+            $table->unique(['contrato_id', 'municipio_id']);
         });
     }
 
