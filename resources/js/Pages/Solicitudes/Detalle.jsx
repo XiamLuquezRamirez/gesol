@@ -1,5 +1,6 @@
 import AppLayout from '@/Layouts/AppLayout';
 import BadgeEstado from '@/Components/BadgeEstado';
+import CampoMoneda from '@/Components/CampoMoneda';
 import LineaTiempo from '@/Components/LineaTiempo';
 import ModalAccion from '@/Components/ModalAccion';
 import Modal from '@/Components/Modal';
@@ -549,10 +550,12 @@ function SeccionPagos({ solicitud }) {
                     {!pagos.tiene_total ? (
                         <div>
                             <label className="block text-xs text-slate-600 mb-1">Total a pagar</label>
-                            <div className="flex gap-2">
-                                <input type="number" step="0.01" min="0.01" value={data.total_a_pagar}
-                                    onChange={(e) => setData('total_a_pagar', e.target.value)}
-                                    className="w-full rounded-lg border-slate-300 text-sm" />
+                            <div className="flex items-start gap-2">
+                                <div className="flex-1">
+                                    <CampoMoneda value={data.total_a_pagar}
+                                        onChange={(v) => setData('total_a_pagar', v)}
+                                        error={errors.total_a_pagar} />
+                                </div>
                                 <button type="button"
                                     disabled={!data.total_a_pagar}
                                     onClick={() => setData('monto', data.total_a_pagar)}
@@ -560,7 +563,6 @@ function SeccionPagos({ solicitud }) {
                                     Pago total
                                 </button>
                             </div>
-                            {errors.total_a_pagar && <p className="text-red-500 text-xs mt-1">{errors.total_a_pagar}</p>}
                         </div>
                     ) : (
                         <p className="text-xs text-slate-500">Saldo pendiente: <span className="font-semibold">{formatearMoneda(pagos.saldo)}</span></p>
@@ -568,10 +570,9 @@ function SeccionPagos({ solicitud }) {
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="block text-xs text-slate-600 mb-1">Monto</label>
-                            <input type="number" step="0.01" min="0.01" value={data.monto}
-                                onChange={(e) => setData('monto', e.target.value)}
-                                className="w-full rounded-lg border-slate-300 text-sm" />
-                            {errors.monto && <p className="text-red-500 text-xs mt-1">{errors.monto}</p>}
+                            <CampoMoneda value={data.monto}
+                                onChange={(v) => setData('monto', v)}
+                                error={errors.monto} />
                         </div>
                         <div>
                             <label className="block text-xs text-slate-600 mb-1">Fecha de pago</label>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 function formatearDisplay(valor) {
     const num = parseFloat(valor);
@@ -8,6 +8,17 @@ function formatearDisplay(valor) {
 
 export default function CampoMoneda({ label, name, value, onChange, error, ...props }) {
     const [display, setDisplay] = useState(value != null ? formatearDisplay(value) : '');
+
+    // Sincroniza el display cuando `value` cambia desde fuera (p.ej. un atajo que
+    // rellena el campo). Solo reformatea si el numero difiere del que ya se muestra,
+    // para no interferir mientras el usuario escribe.
+    useEffect(() => {
+        const actual = display.replace(/[^0-9]/g, '');
+        const entrante = value != null && value !== '' ? String(value) : '';
+        if (actual !== entrante) {
+            setDisplay(entrante ? formatearDisplay(entrante) : '');
+        }
+    }, [value]);
 
     const handleChange = (e) => {
         const raw = e.target.value.replace(/[^0-9]/g, '');
