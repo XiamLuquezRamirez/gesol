@@ -87,7 +87,6 @@ function DetalleOficina({ solicitable, beneficiarios = [], institucional = false
                 <div className="col-span-2">
                     <Campo label="Justificación" valor={solicitable.justificacion} />
                 </div>
-                <Campo label="Total estimado" valor={formatearMoneda(solicitable.total)} />
             </dl>
             {solicitable.items?.length > 0 && (
                 <div className="overflow-x-auto rounded-lg border border-slate-100">
@@ -96,8 +95,6 @@ function DetalleOficina({ solicitable, beneficiarios = [], institucional = false
                             <tr className="text-left text-xs text-slate-500">
                                 <th className="px-3 py-2 font-medium">Ítem</th>
                                 <th className="px-3 py-2 font-medium text-center">Cant.</th>
-                                <th className="px-3 py-2 font-medium text-right">Costo unit.</th>
-                                <th className="px-3 py-2 font-medium text-right">Subtotal</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
@@ -105,8 +102,6 @@ function DetalleOficina({ solicitable, beneficiarios = [], institucional = false
                                 <tr key={i} className="text-slate-700 hover:bg-slate-50">
                                     <td className="px-3 py-2.5">{item.nombre}</td>
                                     <td className="px-3 py-2.5 text-center">{item.cantidad}</td>
-                                    <td className="px-3 py-2.5 text-right">{item.costo_estimado == null ? '—' : formatearMoneda(item.costo_estimado)}</td>
-                                    <td className="px-3 py-2.5 text-right font-medium">{formatearMoneda(item.subtotal)}</td>
                                 </tr>
                             ))}
                         </tbody>
