@@ -8,6 +8,13 @@ class SolicitudViaticos extends Model
     protected $fillable = ['nombre_comision','municipio_destino','observacion','total'];
 
     public function viajeros()  { return $this->hasMany(ViajeroComision::class, 'solicitud_viaticos_id'); }
+
+    public function municipios()
+    {
+        return $this->belongsToMany(Municipio::class, 'comision_municipio', 'solicitud_viaticos_id', 'municipio_id')
+            ->withTimestamps();
+    }
+
     public function solicitud() { return $this->morphOne(Solicitud::class, 'solicitable'); }
 
     public function recalcularTotal(): void

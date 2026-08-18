@@ -15,7 +15,8 @@ class GuardarSolicitudViaticosRequest extends FormRequest
     {
         return [
             'nombre_comision'             => 'required|string|max:255',
-            'municipio_destino'           => 'required|string|max:255',
+            'municipios'                  => 'required|array|min:1',
+            'municipios.*'                => 'exists:municipios,id',
             'observacion'                 => 'nullable|string|max:2000',
             'viajeros'                    => 'required|array|min:1',
             'viajeros.*.empleado_id'      => 'required|exists:empleados,id',
@@ -30,6 +31,9 @@ class GuardarSolicitudViaticosRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'municipios.required'             => 'Seleccione al menos un municipio.',
+            'municipios.min'                  => 'Seleccione al menos un municipio.',
+            'municipios.*.exists'             => 'Uno de los municipios seleccionados no es válido.',
             'viajeros.required'               => 'Debe agregar al menos un viajero.',
             'viajeros.min'                    => 'Debe agregar al menos un viajero.',
             'viajeros.*.empleado_id.required' => 'Seleccione el empleado.',
