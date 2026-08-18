@@ -417,7 +417,7 @@ function TabContratos({ contratos, municipios }) {
             <div className="flex justify-end">
                 <button type="button" onClick={abrirCrear}
                     className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors">
-                    Nuevo contrato
+                    <PlusCircleIcon className="w-4 h-4" /> Nuevo contrato
                 </button>
             </div>
 
@@ -485,11 +485,26 @@ function TabContratos({ contratos, municipios }) {
                                     <td className="px-4 py-3">
                                         <div className="flex items-center justify-end gap-1">
                                             <button type="button" onClick={() => abrirEditar(c)}
-                                                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50" title="Editar">✎</button>
-                                            <button type="button" onClick={() => eliminar(c)}
-                                                className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50" title="Eliminar">
-                                                {confirmarId === c.id ? '¿Confirmar?' : '🗑'}
+                                                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors" title="Editar">
+                                                <PencilSquareIcon className="w-4 h-4" />
                                             </button>
+                                            {confirmarId === c.id ? (
+                                                <div className="flex items-center gap-1 ml-1">
+                                                    <button type="button" onClick={() => eliminar(c)}
+                                                        className="px-2 py-1 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg">
+                                                        Confirmar
+                                                    </button>
+                                                    <button type="button" onClick={() => setConfirmarId(null)}
+                                                        className="px-2 py-1 text-xs font-medium text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg">
+                                                        No
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <button type="button" onClick={() => eliminar(c)}
+                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Eliminar">
+                                                    <TrashIcon className="w-4 h-4" />
+                                                </button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
