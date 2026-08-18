@@ -33,8 +33,8 @@ class ComisionesRrhhController extends Controller
 
             return [
                 'id'             => $v->id,
-                'empleado'       => trim(($v->empleado->nombres ?? '').' '.($v->empleado->apellidos ?? '')),
-                'identificacion' => $v->empleado->identificacion ?? null,
+                'empleado'       => $v->nombreMostrado,
+                'identificacion' => $v->identificacionMostrada,
                 'comision'       => $comision->nombre_comision ?? null,
                 'destino'        => $comision->municipio_destino ?? null,
                 'radicado'       => $solicitud->radicado ?? null,

@@ -31,7 +31,7 @@ class LiquidacionViajeroMail extends Mailable
             htmlString: '<p>Adjunto encontrará la liquidación de gastos de su comisión de servicio ('
                 .e($this->solicitud->solicitable->municipio_destino ?? '').'), radicado '
                 .e($this->solicitud->radicado).'.</p>'
-                .'<p>Empleado: '.e(trim(($viajero->empleado->nombres ?? '').' '.($viajero->empleado->apellidos ?? ''))).'</p>',
+                .'<p>Empleado: '.e($viajero->nombreMostrado).'</p>',
         );
     }
 

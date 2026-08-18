@@ -108,7 +108,9 @@ class ParametrosController extends Controller
 
     public function destroyContrato(Contrato $contrato)
     {
-        // Nota (Bloque B): cuando exista la relacion viajero-contrato, abortar si tiene viajeros.
+        if ($contrato->viajeros()->exists()) {
+            return back()->with('error', 'No se puede eliminar: el contrato tiene viajeros asociados.');
+        }
         $contrato->delete();
         return back()->with('success', 'Contrato eliminado.');
     }

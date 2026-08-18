@@ -31,8 +31,8 @@ class ComisionCerradaNotification extends Notification
         $comision->loadMissing('viajeros.empleado');
 
         return $comision->viajeros->map(fn ($v) => [
-            'empleado'      => trim(($v->empleado->nombres ?? '').' '.($v->empleado->apellidos ?? '')),
-            'identificacion'=> $v->empleado->identificacion ?? null,
+            'empleado'      => $v->nombreMostrado,
+            'identificacion'=> $v->identificacionMostrada,
             'fecha_salida'  => optional($v->fecha_salida)->toDateString() ?? $v->fecha_salida,
             'fecha_regreso' => optional($v->fecha_regreso)->toDateString() ?? $v->fecha_regreso,
         ])->all();

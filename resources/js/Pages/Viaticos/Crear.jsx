@@ -6,6 +6,10 @@ import { XCircleIcon, CheckCircleIcon, PlusCircleIcon } from '@heroicons/react/2
 
 const VIAJERO_VACIO = {
     empleado_id:   '',
+    es_externo:    false,
+    nombre_externo: '',
+    identificacion_externo: '',
+    contrato_id:   '',
     motivo:       '',
     fecha_salida: '',
     hora_salida:  '',
@@ -64,17 +68,21 @@ function IconPlus() {
     );
 }
 
-export default function Crear({ empleados, solicitud = null, editar = false, municipios = [] }) {
+export default function Crear({ empleados, contratos = [], solicitud = null, editar = false, municipios = [] }) {
     const solicitable = solicitud?.solicitable ?? null;
 
     const viajerosIniciales = (solicitable?.viajeros ?? []).map((v) => ({
-        empleado_id:   v.empleado_id,
+        empleado_id:   v.empleado_id ?? '',
+        es_externo:    !v.empleado_id,
+        nombre_externo: v.nombre_externo ?? '',
+        identificacion_externo: v.identificacion_externo ?? '',
+        contrato_id:   v.contrato_id ?? '',
         motivo:        v.motivo ?? '',
         fecha_salida:  String(v.fecha_salida ?? '').substring(0, 10),
         hora_salida:   v.hora_salida ?? '',
         fecha_regreso: String(v.fecha_regreso ?? '').substring(0, 10),
         hora_regreso:  v.hora_regreso ?? '',
-        nombre: v.empleado ? `${v.empleado.nombres} ${v.empleado.apellidos}` : '',
+        nombre: v.empleado ? `${v.empleado.nombres} ${v.empleado.apellidos}` : (v.nombre_externo ?? ''),
     }));
 
     const { data, setData, post, put, processing, errors } = useForm({
@@ -91,7 +99,12 @@ export default function Crear({ empleados, solicitud = null, editar = false, mun
 
     const validarForm = () => {
         const e = {};
-        if (!form.empleado_id)   e.empleado_id  = 'Seleccione el empleado.';
+        if (form.es_externo) {
+            if (!form.nombre_externo.trim())         e.nombre_externo         = 'Ingrese el nombre.';
+            if (!form.identificacion_externo.trim()) e.identificacion_externo = 'Ingrese la identificación.';
+        } else if (!form.empleado_id) {
+            e.empleado_id = 'Seleccione el empleado.';
+        }
         if (!form.motivo.trim()) e.motivo        = 'El motivo es obligatorio.';
         if (!form.fecha_salida)  e.fecha_salida  = 'Ingrese la fecha de salida.';
         if (!form.hora_salida)   e.hora_salida   = 'Ingrese la hora de salida.';
@@ -104,10 +117,17 @@ export default function Crear({ empleados, solicitud = null, editar = false, mun
     const agregarViajero = () => {
         if (!validarForm()) return;
         const empleado = empleados.find((e) => e.id === Number(form.empleado_id));
-        const nombre = empleado ? `${empleado.nombres} ${empleado.apellidos}` : '';
+        const nombre = form.es_externo
+            ? form.nombre_externo
+            : (empleado ? `${empleado.nombres} ${empleado.apellidos}` : '');
         setData('viajeros', [
             ...data.viajeros,
-            { ...form, empleado_id: Number(form.empleado_id), nombre },
+            {
+                ...form,
+                empleado_id: form.es_externo ? null : Number(form.empleado_id),
+                contrato_id: form.contrato_id ? Number(form.contrato_id) : null,
+                nombre,
+            },
         ]);
         setForm(VIAJERO_VACIO);
         setFormError({});
@@ -115,6 +135,9 @@ export default function Crear({ empleados, solicitud = null, editar = false, mun
 
     const eliminarViajero = (idx) =>
         setData('viajeros', data.viajeros.filter((_, i) => i !== idx));
+
+    const nombreContrato = (id) =>
+        contratos.find((c) => c.id === Number(id))?.descripcion ?? '—';
 
     const submit = (e) => {
         e.preventDefault();
@@ -183,18 +206,62 @@ export default function Crear({ empleados, solicitud = null, editar = false, mun
                                 Agregar viajero
                             </p>
 
-                            <Field label="Nombre del viajero" error={formError.empleado_id}>
+                            <label className="flex items-center gap-2 text-sm text-slate-600 mb-2">
+                                <input
+                                    type="checkbox"
+                                    checked={form.es_externo}
+                                    onChange={(e) => setForm((f) => ({ ...f, es_externo: e.target.checked, empleado_id: '' }))}
+                                    className="rounded border-slate-300"
+                                />
+                                Viajero externo (no está en la lista)
+                            </label>
+
+                            {form.es_externo ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <Field label="Nombre del viajero" error={formError.nombre_externo}>
+                                        <Input
+                                            type="text"
+                                            value={form.nombre_externo}
+                                            onChange={(e) => setF('nombre_externo', e.target.value)}
+                                            error={formError.nombre_externo}
+                                        />
+                                    </Field>
+                                    <Field label="Identificación" error={formError.identificacion_externo}>
+                                        <Input
+                                            type="text"
+                                            value={form.identificacion_externo}
+                                            onChange={(e) => setF('identificacion_externo', e.target.value)}
+                                            error={formError.identificacion_externo}
+                                        />
+                                    </Field>
+                                </div>
+                            ) : (
+                                <Field label="Nombre del viajero" error={formError.empleado_id}>
+                                    <select
+                                        value={form.empleado_id}
+                                        onChange={(e) => setF('empleado_id', e.target.value)}
+                                        className={[
+                                            'w-full rounded-lg border text-sm px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none',
+                                            formError.empleado_id ? 'border-red-400' : 'border-slate-300',
+                                        ].join(' ')}
+                                    >
+                                        <option value="">— Seleccionar viajero —</option>
+                                        {empleados.map((e) => (
+                                            <option key={e.id} value={e.id}>{e.nombres} {e.apellidos}</option>
+                                        ))}
+                                    </select>
+                                </Field>
+                            )}
+
+                            <Field label="Contrato (opcional)">
                                 <select
-                                    value={form.empleado_id}
-                                    onChange={(e) => setF('empleado_id', e.target.value)}
-                                    className={[
-                                        'w-full rounded-lg border text-sm px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none',
-                                        formError.empleado_id ? 'border-red-400' : 'border-slate-300',
-                                    ].join(' ')}
+                                    value={form.contrato_id}
+                                    onChange={(e) => setF('contrato_id', e.target.value)}
+                                    className="w-full rounded-lg border border-slate-300 text-sm px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
                                 >
-                                    <option value="">— Seleccionar viajero —</option>
-                                    {empleados.map((e) => (
-                                        <option key={e.id} value={e.id}>{e.nombres} {e.apellidos}</option>
+                                    <option value="">— Sin contrato —</option>
+                                    {contratos.map((c) => (
+                                        <option key={c.id} value={c.id}>{c.descripcion}</option>
                                     ))}
                                 </select>
                             </Field>
@@ -265,6 +332,7 @@ export default function Crear({ empleados, solicitud = null, editar = false, mun
                                     <thead className="bg-slate-50 border-b border-slate-200">
                                         <tr>
                                             <th className="text-left text-xs font-semibold text-slate-500 px-4 py-2.5">Viajero</th>
+                                            <th className="text-left text-xs font-semibold text-slate-500 px-4 py-2.5">Contrato</th>
                                             <th className="text-left text-xs font-semibold text-slate-500 px-4 py-2.5">Motivo</th>
                                             <th className="text-left text-xs font-semibold text-slate-500 px-4 py-2.5 whitespace-nowrap">Salida</th>
                                             <th className="text-left text-xs font-semibold text-slate-500 px-4 py-2.5 whitespace-nowrap">Regreso</th>
@@ -276,6 +344,9 @@ export default function Crear({ empleados, solicitud = null, editar = false, mun
                                             <tr key={idx} className="hover:bg-slate-50 transition-colors">
                                                 <td className="px-4 py-3 font-medium text-slate-800 whitespace-nowrap">
                                                     {v.nombre}
+                                                </td>
+                                                <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
+                                                    {nombreContrato(v.contrato_id)}
                                                 </td>
                                                 <td className="px-4 py-3 text-slate-600 max-w-xs">
                                                     <p className="truncate" title={v.motivo}>{v.motivo}</p>

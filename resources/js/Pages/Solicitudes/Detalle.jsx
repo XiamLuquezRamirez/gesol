@@ -178,7 +178,7 @@ function DetalleViaticos({ solicitable, solicitudId, cerrada }) {
                                             <td className="px-3 py-2.5 font-medium text-slate-800 whitespace-nowrap">
                                                 {v.empleado
                                                     ? `${v.empleado.nombres} ${v.empleado.apellidos}`
-                                                    : '—'}
+                                                    : (v.nombre_externo || '—')}
                                             </td>
                                             <td className="px-3 py-2.5 text-slate-600 max-w-xs">
                                                 <p className="truncate" title={v.motivo}>{v.motivo || '—'}</p>
@@ -243,7 +243,7 @@ function DetalleViaticos({ solicitable, solicitudId, cerrada }) {
                                     className="text-slate-400 hover:text-slate-600 text-xl leading-none" aria-label="Cerrar">×</button>
                             </div>
                             <p className="text-sm text-slate-500 mb-4">
-                                {rubrosDe.empleado ? `${rubrosDe.empleado.nombres} ${rubrosDe.empleado.apellidos}` : '—'}
+                                {rubrosDe.empleado ? `${rubrosDe.empleado.nombres} ${rubrosDe.empleado.apellidos}` : (rubrosDe.nombre_externo || '—')}
                                 {rubrosDe.tipo_pago ? ` · ${ETIQUETAS_PAGO[rubrosDe.tipo_pago] ?? rubrosDe.tipo_pago}` : ''}
                             </p>
 

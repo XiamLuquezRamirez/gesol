@@ -14,4 +14,9 @@ class Contrato extends Model
         return $this->belongsToMany(Municipio::class, 'contrato_municipio', 'contrato_id', 'municipio_id')
             ->withTimestamps();
     }
+
+    public function viajeros()
+    {
+        return $this->hasMany(ViajeroComision::class, 'contrato_id');
+    }
 }
