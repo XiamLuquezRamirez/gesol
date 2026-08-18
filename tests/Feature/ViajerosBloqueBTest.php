@@ -126,4 +126,33 @@ class ViajerosBloqueBTest extends TestCase
         $this->assertEquals('Ana Externa', $viajeros[1]->nombre_externo);
         $this->assertEquals('555', $viajeros[1]->identificacion_externo);
     }
+
+    public function test_no_se_borra_contrato_con_viajeros(): void
+    {
+        $this->seed();
+        $usuario = \App\Models\Usuario::where('email', 'admin@demo.test')->firstOrFail();
+        $contrato = Contrato::create(['descripcion' => 'D', 'objeto' => 'O']);
+        $cab = SolicitudViaticos::create(['nombre_comision' => 'C', 'municipio_destino' => '', 'observacion' => 'x']);
+        ViajeroComision::create([
+            'solicitud_viaticos_id' => $cab->id, 'empleado_id' => Empleados::first()->id,
+            'contrato_id' => $contrato->id,
+            'motivo' => 'm', 'fecha_salida' => '2026-08-20', 'hora_salida' => '08:00',
+            'fecha_regreso' => '2026-08-21', 'hora_regreso' => '17:00',
+        ]);
+
+        $this->actingAs($usuario)->delete(route('parametros.contratos.destroy', $contrato))
+            ->assertSessionHas('error');
+        $this->assertDatabaseHas('contratos', ['id' => $contrato->id]);
+    }
+
+    public function test_se_borra_contrato_sin_viajeros(): void
+    {
+        $this->seed();
+        $usuario = \App\Models\Usuario::where('email', 'admin@demo.test')->firstOrFail();
+        $contrato = Contrato::create(['descripcion' => 'D', 'objeto' => 'O']);
+
+        $this->actingAs($usuario)->delete(route('parametros.contratos.destroy', $contrato))
+            ->assertSessionHas('success');
+        $this->assertDatabaseMissing('contratos', ['id' => $contrato->id]);
+    }
 }
