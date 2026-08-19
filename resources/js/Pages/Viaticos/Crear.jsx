@@ -1,11 +1,12 @@
 import AppLayout from '@/Layouts/AppLayout';
 import MultiSelectBuscador from '@/Components/MultiSelectBuscador';
+import { expandirViajeros, etiquetaEmpleado } from '@/lib/viajeros';
 import { useForm, Head } from '@inertiajs/react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { XCircleIcon, CheckCircleIcon, PlusCircleIcon } from '@heroicons/react/24/outline';
 
 const VIAJERO_VACIO = {
-    empleado_id:   '',
+    empleado_ids:  [],
     es_externo:    false,
     nombre_externo: '',
     identificacion_externo: '',
@@ -97,13 +98,24 @@ export default function Crear({ empleados, contratos = [], solicitud = null, edi
 
     const setF = (campo, valor) => setForm((p) => ({ ...p, [campo]: valor }));
 
+    // Empleados aún no agregados a la comisión (para no ofrecer duplicados),
+    // presentados como opciones {id, nombre} para el buscador select2.
+    const empleadosDisponibles = useMemo(() => {
+        const yaAgregados = new Set(
+            data.viajeros.filter((v) => v.empleado_id).map((v) => Number(v.empleado_id))
+        );
+        return empleados
+            .filter((e) => !yaAgregados.has(Number(e.id)))
+            .map((e) => ({ id: e.id, nombre: etiquetaEmpleado(e) }));
+    }, [empleados, data.viajeros]);
+
     const validarForm = () => {
         const e = {};
         if (form.es_externo) {
             // Nombre obligatorio; identificación opcional.
             if (!form.nombre_externo.trim()) e.nombre_externo = 'Ingrese el nombre.';
-        } else if (!form.empleado_id) {
-            e.empleado_id = 'Seleccione el empleado.';
+        } else if (form.empleado_ids.length === 0) {
+            e.empleado_ids = 'Seleccione al menos un viajero.';
         }
         if (!form.motivo.trim()) e.motivo        = 'El motivo es obligatorio.';
         if (!form.fecha_salida)  e.fecha_salida  = 'Ingrese la fecha de salida.';
@@ -116,19 +128,9 @@ export default function Crear({ empleados, contratos = [], solicitud = null, edi
 
     const agregarViajero = () => {
         if (!validarForm()) return;
-        const empleado = empleados.find((e) => e.id === Number(form.empleado_id));
-        const nombre = form.es_externo
-            ? form.nombre_externo
-            : (empleado ? `${empleado.nombres} ${empleado.apellidos}` : '');
-        setData('viajeros', [
-            ...data.viajeros,
-            {
-                ...form,
-                empleado_id: form.es_externo ? null : Number(form.empleado_id),
-                contrato_id: form.contrato_id ? Number(form.contrato_id) : null,
-                nombre,
-            },
-        ]);
+        // Un empleado externo produce una fila; varios empleados de BD producen
+        // una fila por cada uno (el contador los ve individuales).
+        setData('viajeros', [...data.viajeros, ...expandirViajeros(form, empleados)]);
         setForm(VIAJERO_VACIO);
         setFormError({});
     };
@@ -210,7 +212,7 @@ export default function Crear({ empleados, contratos = [], solicitud = null, edi
                                 <input
                                     type="checkbox"
                                     checked={form.es_externo}
-                                    onChange={(e) => setForm((f) => ({ ...f, es_externo: e.target.checked, empleado_id: '' }))}
+                                    onChange={(e) => setForm((f) => ({ ...f, es_externo: e.target.checked, empleado_ids: [] }))}
                                     className="rounded border-slate-300"
                                 />
                                 Viajero externo (no está en la lista)
@@ -236,20 +238,14 @@ export default function Crear({ empleados, contratos = [], solicitud = null, edi
                                     </Field>
                                 </div>
                             ) : (
-                                <Field label="Nombre del viajero" error={formError.empleado_id}>
-                                    <select
-                                        value={form.empleado_id}
-                                        onChange={(e) => setF('empleado_id', e.target.value)}
-                                        className={[
-                                            'w-full rounded-lg border text-sm px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none',
-                                            formError.empleado_id ? 'border-red-400' : 'border-slate-300',
-                                        ].join(' ')}
-                                    >
-                                        <option value="">— Seleccionar viajero —</option>
-                                        {empleados.map((e) => (
-                                            <option key={e.id} value={e.id}>{e.nombres} {e.apellidos}</option>
-                                        ))}
-                                    </select>
+                                <Field label="Viajeros (puede elegir varios)" error={formError.empleado_ids}>
+                                    <MultiSelectBuscador
+                                        opciones={empleadosDisponibles}
+                                        seleccionados={form.empleado_ids}
+                                        onChange={(ids) => setF('empleado_ids', ids)}
+                                        placeholder="Buscar por nombre o identificación…"
+                                        vacio="No hay empleados disponibles."
+                                    />
                                 </Field>
                             )}
 

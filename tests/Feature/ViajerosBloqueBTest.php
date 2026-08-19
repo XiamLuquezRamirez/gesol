@@ -96,6 +96,37 @@ class ViajerosBloqueBTest extends TestCase
         $this->assertNull($viajero->identificacion_externo);
     }
 
+    public function test_crear_comision_con_varios_viajeros_de_golpe(): void
+    {
+        // El formulario expande N empleados en N filas con los mismos datos;
+        // el backend debe persistir un ViajeroComision individual por cada uno.
+        $this->seed();
+        $lider = \App\Models\Usuario::where('email', 'lider.comite@demo.test')->firstOrFail();
+        $emps  = Empleados::take(3)->get();
+        $this->assertCount(3, $emps, 'el seeder debe tener al menos 3 empleados');
+
+        $comun = [
+            'es_externo' => false, 'motivo' => 'Proyecto regional',
+            'fecha_salida' => '2026-09-01', 'hora_salida' => '08:00',
+            'fecha_regreso' => '2026-09-03', 'hora_regreso' => '17:00',
+        ];
+        $viajeros = $emps->map(fn ($e) => ['empleado_id' => $e->id] + $comun)->all();
+
+        $this->actingAs($lider)->post(route('viaticos.store'), [
+            'nombre_comision' => 'C', 'municipios' => Municipio::take(1)->pluck('id')->all(),
+            'observacion' => 'x', 'viajeros' => $viajeros,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $cab = SolicitudViaticos::latest('id')->first();
+        $this->assertEquals(3, $cab->viajeros()->count());
+        $this->assertEqualsCanonicalizing(
+            $emps->pluck('id')->all(),
+            $cab->viajeros->pluck('empleado_id')->all()
+        );
+        // Todos comparten motivo y fechas.
+        $this->assertEquals(['Proyecto regional'], $cab->viajeros->pluck('motivo')->unique()->values()->all());
+    }
+
     public function test_no_externo_sin_empleado_es_invalido(): void
     {
         $this->seed();
