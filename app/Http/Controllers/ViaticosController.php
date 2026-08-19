@@ -78,7 +78,9 @@ class ViaticosController extends Controller
                 'observacion'       => $request->observacion,
             ]);
             $cabecera->municipios()->sync($request->municipios);
-            $cabecera->viajeros()->delete();
+            // Borrado uno a uno (no ->delete() masivo) para que el evento deleting
+            // de ViajeroComision limpie del disco los archivos de cada viajero.
+            $cabecera->viajeros()->get()->each->delete();
             foreach ($request->viajeros as $v) {
                 ViajeroComision::create($this->atributosViajero($cabecera->id, $v));
             }

@@ -2,6 +2,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class ViajeroComision extends Model
 {
@@ -12,6 +13,18 @@ class ViajeroComision extends Model
         'rol_en_comision','motivo','fecha_salida','hora_salida','fecha_regreso','hora_regreso','tipo_pago',
     ];
     protected $casts = ['fecha_salida'=>'date','fecha_regreso'=>'date'];
+
+    protected static function booted(): void
+    {
+        // Al borrar un viajero (que instancie el modelo), eliminar del disco los
+        // ficheros de sus archivos antes de que la BD los borre en cascada. La
+        // cascada FK sola no dispara este evento ni limpia el disco.
+        static::deleting(function (ViajeroComision $viajero) {
+            foreach ($viajero->archivos as $archivo) {
+                Storage::disk('local')->delete($archivo->path);
+            }
+        });
+    }
 
     public function empleado()          { return $this->belongsTo(Empleados::class, 'empleado_id'); }
     public function contrato()          { return $this->belongsTo(Contrato::class, 'contrato_id'); }

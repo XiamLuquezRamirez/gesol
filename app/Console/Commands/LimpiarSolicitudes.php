@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\ArchivoViajero;
 use App\Models\CotizacionOficina;
 use App\Models\Solicitud;
 use App\Models\SolicitudOficina;
@@ -36,7 +37,7 @@ class LimpiarSolicitudes extends Command
         $this->line("  • {$totalSolicitudes} solicitudes (con sus transiciones)");
         $this->line("  • {$totalOficina} cabeceras de oficina (items y cotizaciones en cascada)");
         $this->line("  • {$totalViaticos} comisiones de viaticos (viajeros y asignaciones en cascada)");
-        $this->line('  • Archivos fisicos de cotizaciones y notificaciones de solicitudes');
+        $this->line('  • Archivos fisicos de cotizaciones, comprobantes/soportes de viajeros y notificaciones');
         $this->line('Se conservan: usuarios, roles, empleados, areas, tarifas y tipos de solicitud.');
 
         if (! $this->option('force') && ! $this->confirm('¿Continuar?')) {
@@ -50,6 +51,15 @@ class LimpiarSolicitudes extends Command
             Storage::disk('local')->delete($path);
         }
         $this->line(count($paths).' archivo(s) de cotizacion eliminados del disco.');
+
+        // 1b) Archivos fisicos de viajeros (comprobantes y soportes). La cascada
+        //     de BD borra los registros pero no limpia el disco, asi que se
+        //     eliminan aqui antes de perder los paths.
+        $pathsViajero = ArchivoViajero::pluck('path')->filter()->all();
+        foreach ($pathsViajero as $path) {
+            Storage::disk('local')->delete($path);
+        }
+        $this->line(count($pathsViajero).' archivo(s) de viajero eliminados del disco.');
 
         // 2) Borrado transaccional de los registros. Las FK con cascadeOnDelete
         //    arrastran items, cotizaciones, transiciones, viajeros y asignaciones.

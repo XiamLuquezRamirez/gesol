@@ -127,4 +127,81 @@ class ArchivosViajeroTest extends TestCase
         $this->actingAs($contador)->delete(route('viaticos.archivos.destroy', [$solicitud, $viajero, $archivoAjeno]))
             ->assertNotFound();
     }
+
+    /** Crea un fichero real en disco (fake) y su registro ArchivoViajero para un viajero. */
+    private function archivoEnDisco(ViajeroComision $viajero, string $tipo = 'soporte'): ArchivoViajero
+    {
+        $path = \Illuminate\Support\Facades\Storage::disk('local')->putFile(
+            'archivos_viajero',
+            \Illuminate\Http\UploadedFile::fake()->create('f.pdf', 10, 'application/pdf')
+        );
+        return ArchivoViajero::create([
+            'viajero_comision_id' => $viajero->id, 'tipo' => $tipo, 'path' => $path, 'nombre' => 'f.pdf',
+        ]);
+    }
+
+    public function test_borrar_viajero_elimina_sus_archivos_del_disco(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+        $this->seed();
+        $viajero = $this->viajero();
+        $archivo = $this->archivoEnDisco($viajero);
+        \Illuminate\Support\Facades\Storage::disk('local')->assertExists($archivo->path);
+
+        $viajero->delete();
+
+        $this->assertDatabaseMissing('archivos_viajero', ['id' => $archivo->id]);
+        \Illuminate\Support\Facades\Storage::disk('local')->assertMissing($archivo->path);
+    }
+
+    public function test_editar_comision_elimina_archivos_de_viajeros_recreados(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+        $this->seed();
+        $lider = \App\Models\Usuario::where('email', 'lider.comite@demo.test')->firstOrFail();
+        $emp   = Empleados::first();
+        $muni  = \App\Models\Municipio::take(1)->pluck('id')->all();
+
+        // Crear la comision con un viajero.
+        $this->actingAs($lider)->post(route('viaticos.store'), [
+            'nombre_comision' => 'C', 'municipios' => $muni, 'observacion' => 'x',
+            'viajeros' => [[
+                'empleado_id' => $emp->id, 'motivo' => 'm',
+                'fecha_salida' => '2026-08-20', 'hora_salida' => '08:00',
+                'fecha_regreso' => '2026-08-21', 'hora_regreso' => '17:00',
+            ]],
+        ])->assertRedirect();
+
+        $solicitud = \App\Models\Solicitud::latest('id')->first();
+        $viajero   = $solicitud->solicitable->viajeros()->first();
+        $archivo   = $this->archivoEnDisco($viajero);
+        \Illuminate\Support\Facades\Storage::disk('local')->assertExists($archivo->path);
+
+        // Editar la comision (delete-and-recreate de viajeros): el archivo debe limpiarse del disco.
+        $this->actingAs($lider)->put(route('viaticos.update', $solicitud), [
+            'nombre_comision' => 'C editada', 'municipios' => $muni, 'observacion' => 'x',
+            'viajeros' => [[
+                'empleado_id' => $emp->id, 'motivo' => 'm2',
+                'fecha_salida' => '2026-08-20', 'hora_salida' => '08:00',
+                'fecha_regreso' => '2026-08-22', 'hora_regreso' => '17:00',
+            ]],
+        ])->assertRedirect();
+
+        $this->assertDatabaseMissing('archivos_viajero', ['id' => $archivo->id]);
+        \Illuminate\Support\Facades\Storage::disk('local')->assertMissing($archivo->path);
+    }
+
+    public function test_comando_limpiar_borra_archivos_de_viajero_del_disco(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+        $this->seed();
+        $viajero = $this->viajero();
+        $archivo = $this->archivoEnDisco($viajero);
+        \Illuminate\Support\Facades\Storage::disk('local')->assertExists($archivo->path);
+
+        $this->artisan('solicitudes:limpiar --force')->assertSuccessful();
+
+        $this->assertDatabaseMissing('archivos_viajero', ['id' => $archivo->id]);
+        \Illuminate\Support\Facades\Storage::disk('local')->assertMissing($archivo->path);
+    }
 }
