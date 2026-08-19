@@ -1,5 +1,5 @@
 <?php
-use App\Http\Controllers\{AbonoOficinaController, ComisionesRrhhController, InicioController, LiquidacionPdfController, NotificacionController, OficinaController, ParametrosController, ProfileController, SolicitudController, UsuarioController, ViaticosController};
+use App\Http\Controllers\{AbonoOficinaController, ArchivoViajeroController, ComisionesRrhhController, InicioController, LiquidacionPdfController, NotificacionController, OficinaController, ParametrosController, ProfileController, SolicitudController, UsuarioController, ViaticosController};
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -39,6 +39,9 @@ Route::middleware(['auth','verified'])->group(function () {
     Route::put('/viaticos/{solicitud}',              [ViaticosController::class, 'update'])->name('viaticos.update');
     Route::get('/viaticos/{solicitud}/liquidar',     [ViaticosController::class, 'liquidacion'])->name('viaticos.liquidacion');
     Route::put('/viaticos/{solicitud}/asignaciones', [ViaticosController::class, 'updateAllocations'])->name('viaticos.asignaciones');
+    Route::post('/viaticos/{solicitud}/viajeros/{viajero}/archivos',            [ArchivoViajeroController::class, 'store'])->name('viaticos.archivos.store');
+    Route::get('/viaticos/{solicitud}/viajeros/{viajero}/archivos/{archivo}',   [ArchivoViajeroController::class, 'descargar'])->name('viaticos.archivos.descargar');
+    Route::delete('/viaticos/{solicitud}/viajeros/{viajero}/archivos/{archivo}', [ArchivoViajeroController::class, 'destroy'])->name('viaticos.archivos.destroy');
 
     // Parámetros
     Route::get('/parametros',                          [ParametrosController::class, 'index'])->name('parametros.index');
