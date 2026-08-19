@@ -7,9 +7,7 @@
 //     · último día  → desde inicio hasta hora_regreso       (hora_comida <= hora_regreso)
 //     · días intermedios → todas
 //     · mismo día   → hora_salida <= hora_comida <= hora_regreso
-// - Merienda: 2 por día completo, proporcional a las franjas presentes:
-//     · merienda de mañana cuenta si cuenta el desayuno de ese día
-//     · merienda de tarde  cuenta si cuenta la cena de ese día
+// - Merienda: 1 por día si hay alguna comida presente ese día.
 
 // Horas tope de cada comida, en minutos desde medianoche.
 const HORA_COMIDA = {
@@ -72,9 +70,8 @@ export function conteoComidas(fechaSalida, fechaRegreso, horaSalida, horaRegreso
         if (almuerzo) conteo.almuerzo += 1;
         if (cena) conteo.cena += 1;
 
-        // Merienda: 1 por franja presente (mañana ~ desayuno, tarde ~ cena).
-        if (desayuno) conteo.merienda += 1;
-        if (cena) conteo.merienda += 1;
+        // Merienda: 1 por día si hay alguna comida presente.
+        if (desayuno || almuerzo || cena) conteo.merienda += 1;
     }
 
     return conteo;

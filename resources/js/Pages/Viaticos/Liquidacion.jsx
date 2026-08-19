@@ -2,10 +2,10 @@ import AppLayout from '@/Layouts/AppLayout';
 import CampoMoneda from '@/Components/CampoMoneda';
 import BadgeEstado from '@/Components/BadgeEstado';
 import { formatearMoneda } from '@/lib/format';
-import { useForm, Head } from '@inertiajs/react';
+import { useForm, Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { PlusCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import { rubrosPorDefecto } from '@/lib/rubros';
+import { rubrosPorDefecto, diasComision } from '@/lib/rubros';
 
 const etiquetaRubro = (r) =>
     r.charAt(0).toUpperCase() + r.slice(1).replace(/[_-]/g, ' ');
@@ -50,6 +50,19 @@ export default function Liquidacion({ solicitud, tarifas, rubros }) {
             p.viajero_comision_id === viajeroId ? { ...p, tipo_pago: tipoPago } : p
         ));
 
+    const subirArchivos = (viajeroId, tipo, fileList) => {
+        if (!fileList || fileList.length === 0) return;
+        router.post(
+            route('viaticos.archivos.store', [solicitud.id, viajeroId]),
+            { tipo, archivos: Array.from(fileList) },
+            { forceFormData: true, preserveScroll: true }
+        );
+    };
+
+    const eliminarArchivo = (viajeroId, archivoId) => {
+        router.delete(route('viaticos.archivos.destroy', [solicitud.id, viajeroId, archivoId]), { preserveScroll: true });
+    };
+
     /* ── selección del rubro a agregar por viajero ── */
     const [rubroSel, setRubroSel] = useState({});
 
@@ -69,7 +82,7 @@ export default function Liquidacion({ solicitud, tarifas, rubros }) {
                 viajero_comision_id: viajeroId,
                 rubro,
                 valor_unitario: tarifas[rubro]?.valor_sugerido ?? 0,
-                dias: diasEntre(viajero?.fecha_salida, viajero?.fecha_regreso),
+                dias: diasComision(viajero?.fecha_salida, viajero?.fecha_regreso),
             },
         ]);
         setRubroSel((p) => ({ ...p, [viajeroId]: '' }));
@@ -158,6 +171,42 @@ export default function Liquidacion({ solicitud, tarifas, rubros }) {
                                                 );
                                             })}
                                         </div>
+
+                                        {(() => {
+                                            // La subida se basa en el tipo_pago PERSISTIDO (viajero.tipo_pago),
+                                            // no en el estado sin guardar: al subir, router.post recarga los
+                                            // props y el estado se reconstruye desde el servidor. Si mostraramos
+                                            // la seccion segun el estado sin guardar, el comprobante recien
+                                            // subido "desapareceria" tras la recarga.
+                                            const pagoGuardado = viajero.tipo_pago ?? 'efectivo';
+                                            const pagoEnEstado = data.pagos.find((p) => p.viajero_comision_id === viajero.id)?.tipo_pago ?? 'efectivo';
+                                            if (pagoGuardado !== 'transferencia') {
+                                                // Aun no es transferencia en el servidor: si el usuario lo cambio
+                                                // sin guardar, avisar que debe guardar antes de adjuntar.
+                                                return pagoEnEstado === 'transferencia' ? (
+                                                    <p className="mt-2 w-64 text-xs text-amber-600">
+                                                        Guarda el informe para poder adjuntar el comprobante de transferencia.
+                                                    </p>
+                                                ) : null;
+                                            }
+                                            return (
+                                                <div className="mt-2 space-y-1 w-64">
+                                                    <ul className="space-y-1">
+                                                        {(viajero.archivos ?? []).filter((a) => a.tipo === 'comprobante').map((a) => (
+                                                            <li key={a.id} className="flex items-center gap-2 text-xs">
+                                                                <a href={route('viaticos.archivos.descargar', [solicitud.id, viajero.id, a.id])}
+                                                                   className="text-indigo-600 hover:underline">{a.nombre}</a>
+                                                                <button type="button" onClick={() => eliminarArchivo(viajero.id, a.id)}
+                                                                        className="text-red-500 hover:text-red-700">Eliminar</button>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                    <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png"
+                                                           onChange={(e) => { subirArchivos(viajero.id, 'comprobante', e.target.files); e.target.value = ''; }}
+                                                           className="block w-full text-xs text-slate-600" />
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 </div>
 
@@ -241,6 +290,24 @@ export default function Liquidacion({ solicitud, tarifas, rubros }) {
                                         </button>
                                     </div>
                                 )}
+
+                                {/* ── Soportes adicionales ── */}
+                                <div className="mt-3 px-5 py-3 border-t border-slate-100">
+                                    <p className="text-xs font-medium text-slate-600 mb-1">Soportes adicionales</p>
+                                    <ul className="space-y-1">
+                                        {(viajero.archivos ?? []).filter((a) => a.tipo === 'soporte').map((a) => (
+                                            <li key={a.id} className="flex items-center gap-2 text-xs">
+                                                <a href={route('viaticos.archivos.descargar', [solicitud.id, viajero.id, a.id])}
+                                                   className="text-indigo-600 hover:underline">{a.nombre}</a>
+                                                <button type="button" onClick={() => eliminarArchivo(viajero.id, a.id)}
+                                                        className="text-red-500 hover:text-red-700">Eliminar</button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png"
+                                           onChange={(e) => { subirArchivos(viajero.id, 'soporte', e.target.files); e.target.value = ''; }}
+                                           className="block w-full text-xs text-slate-600" />
+                                </div>
                             </div>
                         );
                     })}
