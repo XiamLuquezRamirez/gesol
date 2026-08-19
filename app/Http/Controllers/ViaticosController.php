@@ -120,7 +120,7 @@ class ViaticosController extends Controller
     {
         $this->authorize('editarLiquidacion', $solicitud);
 
-        $solicitud->load(['solicitable.viajeros.empleado','solicitable.viajeros.asignaciones']);
+        $solicitud->load(['solicitable.viajeros.empleado','solicitable.viajeros.asignaciones','solicitable.viajeros.archivos']);
         return Inertia::render('Viaticos/Liquidacion', [
             'solicitud' => $solicitud,
             'tarifas'   => TarifaViatico::all()->keyBy('rubro'),
