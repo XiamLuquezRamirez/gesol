@@ -78,6 +78,24 @@ class ViajerosBloqueBTest extends TestCase
             ->assertSessionHasErrors('viajeros.0.nombre_externo');
     }
 
+    public function test_externo_sin_identificacion_es_valido(): void
+    {
+        // La identificación del viajero externo es opcional: basta el nombre.
+        $this->seed();
+        $lider = \App\Models\Usuario::where('email', 'lider.comite@demo.test')->firstOrFail();
+
+        $this->actingAs($lider)->post(route('viaticos.store'), $this->payloadBase([
+            'es_externo' => true, 'nombre_externo' => 'Pedro Externo',
+            'motivo' => 'm', 'fecha_salida' => '2026-08-20', 'hora_salida' => '08:00',
+            'fecha_regreso' => '2026-08-21', 'hora_regreso' => '17:00',
+        ]))->assertRedirect()->assertSessionHasNoErrors();
+
+        $cab = SolicitudViaticos::latest('id')->first();
+        $viajero = $cab->viajeros()->first();
+        $this->assertEquals('Pedro Externo', $viajero->nombre_externo);
+        $this->assertNull($viajero->identificacion_externo);
+    }
+
     public function test_no_externo_sin_empleado_es_invalido(): void
     {
         $this->seed();

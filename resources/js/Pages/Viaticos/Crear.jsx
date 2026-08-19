@@ -100,8 +100,8 @@ export default function Crear({ empleados, contratos = [], solicitud = null, edi
     const validarForm = () => {
         const e = {};
         if (form.es_externo) {
-            if (!form.nombre_externo.trim())         e.nombre_externo         = 'Ingrese el nombre.';
-            if (!form.identificacion_externo.trim()) e.identificacion_externo = 'Ingrese la identificación.';
+            // Nombre obligatorio; identificación opcional.
+            if (!form.nombre_externo.trim()) e.nombre_externo = 'Ingrese el nombre.';
         } else if (!form.empleado_id) {
             e.empleado_id = 'Seleccione el empleado.';
         }
@@ -226,7 +226,7 @@ export default function Crear({ empleados, contratos = [], solicitud = null, edi
                                             error={formError.nombre_externo}
                                         />
                                     </Field>
-                                    <Field label="Identificación" error={formError.identificacion_externo}>
+                                    <Field label="Identificación (opcional)" error={formError.identificacion_externo}>
                                         <Input
                                             type="text"
                                             value={form.identificacion_externo}
