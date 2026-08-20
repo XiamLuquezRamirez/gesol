@@ -32,7 +32,7 @@ class TipoSolicitudSeeder extends Seeder
                     'clave'         => 'VIA',
                     'nombre'        => 'Viáticos',
                     'estado_inicial'=> 'borrador',
-                    'estados'       => json_encode(['borrador','enviada','liquidada','revisada','en_gerencia','cerrada','rechazada']),
+                    'estados'       => json_encode(['borrador','enviada','liquidada','revisada','en_gerencia','cerrada','rechazada','cancelada']),
                     'transiciones'  => json_encode([
                         // El solicitante envia la comision directamente al contador.
                         ['origen'=>'borrador',  'accion'=>'enviar',        'destino'=>'enviada',   'roles'=>['lider_area','lider_comite'], 'notificar'=>['contador'], 'label'=>'Enviar al contador y RR. HH.'],
