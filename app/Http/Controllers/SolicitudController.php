@@ -157,6 +157,7 @@ class SolicitudController extends Controller
             'puedeGestionarComprobante' => $usuario->can('gestionarComprobante', $solicitud),
             'puedeCancelar'  => $usuario->can('cancelar', $solicitud),
             'puedeReactivar' => $usuario->can('reactivar', $solicitud),
+            'puedeAjustar'   => $usuario->can('ajustar', $solicitud),
         ]);
     }
 

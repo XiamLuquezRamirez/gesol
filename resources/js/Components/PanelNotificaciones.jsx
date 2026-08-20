@@ -40,6 +40,9 @@ const ESTILO_TIPO = {
     devuelta:         { dot: 'bg-orange-500', badge: 'bg-orange-50 text-orange-700 border-orange-200' },
     accion_requerida: { dot: 'bg-amber-500',  badge: 'bg-amber-50 text-amber-700 border-amber-200' },
     comision_reportada: { dot: 'bg-amber-500', badge: 'bg-amber-50 text-amber-700 border-amber-200' },
+    ajustada:         { dot: 'bg-amber-500',   badge: 'bg-amber-50 text-amber-700 border-amber-200' },
+    reactivada:       { dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    cancelada:        { dot: 'bg-red-500',     badge: 'bg-red-50 text-red-700 border-red-200' },
     informativo:      { dot: 'bg-blue-500',   badge: 'bg-blue-50 text-blue-700 border-blue-200' },
 };
 
@@ -53,6 +56,9 @@ function mensajeNotificacion(n) {
             return `Tienes una acción pendiente en ${n.radicado}`;
         case 'comision_reportada':
             return `Comisión pendiente por revisar: ${n.radicado}`;
+        case 'ajustada':   return `Comisión ajustada: ${n.radicado}`;
+        case 'cancelada':  return `Comisión cancelada: ${n.radicado}`;
+        case 'reactivada': return `Comisión reactivada: ${n.radicado}`;
         default:
             return `Actualización en ${n.radicado}`;
     }
