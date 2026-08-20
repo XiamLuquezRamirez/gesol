@@ -11,7 +11,7 @@ class ArchivoViajeroController extends Controller
 {
     public function store(GuardarArchivoViajeroRequest $request, Solicitud $solicitud, ViajeroComision $viajero)
     {
-        $this->authorize('editarLiquidacion', $solicitud);
+        $this->authorize('gestionarComprobante', $solicitud);
         abort_unless($viajero->solicitud_viaticos_id === $solicitud->solicitable_id, 404);
 
         foreach ($request->file('archivos') as $archivo) {
@@ -39,7 +39,7 @@ class ArchivoViajeroController extends Controller
 
     public function destroy(Solicitud $solicitud, ViajeroComision $viajero, ArchivoViajero $archivo)
     {
-        $this->authorize('editarLiquidacion', $solicitud);
+        $this->authorize('gestionarComprobante', $solicitud);
         abort_unless($viajero->solicitud_viaticos_id === $solicitud->solicitable_id, 404);
         abort_unless($archivo->viajero_comision_id === $viajero->id, 404);
 

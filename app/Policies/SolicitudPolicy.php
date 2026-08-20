@@ -99,6 +99,27 @@ class SolicitudPolicy
     }
 
     /**
+     * Adjuntar/eliminar comprobantes de transferencia por viajero. Es mas amplio que
+     * editarLiquidacion porque el lider de contabilidad tambien debe poder gestionarlos
+     * cuando la comision llega a su ambito:
+     * - contador: enviada, liquidada, revisada y cerrada.
+     * - contabilidad_lider: revisada y cerrada.
+     */
+    public function gestionarComprobante(Usuario $usuario, Solicitud $solicitud): bool
+    {
+        if ($solicitud->tipoSolicitud->clave !== 'VIA') {
+            return false;
+        }
+        if ($usuario->hasRole('contador')) {
+            return in_array($solicitud->estado, ['enviada', 'liquidada', 'revisada', 'cerrada']);
+        }
+        if ($usuario->hasRole('contabilidad_lider')) {
+            return in_array($solicitud->estado, ['revisada', 'cerrada']);
+        }
+        return false;
+    }
+
+    /**
      * Imprimir o enviar el formato de liquidacion de un viajero: solo para
      * comisiones de viaticos ya cerradas, y para quien pueda ver el detalle.
      */
