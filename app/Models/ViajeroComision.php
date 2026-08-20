@@ -11,8 +11,9 @@ class ViajeroComision extends Model
         'solicitud_viaticos_id','empleado_id','contrato_id',
         'nombre_externo','identificacion_externo',
         'rol_en_comision','motivo','fecha_salida','hora_salida','fecha_regreso','hora_regreso','tipo_pago',
+        'salida_confirmada',
     ];
-    protected $casts = ['fecha_salida'=>'date','fecha_regreso'=>'date'];
+    protected $casts = ['fecha_salida'=>'date','fecha_regreso'=>'date','salida_confirmada'=>'boolean'];
 
     protected static function booted(): void
     {
