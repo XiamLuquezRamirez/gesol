@@ -1,7 +1,7 @@
 import AppLayout from '@/Layouts/AppLayout';
 import Modal from '@/Components/Modal';
 import BadgeEstado from '@/Components/BadgeEstado';
-import { formatearFecha, formatearMoneda } from '@/lib/format';
+import { formatearFecha, formatearMoneda, formatFechaHora } from '@/lib/format';
 import { Head, router } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 
@@ -36,11 +36,6 @@ export default function Comisiones({ comisionados, oficina = [], filtros }) {
         setHasta(filtros?.hasta ?? '');
     }, [filtros]);
 
-    const formatFechaHora = (fecha, hora) => {
-        if (!fecha) return '—';
-        const f = new Date(String(fecha).substring(0, 10) + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
-        return hora ? `${f} ${hora}` : f;
-    };
 
     const limpiar = () => {
         setDesde('');

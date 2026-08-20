@@ -1,6 +1,7 @@
 import AppLayout from '@/Layouts/AppLayout';
 import MultiSelectBuscador from '@/Components/MultiSelectBuscador';
 import { expandirViajeros, etiquetaEmpleado } from '@/lib/viajeros';
+import { formatFechaHora } from '@/lib/format';
 import { useForm, Head } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import { XCircleIcon, CheckCircleIcon, PlusCircleIcon } from '@heroicons/react/24/outline';
@@ -147,8 +148,6 @@ export default function Crear({ empleados, contratos = [], solicitud = null, edi
         else        post(route('viaticos.store'));
     };
 
-    const formatFechaHora = (fecha, hora) =>
-        fecha && hora ? `${fecha.split('-').reverse().join('/')} ${hora}` : '—';
 
     return (
         <AppLayout title={editar ? 'Editar solicitud de viáticos' : 'Nueva solicitud de viáticos'}>
