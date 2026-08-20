@@ -3,7 +3,7 @@ import Modal from '@/Components/Modal';
 import BadgeEstado from '@/Components/BadgeEstado';
 import { formatearFecha, formatearMoneda } from '@/lib/format';
 import { Head, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const etiquetaRubro = (r) =>
     r ? r.charAt(0).toUpperCase() + r.slice(1).replace(/[_-]/g, ' ') : '—';
@@ -28,6 +28,13 @@ export default function Comisiones({ comisionados, oficina = [], filtros }) {
             },
             { preserveState: true, replace: true });
     };
+    
+    // Los campos reflejan el filtro efectivo del backend (que en la carga inicial
+    // ya viene con la fecha de hoy). Al limpiar (?todos=1) llegan vacíos.
+    useEffect(() => {
+        setDesde(filtros?.desde ?? '');
+        setHasta(filtros?.hasta ?? '');
+    }, [filtros]);
 
     const formatFechaHora = (fecha, hora) => {
         if (!fecha) return '—';
@@ -40,7 +47,7 @@ export default function Comisiones({ comisionados, oficina = [], filtros }) {
         setHasta('');
         setNombre('');
         setComision('');
-        router.get(route('rrhh.comisiones'), {}, { preserveState: true, replace: true });
+        router.get(route('rrhh.comisiones'), { todos: 1 }, { preserveState: true, replace: true });
     };
 
     const hayFiltro = filtros?.desde || filtros?.hasta || filtros?.nombre || filtros?.comision;

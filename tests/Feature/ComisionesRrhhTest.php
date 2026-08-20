@@ -137,8 +137,9 @@ class ComisionesRrhhTest extends TestCase
         $borrador = $this->crearComision('2026-08-20', '2026-08-22');
         $this->assertEquals('borrador', $borrador->fresh()->estado);
 
+        // ?todos=1 para verificar el filtro de estado sin que el default de "hoy" interfiera.
         $this->actingAs($this->rrhh)
-            ->get(route('rrhh.comisiones'))
+            ->get(route('rrhh.comisiones', ['todos' => 1]))
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('Rrhh/Comisiones')
                 ->where('comisionados', fn ($data) => count($data) === 1
@@ -185,6 +186,51 @@ class ComisionesRrhhTest extends TestCase
                 ->where('comisionados', fn ($data) => count($data) === 1
                     && $data[0]['comision'] === 'Auditoría regional')
             );
+    }
+
+    public function test_al_iniciar_sin_filtros_muestra_comisiones_de_hoy(): void
+    {
+        // Fijamos "hoy" al 2026-08-11 (dentro de la comision del 10 al 12).
+        \Illuminate\Support\Carbon::setTestNow('2026-08-11 09:00:00');
+
+        $vigenteHoy = $this->crearComision('2026-08-10', '2026-08-12');
+        $this->llevarALiquidada($vigenteHoy);
+        $otraFecha = $this->crearComision('2026-12-01', '2026-12-03');
+        $this->llevarALiquidada($otraFecha);
+
+        // Sin filtros: por defecto solo las vigentes hoy (la de agosto, no la de diciembre).
+        $this->actingAs($this->rrhh)
+            ->get(route('rrhh.comisiones'))
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('comisionados', fn ($data) => count($data) === 1
+                    && $data[0]['radicado'] === $vigenteHoy->fresh()->radicado)
+                // Los campos de fecha reflejan el default (hoy).
+                ->where('filtros.desde', '2026-08-11')
+                ->where('filtros.hasta', '2026-08-11')
+            );
+
+        \Illuminate\Support\Carbon::setTestNow();
+    }
+
+    public function test_parametro_todos_muestra_todas_sin_default_de_hoy(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow('2026-08-11 09:00:00');
+
+        $agosto    = $this->crearComision('2026-08-10', '2026-08-12');
+        $this->llevarALiquidada($agosto);
+        $diciembre = $this->crearComision('2026-12-01', '2026-12-03');
+        $this->llevarALiquidada($diciembre);
+
+        // ?todos=1: sin default de fecha -> aparecen ambas.
+        $this->actingAs($this->rrhh)
+            ->get(route('rrhh.comisiones', ['todos' => 1]))
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('comisionados', fn ($data) => count($data) === 2)
+                ->where('filtros.desde', null)
+                ->where('filtros.hasta', null)
+            );
+
+        \Illuminate\Support\Carbon::setTestNow();
     }
 
     public function test_no_rrhh_recibe_403(): void
