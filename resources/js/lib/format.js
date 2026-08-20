@@ -37,3 +37,13 @@ export function formatFechaHora(fechaStr, horaStr) {
     const hora = formatearHora(horaStr);
     return hora ? `${fecha} · ${hora}` : fecha;
 }
+
+/**
+ * Formatea un datetime tipo 'Y-m-d H:i' ('2026-08-20 17:00') a legible con
+ * a. m./p. m.: '20 ago 2026 · 5:00 p. m.'. Usado en el historial de movimientos.
+ */
+export function formatearFechaHoraCompleta(fechaHoraStr) {
+    if (!fechaHoraStr) return '—';
+    const [fecha, hora] = String(fechaHoraStr).trim().split(' ');
+    return formatFechaHora(fecha, hora);
+}

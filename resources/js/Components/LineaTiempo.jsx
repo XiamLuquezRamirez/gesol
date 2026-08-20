@@ -1,4 +1,4 @@
-import { formatearFecha } from '@/lib/format';
+import { formatearFechaHoraCompleta } from '@/lib/format';
 
 const ICONOS_ACCION = {
     enviar:'→', verificar:'✓', aprobar:'✓', devolver:'↩', rechazar:'✗',
@@ -20,7 +20,7 @@ export default function LineaTiempo({ transiciones }) {
                     <div className="flex items-center gap-2 mb-1">
                         <span className="text-sm font-semibold text-slate-800 capitalize">{t.accion}</span>
                         <span className="text-xs text-slate-400">por {t.usuario.name}</span>
-                        <span className="text-xs text-slate-400 ml-auto">{t.created_at}</span>
+                        <span className="text-xs text-slate-400 ml-auto">{formatearFechaHoraCompleta(t.created_at)}</span>
                     </div>
                     <p className="text-xs text-slate-500">
                         {t.estado_origen ?? '—'} → {t.estado_destino}

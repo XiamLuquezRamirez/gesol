@@ -5,7 +5,7 @@ import LineaTiempo from '@/Components/LineaTiempo';
 import ModalAccion from '@/Components/ModalAccion';
 import Modal from '@/Components/Modal';
 import ModalComprobantes from '@/Components/ModalComprobantes';
-import { formatearMoneda, formatearFecha, formatFechaHora } from '@/lib/format';
+import { formatearMoneda, formatearFecha, formatFechaHora, formatearFechaHoraCompleta } from '@/lib/format';
 import { useState, useRef } from 'react';
 import { usePage, router, useForm } from '@inertiajs/react';
 import { Head } from '@inertiajs/react';
@@ -341,7 +341,7 @@ function AvisoRechazo({ transicion, rutaEditar }) {
                         {esRechazo ? 'Solicitud rechazada' : 'Solicitud devuelta para corrección'}
                     </p>
                     <p className={`text-xs mt-0.5 ${esRechazo ? 'text-red-500' : 'text-orange-500'}`}>
-                        Por {transicion.usuario?.name} · {transicion.created_at}
+                        Por {transicion.usuario?.name} · {formatearFechaHoraCompleta(transicion.created_at)}
                     </p>
                     {transicion.comentario ? (
                         <p className={`mt-2 text-sm px-3 py-2 rounded-lg bg-white/70 border ${
