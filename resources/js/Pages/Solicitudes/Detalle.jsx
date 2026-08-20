@@ -642,7 +642,7 @@ function SeccionPagos({ solicitud }) {
     );
 }
 
-export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidacion, puedeGestionarComprobante = false }) {
+export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidacion, puedeGestionarComprobante = false, puedeCancelar = false, puedeReactivar = false }) {
     const [accionActiva, setAccionActiva] = useState(null);
     const { props } = usePage();
     const flash = props.flash ?? {};
@@ -711,6 +711,20 @@ export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidaci
                                         <IconoAccion accion={a.accion} /> {a.label ?? a.accion}
                                     </a>
                                 )
+                        )}
+                        {puedeCancelar && (
+                            <button type="button"
+                                onClick={() => { if (confirm('¿Cancelar esta comisión? Podrás reactivarla luego.')) router.post(route('viaticos.cancelar', solicitud.id), { motivo: '' }, { preserveScroll: true }); }}
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors">
+                                Cancelar comisión
+                            </button>
+                        )}
+                        {puedeReactivar && (
+                            <button type="button"
+                                onClick={() => router.post(route('viaticos.reactivar', solicitud.id), {}, { preserveScroll: true })}
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors">
+                                Reactivar comisión
+                            </button>
                         )}
                     </div>
                 </div>
