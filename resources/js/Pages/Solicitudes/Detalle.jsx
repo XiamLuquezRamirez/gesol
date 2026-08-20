@@ -4,11 +4,12 @@ import CampoMoneda from '@/Components/CampoMoneda';
 import LineaTiempo from '@/Components/LineaTiempo';
 import ModalAccion from '@/Components/ModalAccion';
 import Modal from '@/Components/Modal';
+import ModalComprobantes from '@/Components/ModalComprobantes';
 import { formatearMoneda, formatearFecha } from '@/lib/format';
 import { useState, useRef } from 'react';
 import { usePage, router, useForm } from '@inertiajs/react';
 import { Head } from '@inertiajs/react';
-import { ArrowLeftIcon, ArrowRightIcon, ArrowUturnLeftIcon, CheckCircleIcon, CheckIcon, XCircleIcon, CreditCardIcon, PencilSquareIcon, PrinterIcon, EnvelopeIcon, EyeIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, ArrowRightIcon, ArrowUturnLeftIcon, CheckCircleIcon, CheckIcon, XCircleIcon, CreditCardIcon, PencilSquareIcon, PrinterIcon, EnvelopeIcon, EyeIcon, PaperClipIcon } from '@heroicons/react/24/outline';
 
 function SeccionCard({ titulo, children }) {
     return (
@@ -118,10 +119,11 @@ const etiquetaRubro = (r) =>
 
 const ETIQUETAS_PAGO = { efectivo: 'Efectivo', transferencia: 'Transferencia' };
 
-function DetalleViaticos({ solicitable, solicitudId, cerrada }) {
+function DetalleViaticos({ solicitable, solicitudId, cerrada, puedeGestionarComprobante = false }) {
     if (!solicitable) return null;
     const viajeros = solicitable.viajeros ?? [];
     const [rubrosDe, setRubrosDe] = useState(null); // viajero seleccionado para ver sus rubros
+    const [comprobantesDe, setComprobantesDe] = useState(null); // viajero para gestionar comprobantes
 
     const enviarCorreo = (viajeroId) => {
         router.post(route('liquidacion.correo', [solicitudId, viajeroId]), {}, { preserveScroll: true });
@@ -202,6 +204,19 @@ function DetalleViaticos({ solicitable, solicitudId, cerrada }) {
                                                         title="Ver rubros"
                                                     >
                                                         <EyeIcon className="w-4 h-4" /> Ver rubros
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setComprobantesDe(v)}
+                                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg text-slate-600 border border-slate-300 hover:bg-slate-50 transition-colors hover:text-slate-700"
+                                                        title="Comprobantes de transferencia"
+                                                    >
+                                                        <PaperClipIcon className="w-4 h-4" /> Comprobantes
+                                                        {(v.archivos ?? []).filter((a) => a.tipo === 'comprobante').length > 0 && (
+                                                            <span className="ml-0.5 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">
+                                                                {(v.archivos ?? []).filter((a) => a.tipo === 'comprobante').length}
+                                                            </span>
+                                                        )}
                                                     </button>
                                                     {cerrada && (
                                                         <>
@@ -296,6 +311,13 @@ function DetalleViaticos({ solicitable, solicitudId, cerrada }) {
                     );
                 })()}
             </Modal>
+
+            <ModalComprobantes
+                viajero={comprobantesDe}
+                solicitudId={solicitudId}
+                puedeGestionar={puedeGestionarComprobante}
+                onClose={() => setComprobantesDe(null)}
+            />
         </div>
     );
 }
@@ -620,7 +642,7 @@ function SeccionPagos({ solicitud }) {
     );
 }
 
-export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidacion }) {
+export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidacion, puedeGestionarComprobante = false }) {
     const [accionActiva, setAccionActiva] = useState(null);
     const { props } = usePage();
     const flash = props.flash ?? {};
@@ -704,6 +726,7 @@ export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidaci
                             solicitable={solicitud.solicitable}
                             solicitudId={solicitud.id}
                             cerrada={solicitud.estado === 'cerrada'}
+                            puedeGestionarComprobante={puedeGestionarComprobante}
                         />
                     )}
                 </SeccionCard>

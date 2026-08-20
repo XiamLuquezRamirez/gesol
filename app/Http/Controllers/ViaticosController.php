@@ -122,11 +122,12 @@ class ViaticosController extends Controller
     {
         $this->authorize('editarLiquidacion', $solicitud);
 
-        $solicitud->load(['solicitable.viajeros.empleado','solicitable.viajeros.asignaciones','solicitable.viajeros.archivos']);
+        $solicitud->load(['solicitable.viajeros.empleado','solicitable.viajeros.asignaciones','solicitable.viajeros.archivos.usuario']);
         return Inertia::render('Viaticos/Liquidacion', [
             'solicitud' => $solicitud,
             'tarifas'   => TarifaViatico::all()->keyBy('rubro'),
             'rubros'    => TarifaViatico::orderBy('id')->pluck('rubro')->toArray(),
+            'puedeGestionarComprobante' => auth()->user()->can('gestionarComprobante', $solicitud),
         ]);
     }
 

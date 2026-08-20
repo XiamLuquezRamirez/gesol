@@ -204,4 +204,73 @@ class ArchivosViajeroTest extends TestCase
         $this->assertDatabaseMissing('archivos_viajero', ['id' => $archivo->id]);
         \Illuminate\Support\Facades\Storage::disk('local')->assertMissing($archivo->path);
     }
+
+    private function solicitudEnEstado(string $estado): \App\Models\Solicitud
+    {
+        $tipo = \App\Models\TipoSolicitud::where('clave', 'VIA')->firstOrFail();
+        $cab = SolicitudViaticos::create(['nombre_comision' => 'C', 'municipio_destino' => '', 'observacion' => 'x']);
+        return \App\Models\Solicitud::create([
+            'tipo_solicitud_id' => $tipo->id, 'solicitante_id' => \App\Models\Usuario::first()->id,
+            'solicitable_type' => SolicitudViaticos::class, 'solicitable_id' => $cab->id,
+            'estado' => $estado, 'radicado' => \App\Models\Solicitud::generarRadicado($tipo),
+        ]);
+    }
+
+    /**
+     * @dataProvider proveedorGestionComprobante
+     */
+    public function test_policy_gestionar_comprobante(string $email, string $estado, bool $permitido): void
+    {
+        $this->seed();
+        $usuario = \App\Models\Usuario::where('email', $email)->firstOrFail();
+        $solicitud = $this->solicitudEnEstado($estado);
+
+        $this->assertSame(
+            $permitido,
+            \Illuminate\Support\Facades\Gate::forUser($usuario)->allows('gestionarComprobante', $solicitud),
+            "$email en $estado deberia " . ($permitido ? 'PODER' : 'NO poder')
+        );
+    }
+
+    public static function proveedorGestionComprobante(): array
+    {
+        $contador = 'contador@demo.test';
+        $lider    = 'contabilidad.lider@demo.test';
+        $ajeno    = 'lider.comite@demo.test';
+        return [
+            // Contador: enviada, liquidada, revisada y cerrada.
+            'contador enviada'   => [$contador, 'enviada', true],
+            'contador liquidada' => [$contador, 'liquidada', true],
+            'contador revisada'  => [$contador, 'revisada', true],
+            'contador cerrada'   => [$contador, 'cerrada', true],
+            'contador borrador'  => [$contador, 'borrador', false],
+            // Lider de contabilidad: solo revisada y cerrada.
+            'lider revisada'     => [$lider, 'revisada', true],
+            'lider cerrada'      => [$lider, 'cerrada', true],
+            'lider enviada'      => [$lider, 'enviada', false],
+            'lider liquidada'    => [$lider, 'liquidada', false],
+            // Rol ajeno: nunca.
+            'ajeno liquidada'    => [$ajeno, 'liquidada', false],
+        ];
+    }
+
+    public function test_lider_contabilidad_sube_comprobante_en_revisada(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+        $this->seed();
+        $solicitud = $this->solicitudEnEstado('revisada');
+        $viajero = ViajeroComision::create([
+            'solicitud_viaticos_id' => $solicitud->solicitable_id, 'empleado_id' => Empleados::first()->id,
+            'motivo' => 'm', 'fecha_salida' => '2026-08-20', 'hora_salida' => '08:00',
+            'fecha_regreso' => '2026-08-21', 'hora_regreso' => '17:00',
+        ]);
+        $lider = \App\Models\Usuario::where('email', 'contabilidad.lider@demo.test')->firstOrFail();
+
+        $this->actingAs($lider)->post(
+            route('viaticos.archivos.store', [$solicitud, $viajero]),
+            ['tipo' => 'comprobante', 'archivos' => [\Illuminate\Http\UploadedFile::fake()->create('t.pdf', 10, 'application/pdf')]]
+        )->assertRedirect();
+
+        $this->assertEquals(1, $viajero->archivos()->where('tipo', 'comprobante')->count());
+    }
 }
