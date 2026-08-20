@@ -43,30 +43,39 @@ Migración: `viajeros_comision.salida_confirmada` → `boolean` default `false` 
 
 ---
 
-## Bloque 2 — Cancelar comisión (solicitante)
+## Bloque 2 — Cancelar y reactivar comisión (solicitante)
 
-### Estado
-Añadir `cancelada` a la lista de estados VIA en `TipoSolicitudSeeder` (para que el badge/UX lo reconozca), **sin** transiciones de motor hacia/desde él (se maneja fuera del motor).
+Una comisión cancelada **se puede reactivar** (si se reprograma): vuelve exactamente al estado que tenía antes de cancelarla, sin crear una nueva. Solo el solicitante.
 
-### Backend
-- Nuevo endpoint `POST viaticos/{solicitud}/cancelar` → `ViaticosController::cancelar`. Autoriza con nueva policy `cancelar`: `$usuario->id === $solicitud->solicitante_id` y `clave === 'VIA'` y estado NOT IN `['cerrada','cancelada']`.
-- Efecto: `$solicitud->update(['estado' => 'cancelada'])`, registra un `TransicionSolicitud` (origen=estado actual, destino=`cancelada`, accion=`cancelar`, usuario, comentario opcional) para el historial, y notifica a RR.HH. + contabilidad (contador + contabilidad_lider) con una notificación `AvisoTransicionNotification` tipo informativo (o un tipo `cancelada`).
-- Ruta nombrada `viaticos.cancelar`.
+### Estado y datos
+- Añadir `cancelada` a la lista de estados VIA en `TipoSolicitudSeeder` (para el badge/UX), **sin** transiciones de motor (se maneja fuera del motor).
+- Migración: nueva columna `solicitudes.estado_previo` (`string` nullable, idempotente `hasColumn`). Se llena al cancelar con el estado actual y se usa al reactivar. Añadir a `$fillable` de `Solicitud`.
 
-### "Desaparece de los registros"
+### Backend — cancelar
+- Endpoint `POST viaticos/{solicitud}/cancelar` → `ViaticosController::cancelar`. Policy `cancelar`: `$usuario->id === $solicitud->solicitante_id`, `clave === 'VIA'`, estado NOT IN `['cerrada','cancelada']`.
+- Efecto: guardar `estado_previo = estado actual`, `estado = 'cancelada'`; registrar `TransicionSolicitud` (origen=estado previo, destino=`cancelada`, accion=`cancelar`, comentario opcional); notificar a RR.HH. + contabilidad (contador + contabilidad_lider) con `AvisoTransicionNotification` tipo `cancelada`.
+- Ruta `viaticos.cancelar`.
+
+### Backend — reactivar
+- Endpoint `POST viaticos/{solicitud}/reactivar` → `ViaticosController::reactivar`. Policy `reactivar`: `$usuario->id === $solicitud->solicitante_id`, `clave === 'VIA'`, estado === `'cancelada'`.
+- Efecto: `estado = estado_previo ?? 'enviada'` (fallback defensivo), `estado_previo = null`; registrar `TransicionSolicitud` (origen=`cancelada`, destino=estado restaurado, accion=`reactivar`); notificar a RR.HH. + contabilidad de que volvió.
+- Ruta `viaticos.reactivar`. La comisión reaparece en los paneles automáticamente al salir de `cancelada`.
+
+### "Desaparece de los registros" (mientras está cancelada)
 - RR.HH.: incluir `'cancelada'` en el `whereNotIn` de `ComisionesRrhhController` (línea 27) → `['borrador','rechazada','cancelada']`.
-- Contabilidad: `colaPendientes` filtra por `accionesDisponibles` (motor). Como `cancelada` no tiene transiciones de motor, no aparece en "pendientes de acción". `queryPendientesLider` filtra por estado exacto (`revisada`), así que tampoco. No requiere cambio adicional allí.
-- `SolicitudPolicy::verDetalle`: RR.HH. ve VIA salvo `borrador`/`rechazada`; añadir `'cancelada'` a esa exclusión (línea ~34) para coherencia (el solicitante sí puede ver su comisión cancelada por ser dueño).
+- Contabilidad: `colaPendientes` filtra por `accionesDisponibles` (motor). `cancelada` no tiene transiciones de motor ⇒ no aparece. `queryPendientesLider` filtra por estado exacto (`revisada`) ⇒ tampoco. Sin cambio.
+- `SolicitudPolicy::verDetalle`: RR.HH. ve VIA salvo `borrador`/`rechazada`; añadir `'cancelada'` a esa exclusión. **El solicitante SÍ sigue viendo su comisión cancelada** (por ser dueño, primera condición de `verDetalle`), para poder reactivarla.
 
 ### Frontend
-- `BadgeEstado`: añadir `cancelada` → etiqueta "Cancelada", color rojo/gris; y etiqueta corta para el historial.
-- Botón "Cancelar comisión" en el detalle (`Detalle.jsx`), visible solo al solicitante y si el estado lo permite (flag `puedeCancelar` desde el backend). Confirmación con `ModalAccion` o un modal simple con motivo opcional.
+- `BadgeEstado`: añadir `cancelada` → etiqueta "Cancelada", color rojo/gris; etiqueta corta para el historial.
+- Detalle (`Detalle.jsx`): botón **"Cancelar comisión"** (solicitante, estado no cerrada/cancelada, flag `puedeCancelar`) con modal de confirmación (motivo opcional); y botón **"Reactivar comisión"** (solicitante, estado cancelada, flag `puedeReactivar`).
 
 ### Tests
-- Solicitante cancela una comisión `enviada`/`liquidada` ⇒ estado `cancelada`, transición registrada, notificaciones enviadas.
-- No-solicitante ⇒ 403.
-- Cancelar una `cerrada` ⇒ 403/422.
-- Comisión `cancelada` NO aparece en el panel de RR.HH.
+- Solicitante cancela `enviada`/`liquidada` ⇒ `cancelada`, `estado_previo` guardado, transición registrada, notificaciones enviadas.
+- Reactivar ⇒ vuelve al `estado_previo`, `estado_previo` queda null, notifica.
+- No-solicitante cancela/reactiva ⇒ 403.
+- Cancelar una `cerrada` ⇒ 403. Reactivar una no-cancelada ⇒ 403.
+- Comisión `cancelada` NO aparece en el panel de RR.HH.; el solicitante SÍ la ve en su detalle.
 
 ---
 
