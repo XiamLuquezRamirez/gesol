@@ -16,7 +16,23 @@ class SolicitudResource extends JsonResource
             'tipo'       => ['clave' => $this->tipoSolicitud->clave, 'nombre' => $this->tipoSolicitud->nombre],
             'solicitante' => ['id' => $this->solicitante->id, 'name' => $this->solicitante->name],
             'created_at' => $this->created_at->format('Y-m-d'),
+            // Datos de la card de viáticos: municipios destino y contratos únicos
+            // de los viajeros (para "Viáticos - Municipios" y el contrato relacionado).
+            'viaticos'   => $this->when($this->tipoSolicitud->clave === 'VIA', fn () => $this->datosViaticos()),
         ];
+    }
+
+    /** Municipios (nombres) y contratos únicos (descripciones) de la comisión. */
+    private function datosViaticos(): array
+    {
+        $municipios = $this->solicitable?->municipios
+            ->pluck('nombre')->values()->all() ?? [];
+
+        $contratos = $this->solicitable?->viajeros
+            ->pluck('contrato')->filter()
+            ->pluck('descripcion')->unique()->values()->all() ?? [];
+
+        return ['municipios' => $municipios, 'contratos' => $contratos];
     }
 
     /**

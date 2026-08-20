@@ -36,12 +36,12 @@ class SolicitudController extends Controller
         } elseif ($tab === 'revisadas') {
             // Solicitudes donde el usuario ejecuto al menos una transicion:
             // conserva la trazabilidad de lo que reviso, en cualquier estado.
-            $solicitudes = Solicitud::with(['tipoSolicitud','solicitante','solicitable'])
+            $solicitudes = Solicitud::with($this->relacionesListado())
                 ->whereHas('transiciones', fn($q) => $q->where('usuario_id', $usuario->id))
                 ->latest()
                 ->get();
         } else {
-            $solicitudes = Solicitud::with(['tipoSolicitud','solicitante','solicitable'])
+            $solicitudes = Solicitud::with($this->relacionesListado())
                 ->where('solicitante_id', $usuario->id)
                 ->latest()
                 ->get();
@@ -61,12 +61,28 @@ class SolicitudController extends Controller
     }
 
     /**
+     * Eager-load del listado. Para viáticos carga municipios y el contrato de cada
+     * viajero (la card muestra "Viáticos - Municipios" y los contratos relacionados);
+     * oficina no necesita esas relaciones y el morphWith las omite para su tipo.
+     */
+    private function relacionesListado(): array
+    {
+        return [
+            'tipoSolicitud',
+            'solicitante',
+            'solicitable' => fn ($m) => $m->morphWith([
+                SolicitudViaticos::class => ['municipios', 'viajeros.contrato'],
+            ]),
+        ];
+    }
+
+    /**
      * Solicitudes donde el usuario tiene alguna accion disponible. Se resuelve en
      * PHP porque "accion disponible" depende del motor de workflow, no de SQL.
      */
     private function colaPendientes(Usuario $usuario): Collection
     {
-        return Solicitud::with(['tipoSolicitud','solicitante','solicitable'])
+        return Solicitud::with($this->relacionesListado())
             ->get()
             ->filter(fn ($s) => !empty($this->motor->accionesDisponibles($s, $usuario)))
             ->values();
@@ -81,7 +97,7 @@ class SolicitudController extends Controller
         if (! $usuario->hasAnyRole(['contabilidad_lider', 'lider_area'])) {
             return null;
         }
-        return Solicitud::with(['tipoSolicitud','solicitante','solicitable'])
+        return Solicitud::with($this->relacionesListado())
             ->whereHas('tipoSolicitud', fn ($q) => $q->where('clave', 'OFI'))
             ->where('estado', 'pendiente_cierre');
     }
@@ -95,7 +111,7 @@ class SolicitudController extends Controller
         if (! $usuario->hasRole('contador')) {
             return null;
         }
-        return Solicitud::with(['tipoSolicitud','solicitante','solicitable'])
+        return Solicitud::with($this->relacionesListado())
             ->where(function ($q) {
                 $q->where(fn ($q) => $q->whereHas('tipoSolicitud', fn ($t) => $t->where('clave', 'OFI'))
                         ->where('estado', 'verificada'))
@@ -114,7 +130,7 @@ class SolicitudController extends Controller
             'area',
             'solicitable' => fn ($morphTo) => $morphTo->morphWith([
                 SolicitudOficina::class  => ['items', 'cotizaciones.usuario', 'beneficiarios', 'abonos.usuario'],
-                SolicitudViaticos::class => ['viajeros.empleado', 'viajeros.asignaciones', 'municipios'],
+                SolicitudViaticos::class => ['viajeros.empleado', 'viajeros.asignaciones', 'viajeros.contrato', 'municipios'],
             ]),
             'transiciones.usuario',
         ]);

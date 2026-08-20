@@ -166,6 +166,7 @@ function DetalleViaticos({ solicitable, solicitudId, cerrada }) {
                                 <thead className="bg-slate-50 border-b border-slate-100">
                                     <tr className="text-left text-xs text-slate-500">
                                         <th className="px-3 py-2 font-medium">Viajero</th>
+                                        <th className="px-3 py-2 font-medium">Contrato</th>
                                         <th className="px-3 py-2 font-medium">Motivo</th>
                                         <th className="px-3 py-2 font-medium whitespace-nowrap">Salida</th>
                                         <th className="px-3 py-2 font-medium whitespace-nowrap">Regreso</th>
@@ -179,6 +180,11 @@ function DetalleViaticos({ solicitable, solicitudId, cerrada }) {
                                                 {v.empleado
                                                     ? `${v.empleado.nombres} ${v.empleado.apellidos}`
                                                     : (v.nombre_externo || '—')}
+                                            </td>
+                                            <td className="px-3 py-2.5 whitespace-nowrap">
+                                                {v.contrato
+                                                    ? <span className="text-slate-600">{v.contrato.descripcion}</span>
+                                                    : <span className="text-slate-400 italic">Sin contrato</span>}
                                             </td>
                                             <td className="px-3 py-2.5 text-slate-600 max-w-xs">
                                                 <p className="truncate" title={v.motivo}>{v.motivo || '—'}</p>

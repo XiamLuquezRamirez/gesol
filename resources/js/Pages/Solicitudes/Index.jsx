@@ -42,8 +42,7 @@ export default function Index({ solicitudes, filtros, conteos = {} }) {
                             {conteos[key] > 0 && (
                                 <span className={[
                                     'ml-2 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-xs font-semibold',
-                                    // La cola del lider se resalta en rojo para que salte a la vista.
-                                    key === 'pendientes_lider'
+                                    key === 'pendientes_lider' || key === 'pendientes' || key === 'pendientes_cierre'
                                         ? 'bg-red-600 text-white'
                                         : tab === key ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600',
                                 ].join(' ')}>
@@ -94,8 +93,17 @@ export default function Index({ solicitudes, filtros, conteos = {} }) {
                                             <BadgeEstado estado={s.estado} />
                                         </div>
                                         <p className="text-sm font-medium text-slate-800 truncate">
-                                            {s.tipo.nombre}
+                                            {s.viaticos
+                                                ? `${s.tipo.nombre}${s.viaticos.municipios.length > 0 ? ' - ' + s.viaticos.municipios.join(', ') : ''}`
+                                                : s.tipo.nombre}
                                         </p>
+                                        {s.viaticos && (
+                                            <p className="text-xs text-slate-500 mt-0.5 truncate">
+                                                {s.viaticos.contratos.length > 0
+                                                    ? `Contrato: ${s.viaticos.contratos.join(', ')}`
+                                                    : 'Sin contrato'}
+                                            </p>
+                                        )}
                                         <p className="text-xs text-slate-500 mt-0.5">
                                             {s.solicitante.name} · {formatearFecha(s.created_at)}
                                         </p>
