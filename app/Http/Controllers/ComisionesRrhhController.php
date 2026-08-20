@@ -46,6 +46,8 @@ class ComisionesRrhhController extends Controller
                 'destino'        => $comision->municipio_destino ?? null,
                 'radicado'       => $solicitud->radicado ?? null,
                 'estado'         => $solicitud->estado ?? null,
+                'solicitud_id'      => $solicitud->id ?? null,
+                'salida_confirmada' => (bool) $v->salida_confirmada,
                 'fecha_salida'   => optional($v->fecha_salida)->toDateString() ?? $v->fecha_salida,
                 'hora_salida'    => $v->hora_salida,
                 'fecha_regreso'  => optional($v->fecha_regreso)->toDateString() ?? $v->fecha_regreso,

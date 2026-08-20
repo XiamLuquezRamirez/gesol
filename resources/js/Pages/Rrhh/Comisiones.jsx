@@ -160,6 +160,7 @@ export default function Comisiones({ comisionados, oficina = [], filtros }) {
                                         <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Salida</th>
                                         <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Regreso</th>
                                         <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Estado</th>
+                                        <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">Salió</th>
                                         <th className="text-right text-xs font-semibold text-slate-500 px-4 py-3">Rubros</th>
                                     </tr>
                                 </thead>
@@ -178,6 +179,19 @@ export default function Comisiones({ comisionados, oficina = [], filtros }) {
                                             </td>
                                             <td className="px-4 py-3">
                                                 {c.estado ? <BadgeEstado estado={c.estado} /> : '—'}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={!!c.salida_confirmada}
+                                                    onChange={(e) => router.patch(
+                                                        route('viaticos.salida.confirmar', [c.solicitud_id, c.id]),
+                                                        { confirmada: e.target.checked },
+                                                        { preserveScroll: true }
+                                                    )}
+                                                    className="rounded border-slate-300"
+                                                    title="Marcar si el viajero efectivamente salió"
+                                                />
                                             </td>
                                             <td className="px-4 py-3 text-right">
                                                 <button
