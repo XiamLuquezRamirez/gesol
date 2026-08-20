@@ -14,6 +14,13 @@ class ComisionesRrhhController extends Controller
         $nombre = $request->query('nombre');
         $comision = $request->query('comision');
 
+        // Al iniciar el panel sin ningun filtro, mostrar por defecto las comisiones
+        // vigentes hoy (desde=hoy, hasta=hoy). Si el usuario ya filtra por nombre o
+        // comision, no se impone la fecha para no ocultar lo que busca. El boton
+        // "Limpiar" envia ?todos=1 para ver todas las comisiones sin el default.
+        if (! $request->boolean('todos') && ! $desde && ! $hasta && ! $nombre && ! $comision) {
+            $desde = $hasta = now()->toDateString();
+        }
         $viajeros = ViajeroComision::with(['empleado', 'asignaciones', 'solicitudViaticos.solicitud'])
             // Comisiones ya reportadas a RR. HH. (desde que el lider las envia), en cualquier
             // estado activo o cerrado. Se excluyen las que aun estan en borrador o fueron rechazadas.
@@ -24,7 +31,7 @@ class ComisionesRrhhController extends Controller
             ->when($nombre, fn ($q) => $q->whereHas('empleado', fn ($q) => $q->where('nombres', 'like', '%'.$nombre.'%')->orWhere('apellidos', 'like', '%'.$nombre.'%')))
             // Filtro por nombre de la comision.
             ->when($comision, fn ($q) => $q->whereHas('solicitudViaticos', fn ($q) => $q->where('nombre_comision', 'like', '%'.$comision.'%')))
-            ->orderBy('fecha_salida')
+            ->orderBy('created_at', 'desc')
             ->get();
 
         $comisionados = $viajeros->map(function ($v) {
