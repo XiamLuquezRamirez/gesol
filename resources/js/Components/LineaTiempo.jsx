@@ -1,8 +1,17 @@
 import { formatearFechaHoraCompleta } from '@/lib/format';
+import { etiquetaEstado } from '@/Components/BadgeEstado';
 
 const ICONOS_ACCION = {
     enviar:'→', verificar:'✓', aprobar:'✓', devolver:'↩', rechazar:'✗',
     pagar:'$', liquidar:'$', cerrar:'■',
+};
+
+// Nombre legible de la acción, sin el guion bajo del identificador interno
+// (p. ej. 'enviar_gerencia' -> 'Enviar gerencia').
+const etiquetaAccion = (accion) => {
+    if (!accion) return '';
+    const texto = String(accion).replace(/_/g, ' ');
+    return texto.charAt(0).toUpperCase() + texto.slice(1);
 };
 
 export default function LineaTiempo({ transiciones }) {
@@ -18,12 +27,12 @@ export default function LineaTiempo({ transiciones }) {
                         {ICONOS_ACCION[t.accion] ?? '·'}
                     </span>
                     <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-semibold text-slate-800 capitalize">{t.accion}</span>
+                        <span className="text-sm font-semibold text-slate-800">{etiquetaAccion(t.accion)}</span>
                         <span className="text-xs text-slate-400">por {t.usuario.name}</span>
                         <span className="text-xs text-slate-400 ml-auto">{formatearFechaHoraCompleta(t.created_at)}</span>
                     </div>
                     <p className="text-xs text-slate-500">
-                        {t.estado_origen ?? '—'} → {t.estado_destino}
+                        {etiquetaEstado(t.estado_origen, { corta: true })} → {etiquetaEstado(t.estado_destino, { corta: true })}
                     </p>
                     {t.comentario && (
                         <p className="mt-1 text-xs text-slate-600 bg-slate-50 rounded px-2 py-1 border border-slate-100">

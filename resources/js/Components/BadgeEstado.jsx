@@ -22,6 +22,26 @@ const ETIQUETAS = {
     cerrada:'Cerrada', rechazada:'Rechazada',
 };
 
+// Etiquetas cortas para mostrar el estado en flujos como el historial
+// ("Revisada → En gerencia"), sin las coletillas descriptivas del badge.
+const ETIQUETAS_CORTAS = {
+    aprobada:'En gerencia', pendiente_cierre:'Pendiente por cerrar',
+    en_gerencia:'En gerencia', revisada:'Revisada',
+};
+
+/**
+ * Nombre legible de un estado (nunca el identificador interno con guion bajo).
+ * `corta` da la versión sin coletillas, útil para el historial de movimientos.
+ * Cualquier estado no mapeado se convierte de snake_case a texto capitalizado.
+ */
+export function etiquetaEstado(estado, { corta = false } = {}) {
+    if (!estado) return '—';
+    if (corta && ETIQUETAS_CORTAS[estado]) return ETIQUETAS_CORTAS[estado];
+    if (ETIQUETAS[estado]) return ETIQUETAS[estado];
+    const texto = String(estado).replace(/_/g, ' ');
+    return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
 export default function BadgeEstado({ estado }) {
     const clase = COLORES[estado] ?? 'bg-slate-100 text-slate-600 border-slate-200';
     return (

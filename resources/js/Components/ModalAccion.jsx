@@ -34,8 +34,8 @@ export default function ModalAccion({ solicitudId, accion, onClose, icono }) {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-                <h3 className="text-base font-semibold text-slate-900 mb-4 capitalize">
-                    Confirmar: {accion.accion}
+                <h3 className="text-base font-semibold text-slate-900 mb-4">
+                    Confirmar: {accion.label ?? accion.accion}
                 </h3>
                 <form onSubmit={submit} className="space-y-4">
                     <div>
@@ -65,8 +65,8 @@ export default function ModalAccion({ solicitudId, accion, onClose, icono }) {
                             Cancelar
                         </button>
                         <button type="submit" disabled={processing}
-                            className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50 capitalize">
-                            {icono} {accion.accion}
+                            className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50">
+                            {icono} {accion.label ?? accion.accion}
                         </button>
                     </div>
                 </form>
