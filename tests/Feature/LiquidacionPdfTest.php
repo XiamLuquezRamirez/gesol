@@ -67,6 +67,7 @@ class LiquidacionPdfTest extends TestCase
         $this->motor->aplicarTransicion($solicitud, 'enviar', $this->liderComite);
         $this->motor->aplicarTransicion($solicitud->fresh(), 'liquidar', $this->contador);
         $this->motor->aplicarTransicion($solicitud->fresh(), 'enviar_revision', $this->contador);
+        $this->motor->aplicarTransicion($solicitud->fresh(), 'enviar_gerencia', $this->contabilidadLider);
         $this->motor->aplicarTransicion($solicitud->fresh(), 'cerrar', $this->contabilidadLider);
 
         return [$solicitud->fresh(), $viajero];

@@ -23,7 +23,7 @@ class SolicitudPolicy
         $clave = $solicitud->tipoSolicitud->clave;
         if ($usuario->hasRole('contador')
             && (($clave === 'OFI' && $solicitud->estado === 'verificada')
-                || ($clave === 'VIA' && $solicitud->estado === 'revisada'))) {
+                || ($clave === 'VIA' && in_array($solicitud->estado, ['revisada', 'en_gerencia'])))) {
             return true;
         }
 
@@ -111,10 +111,10 @@ class SolicitudPolicy
             return false;
         }
         if ($usuario->hasRole('contador')) {
-            return in_array($solicitud->estado, ['enviada', 'liquidada', 'revisada', 'cerrada']);
+            return in_array($solicitud->estado, ['enviada', 'liquidada', 'revisada', 'en_gerencia', 'cerrada']);
         }
         if ($usuario->hasRole('contabilidad_lider')) {
-            return in_array($solicitud->estado, ['revisada', 'cerrada']);
+            return in_array($solicitud->estado, ['revisada', 'en_gerencia', 'cerrada']);
         }
         return false;
     }

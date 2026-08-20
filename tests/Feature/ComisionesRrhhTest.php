@@ -70,11 +70,19 @@ class ComisionesRrhhTest extends TestCase
         $this->motor->aplicarTransicion($solicitud->fresh(), 'liquidar', $this->contador);
     }
 
-    /** Deja la comision revisada (lista para que el lider de contabilidad la cierre). */
+    /** Deja la comision revisada (lista para que el lider de contabilidad la envie a gerencia). */
     private function llevarARevisada(Solicitud $solicitud): void
     {
         $this->llevarALiquidada($solicitud);
         $this->motor->aplicarTransicion($solicitud->fresh(), 'enviar_revision', $this->contador);
+    }
+
+    /** Deja la comision cerrada, pasando por gerencia (revisada -> en_gerencia -> cerrada). */
+    private function llevarACerrada(Solicitud $solicitud): void
+    {
+        $this->llevarARevisada($solicitud);
+        $this->motor->aplicarTransicion($solicitud->fresh(), 'enviar_gerencia', $this->contabilidadLider);
+        $this->motor->aplicarTransicion($solicitud->fresh(), 'cerrar', $this->contabilidadLider);
     }
 
     public function test_enviar_comision_notifica_a_rrhh(): void
@@ -155,12 +163,10 @@ class ComisionesRrhhTest extends TestCase
     public function test_filtro_por_fecha_incluye_solapamiento_y_excluye_fuera_de_rango(): void
     {
         $enRango = $this->crearComision('2026-08-10', '2026-08-12');
-        $this->llevarARevisada($enRango);
-        $this->actingAs($this->contabilidadLider)->post(route('solicitudes.transicion', $enRango), ['accion' => 'cerrar']);
+        $this->llevarACerrada($enRango);
 
         $fueraRango = $this->crearComision('2026-12-01', '2026-12-03');
-        $this->llevarARevisada($fueraRango);
-        $this->actingAs($this->contabilidadLider)->post(route('solicitudes.transicion', $fueraRango), ['accion' => 'cerrar']);
+        $this->llevarACerrada($fueraRango);
 
         $this->actingAs($this->rrhh)
             ->get(route('rrhh.comisiones', ['desde' => '2026-08-01', 'hasta' => '2026-08-31']))
@@ -173,12 +179,10 @@ class ComisionesRrhhTest extends TestCase
     public function test_filtro_por_comision(): void
     {
         $auditoria = $this->crearComision('2026-08-10', '2026-08-12', 'Auditoría regional');
-        $this->llevarARevisada($auditoria);
-        $this->actingAs($this->contabilidadLider)->post(route('solicitudes.transicion', $auditoria), ['accion' => 'cerrar']);
+        $this->llevarACerrada($auditoria);
 
         $capacitacion = $this->crearComision('2026-08-15', '2026-08-17', 'Capacitación técnica');
-        $this->llevarARevisada($capacitacion);
-        $this->actingAs($this->contabilidadLider)->post(route('solicitudes.transicion', $capacitacion), ['accion' => 'cerrar']);
+        $this->llevarACerrada($capacitacion);
 
         $this->actingAs($this->rrhh)
             ->get(route('rrhh.comisiones', ['comision' => 'Auditoría']))

@@ -39,6 +39,7 @@ const COLORES_ACCION = {
     pagar:     'bg-violet-600 hover:bg-violet-700',
     liquidar:  'bg-teal-600 hover:bg-teal-700',
     enviar_revision: 'bg-blue-600 hover:bg-blue-700',
+    enviar_gerencia: 'bg-green-600 hover:bg-green-700',
     reenviar:  'bg-yellow-600 hover:bg-yellow-700',
     cerrar:    'bg-slate-600 hover:bg-slate-700',
 };
@@ -52,6 +53,7 @@ function IconoAccion({ accion }) {
     switch (accion) {
         case 'enviar':
         case 'enviar_revision':
+        case 'enviar_gerencia':
         case 'reenviar':
             return <ArrowRightIcon className={cls} />;
         case 'devolver':

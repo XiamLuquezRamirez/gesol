@@ -70,7 +70,11 @@ class MotorWorkflowViaticosTest extends TestCase
         $this->motor->aplicarTransicion($solicitud->fresh(), 'enviar_revision', $this->contador);
         $this->assertEquals('revisada', $solicitud->fresh()->estado);
 
-        // El lider de contabilidad aprueba y cierra.
+        // El lider de contabilidad la envia a gerencia.
+        $this->motor->aplicarTransicion($solicitud->fresh(), 'enviar_gerencia', $this->contabilidadLider);
+        $this->assertEquals('en_gerencia', $solicitud->fresh()->estado);
+
+        // En gerencia, el lider de contabilidad aprueba y cierra.
         $this->motor->aplicarTransicion($solicitud->fresh(), 'cerrar', $this->contabilidadLider);
         $this->assertEquals('cerrada', $solicitud->fresh()->estado);
     }
@@ -83,5 +87,20 @@ class MotorWorkflowViaticosTest extends TestCase
         // El lider de comite no puede liquidar; eso es del contador.
         $this->expectException(TransicionNoPermitidaException::class);
         $this->motor->aplicarTransicion($solicitud->fresh(), 'liquidar', $this->liderComite);
+    }
+
+    public function test_devolver_resuelve_la_transicion_del_estado_actual(): void
+    {
+        // La accion 'devolver' existe desde 'enviada' (->borrador) y desde 'revisada'
+        // (->liquidada). El motor debe aplicar la del ESTADO ACTUAL, no la primera del JSON.
+        $solicitud = $this->crearSolicitudViaticos();
+        $this->motor->aplicarTransicion($solicitud, 'enviar', $this->liderComite);
+        $this->motor->aplicarTransicion($solicitud->fresh(), 'liquidar', $this->contador);
+        $this->motor->aplicarTransicion($solicitud->fresh(), 'enviar_revision', $this->contador);
+        $this->assertEquals('revisada', $solicitud->fresh()->estado);
+
+        // Devolver desde 'revisada' debe llevar a 'liquidada' (no a 'borrador').
+        $this->motor->aplicarTransicion($solicitud->fresh(), 'devolver', $this->contabilidadLider);
+        $this->assertEquals('liquidada', $solicitud->fresh()->estado);
     }
 }

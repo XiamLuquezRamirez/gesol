@@ -32,7 +32,7 @@ class TipoSolicitudSeeder extends Seeder
                     'clave'         => 'VIA',
                     'nombre'        => 'Viáticos',
                     'estado_inicial'=> 'borrador',
-                    'estados'       => json_encode(['borrador','enviada','liquidada','revisada','cerrada','rechazada']),
+                    'estados'       => json_encode(['borrador','enviada','liquidada','revisada','en_gerencia','cerrada','rechazada']),
                     'transiciones'  => json_encode([
                         // El solicitante envia la comision directamente al contador.
                         ['origen'=>'borrador',  'accion'=>'enviar',        'destino'=>'enviada',   'roles'=>['lider_area','lider_comite'], 'notificar'=>['contador'], 'label'=>'Enviar al contador y RR. HH.'],
@@ -41,10 +41,15 @@ class TipoSolicitudSeeder extends Seeder
                         ['origen'=>'enviada',   'accion'=>'devolver',      'destino'=>'borrador',  'roles'=>['contador'],                  'label'=>'Devolver'],
                         // Ya liquidada, el contador la envia al lider de contabilidad.
                         ['origen'=>'liquidada', 'accion'=>'enviar_revision','destino'=>'revisada', 'roles'=>['contador'], 'notificar'=>['contabilidad_lider'], 'label'=>'Enviar a líder de contabilidad'],
-                        // El lider de contabilidad aprueba y cierra (esto notifica a RR. HH.).
-                        ['origen'=>'revisada',  'accion'=>'cerrar',        'destino'=>'cerrada',   'roles'=>['contabilidad_lider'],        'label'=>'Aprobar y cerrar comisión'],
-                        ['origen'=>'revisada',  'accion'=>'devolver',      'destino'=>'liquidada', 'roles'=>['contabilidad_lider'],        'label'=>'Devolver al contador'],
-                        ['origen'=>'revisada',  'accion'=>'rechazar',      'destino'=>'rechazada', 'roles'=>['contabilidad_lider'],        'label'=>'Rechazar'],
+                        // El lider de contabilidad revisa y la envia a gerencia; el solicitante
+                        // ve el estado "En gerencia · pendiente de cierre".
+                        ['origen'=>'revisada',    'accion'=>'enviar_gerencia','destino'=>'en_gerencia','roles'=>['contabilidad_lider'], 'label'=>'Enviar a gerencia'],
+                        ['origen'=>'revisada',    'accion'=>'devolver',       'destino'=>'liquidada',  'roles'=>['contabilidad_lider'], 'label'=>'Devolver al contador'],
+                        ['origen'=>'revisada',    'accion'=>'rechazar',       'destino'=>'rechazada',  'roles'=>['contabilidad_lider'], 'label'=>'Rechazar'],
+                        // En gerencia: el lider de contabilidad aprueba y cierra (o aun puede devolver/rechazar).
+                        ['origen'=>'en_gerencia', 'accion'=>'cerrar',         'destino'=>'cerrada',    'roles'=>['contabilidad_lider'], 'label'=>'Aprobar y cerrar comisión'],
+                        ['origen'=>'en_gerencia', 'accion'=>'devolver',       'destino'=>'liquidada',  'roles'=>['contabilidad_lider'], 'label'=>'Devolver al contador'],
+                        ['origen'=>'en_gerencia', 'accion'=>'rechazar',       'destino'=>'rechazada',  'roles'=>['contabilidad_lider'], 'label'=>'Rechazar'],
                     ]),
                     'created_at' => now(), 'updated_at' => now(),
                 ],
