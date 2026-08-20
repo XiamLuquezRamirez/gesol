@@ -120,6 +120,17 @@ class SolicitudPolicy
     }
 
     /**
+     * RR. HH. marca la salida real de cada viajero de una comision de viaticos,
+     * mientras la comision este activa (no en borrador, rechazada ni cancelada).
+     */
+    public function confirmarSalida(Usuario $usuario, Solicitud $solicitud): bool
+    {
+        return $solicitud->tipoSolicitud->clave === 'VIA'
+            && $usuario->hasRole('rrhh')
+            && ! in_array($solicitud->estado, ['borrador', 'rechazada', 'cancelada']);
+    }
+
+    /**
      * Imprimir o enviar el formato de liquidacion de un viajero: solo para
      * comisiones de viaticos ya cerradas, y para quien pueda ver el detalle.
      */

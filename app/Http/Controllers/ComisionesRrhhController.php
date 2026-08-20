@@ -91,4 +91,12 @@ class ComisionesRrhhController extends Controller
             'filtros'      => ['desde' => $desde, 'hasta' => $hasta, 'nombre' => $nombre, 'comision' => $comision],
         ]);
     }
+
+    public function confirmarSalida(Request $request, Solicitud $solicitud, ViajeroComision $viajero)
+    {
+        $this->authorize('confirmarSalida', $solicitud);
+        abort_unless($viajero->solicitud_viaticos_id === $solicitud->solicitable_id, 404);
+        $viajero->update(['salida_confirmada' => $request->boolean('confirmada')]);
+        return back()->with('success', 'Salida actualizada.');
+    }
 }

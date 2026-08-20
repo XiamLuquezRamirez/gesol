@@ -42,6 +42,7 @@ Route::middleware(['auth','verified'])->group(function () {
     Route::post('/viaticos/{solicitud}/viajeros/{viajero}/archivos',            [ArchivoViajeroController::class, 'store'])->name('viaticos.archivos.store');
     Route::get('/viaticos/{solicitud}/viajeros/{viajero}/archivos/{archivo}',   [ArchivoViajeroController::class, 'descargar'])->name('viaticos.archivos.descargar');
     Route::delete('/viaticos/{solicitud}/viajeros/{viajero}/archivos/{archivo}', [ArchivoViajeroController::class, 'destroy'])->name('viaticos.archivos.destroy');
+    Route::patch('/viaticos/{solicitud}/viajeros/{viajero}/salida', [ComisionesRrhhController::class, 'confirmarSalida'])->name('viaticos.salida.confirmar');
 
     // Parámetros
     Route::get('/parametros',                          [ParametrosController::class, 'index'])->name('parametros.index');
