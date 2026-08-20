@@ -31,7 +31,7 @@ class SolicitudPolicy
         // desde que el lider las envia (cualquier estado salvo borrador/rechazada).
         if ($usuario->hasRole('rrhh')
             && $clave === 'VIA'
-            && ! in_array($solicitud->estado, ['borrador', 'rechazada'])) {
+            && ! in_array($solicitud->estado, ['borrador', 'rechazada', 'cancelada'])) {
             return true;
         }
 
@@ -128,6 +128,28 @@ class SolicitudPolicy
         return $solicitud->tipoSolicitud->clave === 'VIA'
             && $usuario->hasRole('rrhh')
             && ! in_array($solicitud->estado, ['borrador', 'rechazada', 'cancelada']);
+    }
+
+    /**
+     * El solicitante puede cancelar su comision de viaticos en cualquier momento,
+     * salvo que ya este cerrada o cancelada. Se maneja fuera del MotorWorkflow.
+     */
+    public function cancelar(Usuario $usuario, Solicitud $solicitud): bool
+    {
+        return $solicitud->tipoSolicitud->clave === 'VIA'
+            && $usuario->id === $solicitud->solicitante_id
+            && ! in_array($solicitud->estado, ['cerrada', 'cancelada']);
+    }
+
+    /**
+     * El solicitante puede reactivar una comision cancelada, que vuelve al estado
+     * que tenia antes de cancelarse (guardado en estado_previo).
+     */
+    public function reactivar(Usuario $usuario, Solicitud $solicitud): bool
+    {
+        return $solicitud->tipoSolicitud->clave === 'VIA'
+            && $usuario->id === $solicitud->solicitante_id
+            && $solicitud->estado === 'cancelada';
     }
 
     /**

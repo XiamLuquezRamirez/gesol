@@ -24,7 +24,7 @@ class ComisionesRrhhController extends Controller
         $viajeros = ViajeroComision::with(['empleado', 'asignaciones', 'solicitudViaticos.solicitud'])
             // Comisiones ya reportadas a RR. HH. (desde que el lider las envia), en cualquier
             // estado activo o cerrado. Se excluyen las que aun estan en borrador o fueron rechazadas.
-            ->whereHas('solicitudViaticos.solicitud', fn ($q) => $q->whereNotIn('estado', ['borrador', 'rechazada']))
+            ->whereHas('solicitudViaticos.solicitud', fn ($q) => $q->whereNotIn('estado', ['borrador', 'rechazada', 'cancelada']))
             // Solapamiento con el rango: esta fuera si sale antes del "hasta" y regresa despues del "desde".
             ->when($desde, fn ($q) => $q->where('fecha_regreso', '>=', $desde))
             ->when($hasta, fn ($q) => $q->where('fecha_salida', '<=', $hasta))
