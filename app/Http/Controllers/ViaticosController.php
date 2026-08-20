@@ -1,7 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
-use App\Http\Requests\{GuardarSolicitudViaticosRequest, ActualizarAsignacionesRequest};
+use App\Http\Requests\{GuardarSolicitudViaticosRequest, ActualizarAsignacionesRequest, AjustarComisionRequest};
 use App\Models\{AsignacionViatico, Municipio, Solicitud, SolicitudViaticos, TarifaViatico, TipoSolicitud, TransicionSolicitud, Usuario, ViajeroComision, Empleados};
 use App\Notifications\AvisoTransicionNotification;
 use App\Services\MotorWorkflow;
@@ -217,6 +217,36 @@ class ViaticosController extends Controller
 
         $this->avisarCambioComision($solicitud->fresh(), 'reactivada', null);
         return back()->with('success', 'Comisión reactivada.');
+    }
+
+    /**
+     * El solicitante lider ajusta las fechas/horas de salida/regreso de cada viajero.
+     * No recalcula rubros (el contador lo hace manualmente), registra la transicion
+     * 'ajustar' con el motivo y avisa a RR. HH./contabilidad.
+     */
+    public function ajustar(AjustarComisionRequest $request, Solicitud $solicitud)
+    {
+        $this->authorize('ajustar', $solicitud);
+        $cabecera = $solicitud->solicitable;
+
+        DB::transaction(function () use ($request, $solicitud, $cabecera) {
+            foreach ($request->viajeros as $datos) {
+                $viajero = $cabecera->viajeros()->where('id', $datos['viajero_comision_id'])->first();
+                if (! $viajero) continue; // ignora ids ajenos a la comision
+                $viajero->update([
+                    'fecha_salida'  => $datos['fecha_salida'],  'hora_salida'  => $datos['hora_salida'],
+                    'fecha_regreso' => $datos['fecha_regreso'], 'hora_regreso' => $datos['hora_regreso'],
+                ]);
+            }
+            TransicionSolicitud::create([
+                'solicitud_id' => $solicitud->id, 'estado_origen' => $solicitud->estado,
+                'estado_destino' => $solicitud->estado, 'accion' => 'ajustar',
+                'usuario_id' => auth()->id(), 'comentario' => $request->motivo,
+            ]);
+        });
+
+        $this->avisarCambioComision($solicitud->fresh(), 'ajustada', $request->motivo);
+        return back()->with('success', 'Comisión ajustada. Se notificó a contabilidad y RR. HH.');
     }
 
     /** Notifica a RR.HH. y contabilidad de una cancelacion/reactivacion/ajuste de comision. */
