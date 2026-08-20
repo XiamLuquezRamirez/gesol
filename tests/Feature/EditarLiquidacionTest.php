@@ -117,6 +117,7 @@ class EditarLiquidacionTest extends TestCase
     {
         [$solicitud] = $this->crearComisionLiquidada();
         $this->motor->aplicarTransicion($solicitud, 'enviar_revision', $this->contador);
+        $this->motor->aplicarTransicion($solicitud->fresh(), 'enviar_gerencia', $this->contabilidadLider);
         $this->motor->aplicarTransicion($solicitud->fresh(), 'cerrar', $this->contabilidadLider);
         $this->assertEquals('cerrada', $solicitud->fresh()->estado);
 

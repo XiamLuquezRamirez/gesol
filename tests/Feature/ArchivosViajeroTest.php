@@ -242,10 +242,12 @@ class ArchivosViajeroTest extends TestCase
             'contador enviada'   => [$contador, 'enviada', true],
             'contador liquidada' => [$contador, 'liquidada', true],
             'contador revisada'  => [$contador, 'revisada', true],
+            'contador en_gerencia' => [$contador, 'en_gerencia', true],
             'contador cerrada'   => [$contador, 'cerrada', true],
             'contador borrador'  => [$contador, 'borrador', false],
-            // Lider de contabilidad: solo revisada y cerrada.
+            // Lider de contabilidad: revisada, en_gerencia y cerrada.
             'lider revisada'     => [$lider, 'revisada', true],
+            'lider en_gerencia'  => [$lider, 'en_gerencia', true],
             'lider cerrada'      => [$lider, 'cerrada', true],
             'lider enviada'      => [$lider, 'enviada', false],
             'lider liquidada'    => [$lider, 'liquidada', false],

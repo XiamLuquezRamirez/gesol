@@ -40,8 +40,11 @@ class MotorWorkflow
             );
         }
 
+        // Resolver por (origen, accion): una misma accion (p. ej. 'devolver' o
+        // 'cerrar') puede existir desde varios estados con distinto destino, asi que
+        // debe tomarse la del estado ACTUAL, no la primera del JSON.
         $transicion = collect($solicitud->tipoSolicitud->transiciones)
-            ->firstWhere('accion', $accion);
+            ->first(fn ($t) => $t['accion'] === $accion && $t['origen'] === $solicitud->estado);
 
         DB::transaction(function () use ($solicitud, $transicion, $accion, $usuario, $comentario, $metadatos) {
             $estadoAnterior = $solicitud->estado;
