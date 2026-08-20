@@ -193,4 +193,38 @@ class ComisionesRrhhTest extends TestCase
             ->get(route('rrhh.comisiones'))
             ->assertForbidden();
     }
+
+    public function test_rrhh_puede_ver_detalle_de_comision_enviada(): void
+    {
+        // RR. HH. lista la comision desde que se envia; debe poder abrir su detalle.
+        $solicitud = $this->crearComision('2026-08-10', '2026-08-12');
+        $this->motor->aplicarTransicion($solicitud, 'enviar', $this->liderComite);
+        $this->assertEquals('enviada', $solicitud->fresh()->estado);
+
+        $this->actingAs($this->rrhh)
+            ->get(route('solicitudes.show', $solicitud))
+            ->assertOk();
+    }
+
+    public function test_rrhh_puede_ver_detalle_de_comision_liquidada(): void
+    {
+        $solicitud = $this->crearComision('2026-08-10', '2026-08-12');
+        $this->llevarALiquidada($solicitud);
+        $this->assertEquals('liquidada', $solicitud->fresh()->estado);
+
+        $this->actingAs($this->rrhh)
+            ->get(route('solicitudes.show', $solicitud))
+            ->assertOk();
+    }
+
+    public function test_rrhh_no_ve_detalle_de_comision_en_borrador(): void
+    {
+        // En borrador aun no se ha reportado a RR. HH.: no debe verla.
+        $solicitud = $this->crearComision('2026-08-10', '2026-08-12');
+        $this->assertEquals('borrador', $solicitud->fresh()->estado);
+
+        $this->actingAs($this->rrhh)
+            ->get(route('solicitudes.show', $solicitud))
+            ->assertForbidden();
+    }
 }

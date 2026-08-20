@@ -27,6 +27,14 @@ class SolicitudPolicy
             return true;
         }
 
+        // RR. HH. consulta las comisiones de viaticos que su panel ya lista:
+        // desde que el lider las envia (cualquier estado salvo borrador/rechazada).
+        if ($usuario->hasRole('rrhh')
+            && $clave === 'VIA'
+            && ! in_array($solicitud->estado, ['borrador', 'rechazada'])) {
+            return true;
+        }
+
         $rolesUsuario = $usuario->getRoleNames()->toArray();
         return collect($solicitud->tipoSolicitud->transiciones)
             ->pluck('roles')->flatten()->unique()
