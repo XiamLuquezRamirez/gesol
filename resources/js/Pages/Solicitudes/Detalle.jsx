@@ -123,7 +123,10 @@ function DetalleViaticos({ solicitable, solicitudId, cerrada, puedeGestionarComp
     if (!solicitable) return null;
     const viajeros = solicitable.viajeros ?? [];
     const [rubrosDe, setRubrosDe] = useState(null); // viajero seleccionado para ver sus rubros
-    const [comprobantesDe, setComprobantesDe] = useState(null); // viajero para gestionar comprobantes
+    // Guardamos solo el id: el viajero se resuelve desde la lista actual para que,
+    // al subir un comprobante (Inertia recarga props), el modal muestre los datos frescos.
+    const [comprobantesDeId, setComprobantesDeId] = useState(null);
+    const comprobantesDe = viajeros.find((v) => v.id === comprobantesDeId) ?? null;
 
     const enviarCorreo = (viajeroId) => {
         router.post(route('liquidacion.correo', [solicitudId, viajeroId]), {}, { preserveScroll: true });
@@ -207,7 +210,7 @@ function DetalleViaticos({ solicitable, solicitudId, cerrada, puedeGestionarComp
                                                     </button>
                                                     <button
                                                         type="button"
-                                                        onClick={() => setComprobantesDe(v)}
+                                                        onClick={() => setComprobantesDeId(v.id)}
                                                         className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg text-slate-600 border border-slate-300 hover:bg-slate-50 transition-colors hover:text-slate-700"
                                                         title="Comprobantes de transferencia"
                                                     >
@@ -316,7 +319,7 @@ function DetalleViaticos({ solicitable, solicitudId, cerrada, puedeGestionarComp
                 viajero={comprobantesDe}
                 solicitudId={solicitudId}
                 puedeGestionar={puedeGestionarComprobante}
-                onClose={() => setComprobantesDe(null)}
+                onClose={() => setComprobantesDeId(null)}
             />
         </div>
     );

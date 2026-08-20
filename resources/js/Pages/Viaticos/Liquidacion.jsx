@@ -20,7 +20,10 @@ const formatFechaHora = (fecha, hora) => {
 
 export default function Liquidacion({ solicitud, tarifas, rubros, puedeGestionarComprobante = false }) {
     const viajeros = solicitud.solicitable?.viajeros ?? [];
-    const [comprobantesDe, setComprobantesDe] = useState(null);
+    // Guardamos solo el id: el viajero se resuelve desde la lista actual para que,
+    // al subir un comprobante (Inertia recarga props), el modal se actualice solo.
+    const [comprobantesDeId, setComprobantesDeId] = useState(null);
+    const comprobantesDe = viajeros.find((v) => v.id === comprobantesDeId) ?? null;
 
     const asignacionesIniciales = viajeros.flatMap((v) => {
         if (v.asignaciones?.length > 0) {
@@ -179,7 +182,7 @@ export default function Liquidacion({ solicitud, tarifas, rubros, puedeGestionar
                                             return (
                                                 <button
                                                     type="button"
-                                                    onClick={() => setComprobantesDe(viajero)}
+                                                    onClick={() => setComprobantesDeId(viajero.id)}
                                                     className="mt-2 inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg text-slate-600 border border-slate-300 hover:bg-slate-50 hover:text-slate-700 transition-colors"
                                                     title="Comprobantes de transferencia"
                                                 >
@@ -364,7 +367,7 @@ export default function Liquidacion({ solicitud, tarifas, rubros, puedeGestionar
                 viajero={comprobantesDe}
                 solicitudId={solicitud.id}
                 puedeGestionar={puedeGestionarComprobante}
-                onClose={() => setComprobantesDe(null)}
+                onClose={() => setComprobantesDeId(null)}
             />
         </AppLayout>
     );
