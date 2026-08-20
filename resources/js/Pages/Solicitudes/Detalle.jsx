@@ -5,7 +5,7 @@ import LineaTiempo from '@/Components/LineaTiempo';
 import ModalAccion from '@/Components/ModalAccion';
 import Modal from '@/Components/Modal';
 import ModalComprobantes from '@/Components/ModalComprobantes';
-import { formatearMoneda, formatearFecha } from '@/lib/format';
+import { formatearMoneda, formatearFecha, formatFechaHora } from '@/lib/format';
 import { useState, useRef } from 'react';
 import { usePage, router, useForm } from '@inertiajs/react';
 import { Head } from '@inertiajs/react';
@@ -132,11 +132,6 @@ function DetalleViaticos({ solicitable, solicitudId, cerrada, puedeGestionarComp
         router.post(route('liquidacion.correo', [solicitudId, viajeroId]), {}, { preserveScroll: true });
     };
 
-    const formatFechaHora = (fecha, hora) => {
-        if (!fecha) return '—';
-        const f = new Date(String(fecha).substring(0, 10) + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
-        return hora ? `${f} ${hora}` : f;
-    };
 
     return (
         <div className="space-y-5">

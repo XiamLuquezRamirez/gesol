@@ -2,7 +2,7 @@ import AppLayout from '@/Layouts/AppLayout';
 import CampoMoneda from '@/Components/CampoMoneda';
 import BadgeEstado from '@/Components/BadgeEstado';
 import ModalComprobantes from '@/Components/ModalComprobantes';
-import { formatearMoneda } from '@/lib/format';
+import { formatearMoneda, formatFechaHora } from '@/lib/format';
 import { useForm, Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { PlusCircleIcon, XMarkIcon, PaperClipIcon } from '@heroicons/react/24/outline';
@@ -10,13 +10,6 @@ import { rubrosPorDefecto, diasComision } from '@/lib/rubros';
 
 const etiquetaRubro = (r) =>
     r.charAt(0).toUpperCase() + r.slice(1).replace(/[_-]/g, ' ');
-
-const formatFechaHora = (fecha, hora) => {
-    if (!fecha) return '—';
-    const f = new Date(String(fecha).substring(0, 10) + 'T00:00:00')
-        .toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
-    return hora ? `${f} · ${hora}` : f;
-};
 
 export default function Liquidacion({ solicitud, tarifas, rubros, puedeGestionarComprobante = false }) {
     const viajeros = solicitud.solicitable?.viajeros ?? [];

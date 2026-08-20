@@ -10,3 +10,30 @@ export function formatearFecha(fechaStr) {
         day: '2-digit', month: 'short', year: 'numeric',
     });
 }
+
+/**
+ * Convierte una hora guardada en 24h ('HH:MM') a 12h con a. m./p. m. legible.
+ * Ej. '08:00' -> '8:00 a. m.', '17:00' -> '5:00 p. m.'. Devuelve '' si no hay hora.
+ */
+export function formatearHora(horaStr) {
+    if (!horaStr) return '';
+    const [h, m] = String(horaStr).split(':');
+    const hora = Number(h);
+    const min = Number(m);
+    if (Number.isNaN(hora) || Number.isNaN(min)) return String(horaStr);
+    const d = new Date(2000, 0, 1, hora, min);
+    return d.toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit', hour12: true });
+}
+
+/**
+ * Fecha + hora legibles: '20 ago 2026 · 5:00 p. m.'. Sin hora muestra solo la
+ * fecha; sin fecha devuelve '—'. Unifica las copias que había por página.
+ */
+export function formatFechaHora(fechaStr, horaStr) {
+    if (!fechaStr) return '—';
+    const fecha = new Date(String(fechaStr).substring(0, 10) + 'T00:00:00').toLocaleDateString('es-CO', {
+        day: '2-digit', month: 'short', year: 'numeric',
+    });
+    const hora = formatearHora(horaStr);
+    return hora ? `${fecha} · ${hora}` : fecha;
+}
