@@ -645,8 +645,14 @@ function SeccionPagos({ solicitud }) {
 export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidacion, puedeGestionarComprobante = false, puedeCancelar = false, puedeReactivar = false, puedeAjustar = false }) {
     const [accionActiva, setAccionActiva] = useState(null);
     const [ajustando, setAjustando] = useState(false);
+    const [cancelando, setCancelando] = useState(false);
     const { props } = usePage();
     const flash = props.flash ?? {};
+
+    const formCancelar = useForm({ motivo: '' });
+    const confirmarCancelacion = () => formCancelar.post(route('viaticos.cancelar', solicitud.id), {
+        preserveScroll: true, onSuccess: () => setCancelando(false),
+    });
 
     const viajerosVia = solicitud.solicitable?.viajeros ?? [];
     const formAjuste = useForm({
@@ -733,7 +739,7 @@ export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidaci
                         )}
                         {puedeCancelar && (
                             <button type="button"
-                                onClick={() => { if (confirm('¿Cancelar esta comisión? Podrás reactivarla luego.')) router.post(route('viaticos.cancelar', solicitud.id), { motivo: '' }, { preserveScroll: true }); }}
+                                onClick={() => setCancelando(true)}
                                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors">
                                 Cancelar comisión
                             </button>
@@ -791,6 +797,36 @@ export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidaci
                 icono={<IconoAccion accion={accionActiva?.accion} />}
                 onClose={() => setAccionActiva(null)}
             />
+
+            <Modal show={cancelando} onClose={() => setCancelando(false)} maxWidth="md">
+                <div className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                        <div>
+                            <h3 className="text-base font-semibold text-slate-800">Cancelar comisión</h3>
+                            <p className="text-sm text-slate-500 mt-0.5">Podrás reactivarla luego. Indica el motivo (opcional).</p>
+                        </div>
+                        <button type="button" onClick={() => setCancelando(false)}
+                            className="text-slate-400 hover:text-slate-600 text-xl leading-none" aria-label="Cerrar">×</button>
+                    </div>
+                    <textarea
+                        value={formCancelar.data.motivo}
+                        onChange={(e) => formCancelar.setData('motivo', e.target.value)}
+                        rows={3}
+                        placeholder="Motivo de la cancelación (ej. se reprogramó para otra fecha)…"
+                        className="w-full rounded-lg border border-slate-300 text-sm px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                    />
+                    <div className="flex justify-end gap-3 mt-5">
+                        <button type="button" onClick={() => setCancelando(false)}
+                            className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50">
+                            Volver
+                        </button>
+                        <button type="button" onClick={confirmarCancelacion} disabled={formCancelar.processing}
+                            className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50">
+                            Cancelar comisión
+                        </button>
+                    </div>
+                </div>
+            </Modal>
 
             <Modal show={ajustando} onClose={() => setAjustando(false)} maxWidth="2xl">
                 <div className="p-6">
