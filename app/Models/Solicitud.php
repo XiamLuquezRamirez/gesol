@@ -5,7 +5,7 @@ use Illuminate\Database\Eloquent\Model;
 class Solicitud extends Model
 {
     protected $table = 'solicitudes';
-    protected $fillable = ['tipo_solicitud_id','solicitante_id','area_id','solicitable_type','solicitable_id','estado','radicado','total'];
+    protected $fillable = ['tipo_solicitud_id','solicitante_id','area_id','solicitable_type','solicitable_id','estado','estado_previo','radicado','total'];
 
     protected static function booted(): void
     {

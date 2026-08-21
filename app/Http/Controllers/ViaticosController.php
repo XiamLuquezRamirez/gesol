@@ -1,9 +1,11 @@
 <?php
 namespace App\Http\Controllers;
 
-use App\Http\Requests\{GuardarSolicitudViaticosRequest, ActualizarAsignacionesRequest};
-use App\Models\{AsignacionViatico, Municipio, Solicitud, SolicitudViaticos, TarifaViatico, TipoSolicitud, Usuario, ViajeroComision, Empleados};
+use App\Http\Requests\{GuardarSolicitudViaticosRequest, ActualizarAsignacionesRequest, AjustarComisionRequest};
+use App\Models\{AsignacionViatico, Municipio, Solicitud, SolicitudViaticos, TarifaViatico, TipoSolicitud, TransicionSolicitud, Usuario, ViajeroComision, Empleados};
+use App\Notifications\AvisoTransicionNotification;
 use App\Services\MotorWorkflow;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
@@ -170,5 +172,91 @@ class ViaticosController extends Controller
             ->with('success', $eraLiquidada
                 ? 'Liquidación actualizada.'
                 : 'Informe de comisión guardado.');
+    }
+
+    /**
+     * El solicitante cancela su comision. Guarda el estado actual en estado_previo
+     * para poder reactivarla despues, registra la transicion y avisa a RR. HH./contabilidad.
+     */
+    public function cancelar(Request $request, Solicitud $solicitud)
+    {
+        $this->authorize('cancelar', $solicitud);
+        $motivo = $request->input('motivo');
+        $anterior = $solicitud->estado;
+
+        DB::transaction(function () use ($solicitud, $anterior, $motivo) {
+            $solicitud->update(['estado_previo' => $anterior, 'estado' => 'cancelada']);
+            TransicionSolicitud::create([
+                'solicitud_id' => $solicitud->id, 'estado_origen' => $anterior,
+                'estado_destino' => 'cancelada', 'accion' => 'cancelar',
+                'usuario_id' => auth()->id(), 'comentario' => $motivo,
+            ]);
+        });
+
+        $this->avisarCambioComision($solicitud->fresh(), 'cancelada', $motivo);
+        return back()->with('success', 'Comisión cancelada.');
+    }
+
+    /**
+     * El solicitante reactiva una comision cancelada: vuelve al estado_previo
+     * (o 'enviada' si no habia), registra la transicion y avisa a RR. HH./contabilidad.
+     */
+    public function reactivar(Solicitud $solicitud)
+    {
+        $this->authorize('reactivar', $solicitud);
+        $destino = $solicitud->estado_previo ?: 'enviada';
+
+        DB::transaction(function () use ($solicitud, $destino) {
+            $solicitud->update(['estado' => $destino, 'estado_previo' => null]);
+            TransicionSolicitud::create([
+                'solicitud_id' => $solicitud->id, 'estado_origen' => 'cancelada',
+                'estado_destino' => $destino, 'accion' => 'reactivar',
+                'usuario_id' => auth()->id(),
+            ]);
+        });
+
+        $this->avisarCambioComision($solicitud->fresh(), 'reactivada', null);
+        return back()->with('success', 'Comisión reactivada.');
+    }
+
+    /**
+     * El solicitante lider ajusta las fechas/horas de salida/regreso de cada viajero.
+     * No recalcula rubros (el contador lo hace manualmente), registra la transicion
+     * 'ajustar' con el motivo y avisa a RR. HH./contabilidad.
+     */
+    public function ajustar(AjustarComisionRequest $request, Solicitud $solicitud)
+    {
+        $this->authorize('ajustar', $solicitud);
+        $cabecera = $solicitud->solicitable;
+
+        DB::transaction(function () use ($request, $solicitud, $cabecera) {
+            foreach ($request->viajeros as $datos) {
+                $viajero = $cabecera->viajeros()->where('id', $datos['viajero_comision_id'])->first();
+                if (! $viajero) continue; // ignora ids ajenos a la comision
+                $viajero->update([
+                    'fecha_salida'  => $datos['fecha_salida'],  'hora_salida'  => $datos['hora_salida'],
+                    'fecha_regreso' => $datos['fecha_regreso'], 'hora_regreso' => $datos['hora_regreso'],
+                ]);
+            }
+            TransicionSolicitud::create([
+                'solicitud_id' => $solicitud->id, 'estado_origen' => $solicitud->estado,
+                'estado_destino' => $solicitud->estado, 'accion' => 'ajustar',
+                'usuario_id' => auth()->id(), 'comentario' => $request->motivo,
+            ]);
+        });
+
+        $this->avisarCambioComision($solicitud->fresh(), 'ajustada', $request->motivo);
+        return back()->with('success', 'Comisión ajustada. Se notificó a contabilidad y RR. HH.');
+    }
+
+    /** Notifica a RR.HH. y contabilidad de una cancelacion/reactivacion/ajuste de comision. */
+    private function avisarCambioComision(Solicitud $solicitud, string $tipo, ?string $comentario): void
+    {
+        $usuarios = Usuario::role(['rrhh', 'contador', 'contabilidad_lider'])->get();
+        foreach ($usuarios as $u) {
+            $u->notify(new AvisoTransicionNotification(
+                $solicitud, $tipo, $tipo, $comentario, auth()->user()->name
+            ));
+        }
     }
 }

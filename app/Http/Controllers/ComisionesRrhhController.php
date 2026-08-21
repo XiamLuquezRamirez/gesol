@@ -24,7 +24,7 @@ class ComisionesRrhhController extends Controller
         $viajeros = ViajeroComision::with(['empleado', 'asignaciones', 'solicitudViaticos.solicitud'])
             // Comisiones ya reportadas a RR. HH. (desde que el lider las envia), en cualquier
             // estado activo o cerrado. Se excluyen las que aun estan en borrador o fueron rechazadas.
-            ->whereHas('solicitudViaticos.solicitud', fn ($q) => $q->whereNotIn('estado', ['borrador', 'rechazada']))
+            ->whereHas('solicitudViaticos.solicitud', fn ($q) => $q->whereNotIn('estado', ['borrador', 'rechazada', 'cancelada']))
             // Solapamiento con el rango: esta fuera si sale antes del "hasta" y regresa despues del "desde".
             ->when($desde, fn ($q) => $q->where('fecha_regreso', '>=', $desde))
             ->when($hasta, fn ($q) => $q->where('fecha_salida', '<=', $hasta))
@@ -46,6 +46,8 @@ class ComisionesRrhhController extends Controller
                 'destino'        => $comision->municipio_destino ?? null,
                 'radicado'       => $solicitud->radicado ?? null,
                 'estado'         => $solicitud->estado ?? null,
+                'solicitud_id'      => $solicitud->id ?? null,
+                'salida_confirmada' => (bool) $v->salida_confirmada,
                 'fecha_salida'   => optional($v->fecha_salida)->toDateString() ?? $v->fecha_salida,
                 'hora_salida'    => $v->hora_salida,
                 'fecha_regreso'  => optional($v->fecha_regreso)->toDateString() ?? $v->fecha_regreso,
@@ -90,5 +92,13 @@ class ComisionesRrhhController extends Controller
             'oficina'      => $oficina,
             'filtros'      => ['desde' => $desde, 'hasta' => $hasta, 'nombre' => $nombre, 'comision' => $comision],
         ]);
+    }
+
+    public function confirmarSalida(Request $request, Solicitud $solicitud, ViajeroComision $viajero)
+    {
+        $this->authorize('confirmarSalida', $solicitud);
+        abort_unless($viajero->solicitud_viaticos_id === $solicitud->solicitable_id, 404);
+        $viajero->update(['salida_confirmada' => $request->boolean('confirmada')]);
+        return back()->with('success', 'Salida actualizada.');
     }
 }

@@ -11,6 +11,7 @@ const COLORES = {
     en_gerencia:    'bg-amber-50 text-amber-700 border-amber-200',
     cerrada:        'bg-slate-100 text-slate-500 border-slate-200',
     rechazada:      'bg-red-50 text-red-700 border-red-200',
+    cancelada:      'bg-red-50 text-red-700 border-red-200',
 };
 
 const ETIQUETAS = {
@@ -20,6 +21,7 @@ const ETIQUETAS = {
     liquidada:'Liquidada', revisada:'En revisión',
     en_gerencia:'En gerencia · pendiente de cierre',
     cerrada:'Cerrada', rechazada:'Rechazada',
+    cancelada:'Cancelada',
 };
 
 // Etiquetas cortas para mostrar el estado en flujos como el historial
@@ -27,6 +29,7 @@ const ETIQUETAS = {
 const ETIQUETAS_CORTAS = {
     aprobada:'En gerencia', pendiente_cierre:'Pendiente por cerrar',
     en_gerencia:'En gerencia', revisada:'Revisada',
+    cancelada:'Cancelada',
 };
 
 /**

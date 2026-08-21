@@ -39,9 +39,13 @@ Route::middleware(['auth','verified'])->group(function () {
     Route::put('/viaticos/{solicitud}',              [ViaticosController::class, 'update'])->name('viaticos.update');
     Route::get('/viaticos/{solicitud}/liquidar',     [ViaticosController::class, 'liquidacion'])->name('viaticos.liquidacion');
     Route::put('/viaticos/{solicitud}/asignaciones', [ViaticosController::class, 'updateAllocations'])->name('viaticos.asignaciones');
+    Route::post('/viaticos/{solicitud}/cancelar',    [ViaticosController::class, 'cancelar'])->name('viaticos.cancelar');
+    Route::post('/viaticos/{solicitud}/reactivar',   [ViaticosController::class, 'reactivar'])->name('viaticos.reactivar');
+    Route::put('/viaticos/{solicitud}/ajustar',      [ViaticosController::class, 'ajustar'])->name('viaticos.ajustar');
     Route::post('/viaticos/{solicitud}/viajeros/{viajero}/archivos',            [ArchivoViajeroController::class, 'store'])->name('viaticos.archivos.store');
     Route::get('/viaticos/{solicitud}/viajeros/{viajero}/archivos/{archivo}',   [ArchivoViajeroController::class, 'descargar'])->name('viaticos.archivos.descargar');
     Route::delete('/viaticos/{solicitud}/viajeros/{viajero}/archivos/{archivo}', [ArchivoViajeroController::class, 'destroy'])->name('viaticos.archivos.destroy');
+    Route::patch('/viaticos/{solicitud}/viajeros/{viajero}/salida', [ComisionesRrhhController::class, 'confirmarSalida'])->name('viaticos.salida.confirmar');
 
     // Parámetros
     Route::get('/parametros',                          [ParametrosController::class, 'index'])->name('parametros.index');

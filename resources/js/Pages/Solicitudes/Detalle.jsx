@@ -642,10 +642,35 @@ function SeccionPagos({ solicitud }) {
     );
 }
 
-export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidacion, puedeGestionarComprobante = false }) {
+export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidacion, puedeGestionarComprobante = false, puedeCancelar = false, puedeReactivar = false, puedeAjustar = false }) {
     const [accionActiva, setAccionActiva] = useState(null);
+    const [ajustando, setAjustando] = useState(false);
+    const [cancelando, setCancelando] = useState(false);
     const { props } = usePage();
     const flash = props.flash ?? {};
+
+    const formCancelar = useForm({ motivo: '' });
+    const confirmarCancelacion = () => formCancelar.post(route('viaticos.cancelar', solicitud.id), {
+        preserveScroll: true, onSuccess: () => setCancelando(false),
+    });
+
+    const viajerosVia = solicitud.solicitable?.viajeros ?? [];
+    const formAjuste = useForm({
+        motivo: '',
+        viajeros: viajerosVia.map((v) => ({
+            viajero_comision_id: v.id,
+            nombre: v.empleado ? `${v.empleado.nombres} ${v.empleado.apellidos}` : (v.nombre_externo || 'Viajero'),
+            fecha_salida: String(v.fecha_salida ?? '').substring(0, 10),
+            hora_salida: v.hora_salida ?? '',
+            fecha_regreso: String(v.fecha_regreso ?? '').substring(0, 10),
+            hora_regreso: v.hora_regreso ?? '',
+        })),
+    });
+    const setViajeroAjuste = (idx, campo, valor) => formAjuste.setData('viajeros',
+        formAjuste.data.viajeros.map((x, i) => i === idx ? { ...x, [campo]: valor } : x));
+    const guardarAjuste = () => formAjuste.put(route('viaticos.ajustar', solicitud.id), {
+        preserveScroll: true, onSuccess: () => setAjustando(false),
+    });
 
     const esOficina  = solicitud.tipo?.clave === 'OFI';
     const esViaticos = solicitud.tipo?.clave === 'VIA';
@@ -712,6 +737,27 @@ export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidaci
                                     </a>
                                 )
                         )}
+                        {puedeCancelar && (
+                            <button type="button"
+                                onClick={() => setCancelando(true)}
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors">
+                                Cancelar comisión
+                            </button>
+                        )}
+                        {puedeReactivar && (
+                            <button type="button"
+                                onClick={() => router.post(route('viaticos.reactivar', solicitud.id), {}, { preserveScroll: true })}
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors">
+                                Reactivar comisión
+                            </button>
+                        )}
+                        {puedeAjustar && esViaticos && (
+                            <button type="button"
+                                onClick={() => setAjustando(true)}
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors">
+                                <PencilSquareIcon className="w-4 h-4" /> Ajustar comisión
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -751,6 +797,112 @@ export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidaci
                 icono={<IconoAccion accion={accionActiva?.accion} />}
                 onClose={() => setAccionActiva(null)}
             />
+
+            <Modal show={cancelando} onClose={() => setCancelando(false)} maxWidth="md">
+                <div className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                        <div>
+                            <h3 className="text-base font-semibold text-slate-800">Cancelar comisión</h3>
+                            <p className="text-sm text-slate-500 mt-0.5">Podrás reactivarla luego. Indica el motivo (opcional).</p>
+                        </div>
+                        <button type="button" onClick={() => setCancelando(false)}
+                            className="text-slate-400 hover:text-slate-600 text-xl leading-none" aria-label="Cerrar">×</button>
+                    </div>
+                    <textarea
+                        value={formCancelar.data.motivo}
+                        onChange={(e) => formCancelar.setData('motivo', e.target.value)}
+                        rows={3}
+                        placeholder="Motivo de la cancelación (ej. se reprogramó para otra fecha)…"
+                        className="w-full rounded-lg border border-slate-300 text-sm px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                    />
+                    <div className="flex justify-end gap-3 mt-5">
+                        <button type="button" onClick={() => setCancelando(false)}
+                            className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50">
+                            Volver
+                        </button>
+                        <button type="button" onClick={confirmarCancelacion} disabled={formCancelar.processing}
+                            className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg disabled:opacity-50">
+                            Cancelar comisión
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal show={ajustando} onClose={() => setAjustando(false)} maxWidth="2xl">
+                <div className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                        <div>
+                            <h3 className="text-base font-semibold text-slate-800">Ajustar comisión</h3>
+                            <p className="text-sm text-slate-500 mt-0.5">Corrige las fechas y horas de salida y regreso de cada viajero.</p>
+                        </div>
+                        <button type="button" onClick={() => setAjustando(false)}
+                            className="text-slate-400 hover:text-slate-600 text-xl leading-none" aria-label="Cerrar">×</button>
+                    </div>
+
+                    <form onSubmit={(e) => { e.preventDefault(); guardarAjuste(); }} className="space-y-5">
+                        <div>
+                            <label className="block text-xs font-medium text-slate-600 mb-1">Motivo del ajuste</label>
+                            <textarea
+                                rows={3}
+                                value={formAjuste.data.motivo}
+                                onChange={(e) => formAjuste.setData('motivo', e.target.value)}
+                                className="w-full rounded-lg border border-slate-300 text-sm px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                placeholder="Describe por qué se ajustan las fechas u horas…"
+                            />
+                            {formAjuste.errors.motivo && <p className="text-red-500 text-xs mt-1">{formAjuste.errors.motivo}</p>}
+                        </div>
+
+                        <div className="space-y-4">
+                            {formAjuste.data.viajeros.map((v, idx) => (
+                                <div key={v.viajero_comision_id} className="rounded-lg border border-slate-100 p-4">
+                                    <p className="text-sm font-medium text-slate-800 mb-3">{v.nombre}</p>
+                                    <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                                        <div>
+                                            <label className="block text-xs text-slate-600 mb-1">Fecha de salida</label>
+                                            <input type="date" value={v.fecha_salida}
+                                                onChange={(e) => setViajeroAjuste(idx, 'fecha_salida', e.target.value)}
+                                                className="w-full rounded-lg border border-slate-300 text-sm px-3 py-2" />
+                                            {formAjuste.errors[`viajeros.${idx}.fecha_salida`] && <p className="text-red-500 text-xs mt-1">{formAjuste.errors[`viajeros.${idx}.fecha_salida`]}</p>}
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-slate-600 mb-1">Hora de salida</label>
+                                            <input type="time" value={v.hora_salida}
+                                                onChange={(e) => setViajeroAjuste(idx, 'hora_salida', e.target.value)}
+                                                className="w-full rounded-lg border border-slate-300 text-sm px-3 py-2" />
+                                            {formAjuste.errors[`viajeros.${idx}.hora_salida`] && <p className="text-red-500 text-xs mt-1">{formAjuste.errors[`viajeros.${idx}.hora_salida`]}</p>}
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-slate-600 mb-1">Fecha de regreso</label>
+                                            <input type="date" value={v.fecha_regreso}
+                                                onChange={(e) => setViajeroAjuste(idx, 'fecha_regreso', e.target.value)}
+                                                className="w-full rounded-lg border border-slate-300 text-sm px-3 py-2" />
+                                            {formAjuste.errors[`viajeros.${idx}.fecha_regreso`] && <p className="text-red-500 text-xs mt-1">{formAjuste.errors[`viajeros.${idx}.fecha_regreso`]}</p>}
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-slate-600 mb-1">Hora de regreso</label>
+                                            <input type="time" value={v.hora_regreso}
+                                                onChange={(e) => setViajeroAjuste(idx, 'hora_regreso', e.target.value)}
+                                                className="w-full rounded-lg border border-slate-300 text-sm px-3 py-2" />
+                                            {formAjuste.errors[`viajeros.${idx}.hora_regreso`] && <p className="text-red-500 text-xs mt-1">{formAjuste.errors[`viajeros.${idx}.hora_regreso`]}</p>}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="flex justify-end gap-3 pt-1">
+                            <button type="button" onClick={() => setAjustando(false)}
+                                className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50">
+                                Cancelar
+                            </button>
+                            <button type="submit" disabled={formAjuste.processing}
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg disabled:opacity-50">
+                                {formAjuste.processing ? 'Guardando…' : 'Guardar ajuste'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </Modal>
         </AppLayout>
     );
 }

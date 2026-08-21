@@ -155,6 +155,9 @@ class SolicitudController extends Controller
             'rutaEditar'      => $rutaEditar,
             'rutaLiquidacion' => $rutaLiquidacion,
             'puedeGestionarComprobante' => $usuario->can('gestionarComprobante', $solicitud),
+            'puedeCancelar'  => $usuario->can('cancelar', $solicitud),
+            'puedeReactivar' => $usuario->can('reactivar', $solicitud),
+            'puedeAjustar'   => $usuario->can('ajustar', $solicitud),
         ]);
     }
 
