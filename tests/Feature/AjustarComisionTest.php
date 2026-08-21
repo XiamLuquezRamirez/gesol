@@ -127,4 +127,55 @@ class AjustarComisionTest extends TestCase
                 'fecha_regreso' => '2026-08-24', 'hora_regreso' => '17:00']],
         ])->assertSessionHasErrors('motivo');
     }
+
+    public function test_ajuste_marca_requiere_reliquidacion(): void
+    {
+        $this->seed();
+        [$s, $v, $lider] = $this->comisionConViajero('revisada');
+        $this->assertFalse($s->solicitable->requiere_reliquidacion);
+
+        $this->ajustar($s, $v, $lider)->assertRedirect();
+
+        $this->assertTrue($s->solicitable->fresh()->requiere_reliquidacion);
+    }
+
+    public function test_no_puede_enviar_revision_con_ajuste_pendiente(): void
+    {
+        $this->seed();
+        [$s, $v, $lider] = $this->comisionConViajero('liquidada');
+        // Un ajuste desde liquidada la deja en liquidada con el flag encendido.
+        $this->ajustar($s, $v, $lider)->assertRedirect();
+        $this->assertTrue($s->solicitable->fresh()->requiere_reliquidacion);
+
+        // El contador intenta enviar a revision: debe rechazarse.
+        $contador = Usuario::where('email','contador@demo.test')->firstOrFail();
+        $this->actingAs($contador)->from(route('solicitudes.show', $s))
+            ->post(route('solicitudes.transicion', $s), ['accion' => 'enviar_revision'])
+            ->assertSessionHasErrors('accion');
+        $this->assertEquals('liquidada', $s->fresh()->estado);
+    }
+
+    public function test_guardar_liquidacion_apaga_el_flag_y_habilita_envio(): void
+    {
+        $this->seed();
+        [$s, $v, $lider] = $this->comisionConViajero('liquidada');
+        $this->ajustar($s, $v, $lider)->assertRedirect();
+        $this->assertTrue($s->solicitable->fresh()->requiere_reliquidacion);
+
+        $contador = Usuario::where('email','contador@demo.test')->firstOrFail();
+        // El contador vuelve a guardar la liquidacion: apaga el flag.
+        $this->actingAs($contador)->put(route('viaticos.asignaciones', $s), [
+            'asignaciones' => [[
+                'viajero_comision_id' => $v->id, 'rubro' => 'desayuno',
+                'valor_unitario' => 15000, 'dias' => 2,
+            ]],
+            'pagos' => [['viajero_comision_id' => $v->id, 'tipo_pago' => 'efectivo']],
+        ])->assertRedirect();
+        $this->assertFalse($s->solicitable->fresh()->requiere_reliquidacion);
+
+        // Ahora sí puede enviar a revision.
+        $this->actingAs($contador)->post(route('solicitudes.transicion', $s), ['accion' => 'enviar_revision'])
+            ->assertRedirect();
+        $this->assertEquals('revisada', $s->fresh()->estado);
+    }
 }

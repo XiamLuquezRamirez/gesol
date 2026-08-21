@@ -9,7 +9,7 @@ import { formatearMoneda, formatearFecha, formatFechaHora, formatearFechaHoraCom
 import { useState, useRef } from 'react';
 import { usePage, router, useForm } from '@inertiajs/react';
 import { Head } from '@inertiajs/react';
-import { ArrowLeftIcon, ArrowRightIcon, ArrowUturnLeftIcon, CheckCircleIcon, CheckIcon, XCircleIcon, CreditCardIcon, PencilSquareIcon, PrinterIcon, EnvelopeIcon, EyeIcon, PaperClipIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, ArrowRightIcon, ArrowUturnLeftIcon, CheckCircleIcon, CheckIcon, XCircleIcon, CreditCardIcon, PencilSquareIcon, PrinterIcon, EnvelopeIcon, EyeIcon, PaperClipIcon, ArrowPathIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 function SeccionCard({ titulo, children }) {
     return (
@@ -642,7 +642,7 @@ function SeccionPagos({ solicitud }) {
     );
 }
 
-export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidacion, puedeGestionarComprobante = false, puedeCancelar = false, puedeReactivar = false, puedeAjustar = false }) {
+export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidacion, puedeGestionarComprobante = false, puedeCancelar = false, puedeReactivar = false, puedeAjustar = false, requiereReliquidacion = false }) {
     const [accionActiva, setAccionActiva] = useState(null);
     const [ajustando, setAjustando] = useState(false);
     const [cancelando, setCancelando] = useState(false);
@@ -709,6 +709,14 @@ export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidaci
                         </p>
                     </div>
 
+                    {requiereReliquidacion && (
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                            <span className="font-semibold">Ajuste pendiente.</span> El líder cambió las fechas de la
+                            comisión. El contador debe volver a guardar la liquidación (los días se recalculan solos)
+                            antes de poder enviarla a revisión.
+                        </div>
+                    )}
+
                     <div className="flex gap-2 flex-wrap justify-end">
                         <a href={route('solicitudes.index')} className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">
                             <ArrowLeftIcon className="w-4 h-4" /> Volver
@@ -723,7 +731,10 @@ export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidaci
                                 <PencilSquareIcon className="w-4 h-4" /> Editar liquidación
                             </a>
                         )}
-                        {acciones.map((a) =>
+                        {acciones
+                            // Con un ajuste pendiente, ocultar "enviar a revision" hasta re-liquidar.
+                            .filter((a) => !(requiereReliquidacion && a.accion === 'enviar_revision'))
+                            .map((a) =>
                             a.accion === 'liquidar' && esViaticos
                                 ? (
                                     <a key={a.accion} href={route('viaticos.liquidacion', solicitud.id)}
@@ -741,6 +752,7 @@ export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidaci
                             <button type="button"
                                 onClick={() => setCancelando(true)}
                                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors">
+                                <XMarkIcon className="w-4 h-4" />
                                 Cancelar comisión
                             </button>
                         )}
@@ -748,6 +760,7 @@ export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidaci
                             <button type="button"
                                 onClick={() => router.post(route('viaticos.reactivar', solicitud.id), {}, { preserveScroll: true })}
                                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors">
+                                <ArrowPathIcon className="w-4 h-4" />
                                 Reactivar comisión
                             </button>
                         )}

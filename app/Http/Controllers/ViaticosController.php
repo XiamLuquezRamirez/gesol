@@ -162,6 +162,10 @@ class ViaticosController extends Controller
 
             $solicitud->solicitable->recalcularTotal();
 
+            // Al guardar la liquidacion se da por reincorporado cualquier ajuste
+            // pendiente, lo que habilita de nuevo "Enviar a lider de contabilidad".
+            $solicitud->solicitable->updateQuietly(['requiere_reliquidacion' => false]);
+
             // El contador presenta el informe: la comision pasa de enviada a liquidada.
             if ($solicitud->estado === 'enviada' && $this->motor->puede($solicitud, 'liquidar', $usuario)) {
                 $this->motor->aplicarTransicion($solicitud, 'liquidar', $usuario);
@@ -232,10 +236,12 @@ class ViaticosController extends Controller
         $this->authorize('ajustar', $solicitud);
         $cabecera = $solicitud->solicitable;
         $origen   = $solicitud->estado;
-        // Estados en los que el contador ya trabajo el informe: el ajuste lo devuelve.
-        $destino  = in_array($origen, ['liquidada', 'revisada', 'en_gerencia']) ? 'liquidada' : $origen;
+        // La comision ya paso por el contador si esta liquidada o mas avanzada: el
+        // ajuste la devuelve a 'liquidada' para recalcular y exige re-liquidar.
+        $yaLiquidada = in_array($origen, ['liquidada', 'revisada', 'en_gerencia']);
+        $destino  = $yaLiquidada ? 'liquidada' : $origen;
 
-        DB::transaction(function () use ($request, $solicitud, $cabecera, $origen, $destino) {
+        DB::transaction(function () use ($request, $solicitud, $cabecera, $origen, $destino, $yaLiquidada) {
             foreach ($request->viajeros as $datos) {
                 $viajero = $cabecera->viajeros()->where('id', $datos['viajero_comision_id'])->first();
                 if (! $viajero) continue; // ignora ids ajenos a la comision
@@ -246,6 +252,11 @@ class ViaticosController extends Controller
             }
             if ($destino !== $origen) {
                 $solicitud->update(['estado' => $destino]);
+            }
+            if ($yaLiquidada) {
+                // El contador debe recalcular la liquidacion con las nuevas fechas antes
+                // de poder enviar a revision; el front recalcula los dias al abrirla.
+                $cabecera->updateQuietly(['requiere_reliquidacion' => true]);
             }
             TransicionSolicitud::create([
                 'solicitud_id' => $solicitud->id, 'estado_origen' => $origen,

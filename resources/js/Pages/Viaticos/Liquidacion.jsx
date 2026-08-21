@@ -6,7 +6,7 @@ import { formatearMoneda, formatFechaHora } from '@/lib/format';
 import { useForm, Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { PlusCircleIcon, XMarkIcon, PaperClipIcon } from '@heroicons/react/24/outline';
-import { rubrosPorDefecto, diasComision } from '@/lib/rubros';
+import { rubrosPorDefecto, diasComision, diasDeRubro } from '@/lib/rubros';
 
 const etiquetaRubro = (r) =>
     r.charAt(0).toUpperCase() + r.slice(1).replace(/[_-]/g, ' ');
@@ -18,14 +18,24 @@ export default function Liquidacion({ solicitud, tarifas, rubros, puedeGestionar
     const [comprobantesDeId, setComprobantesDeId] = useState(null);
     const comprobantesDe = viajeros.find((v) => v.id === comprobantesDeId) ?? null;
 
+    // Tras un ajuste de fechas del lider, al reabrir la liquidacion se recalculan
+    // los DIAS de cada rubro segun las nuevas fechas (se conservan rubro y valor).
+    const requiereReliquidacion = !!solicitud.solicitable?.requiere_reliquidacion;
+
     const asignacionesIniciales = viajeros.flatMap((v) => {
         if (v.asignaciones?.length > 0) {
-            return v.asignaciones.map((a) => ({
-                viajero_comision_id: v.id,
-                rubro:          a.rubro,
-                valor_unitario: a.valor_unitario,
-                dias:           a.dias,
-            }));
+            return v.asignaciones
+                .map((a) => ({
+                    viajero_comision_id: v.id,
+                    rubro:          a.rubro,
+                    valor_unitario: a.valor_unitario,
+                    dias:           requiereReliquidacion
+                        ? diasDeRubro(a.rubro, v.fecha_salida, v.fecha_regreso, v.hora_salida, v.hora_regreso)
+                        : a.dias,
+                }))
+                // Si al reliquidar un rubro cae a 0 dias (viaje acortado), se descarta
+                // para que el contador no tenga que quitarlo a mano ni falle la validacion.
+                .filter((a) => !requiereReliquidacion || a.dias > 0);
         }
         // Rubros por defecto segun fechas Y horas: las horas afinan los bordes
         // (primer/ultimo dia) y la merienda es proporcional a las franjas del dia.
@@ -110,6 +120,14 @@ export default function Liquidacion({ solicitud, tarifas, rubros, puedeGestionar
                     <span className="font-mono text-base font-semibold text-slate-700">{solicitud.radicado}</span>
                     <BadgeEstado estado={solicitud.estado} />
                 </div>
+
+                {requiereReliquidacion && (
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                        <span className="font-semibold">Ajuste pendiente.</span> El líder cambió las fechas de la comisión;
+                        los días se recalcularon automáticamente. Revisa los valores y <span className="font-semibold">guarda
+                        la liquidación</span> para poder enviarla a revisión.
+                    </div>
+                )}
 
                 <form onSubmit={submit} className="space-y-4">
                     {viajeros.map((viajero) => {
