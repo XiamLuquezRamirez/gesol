@@ -5,7 +5,8 @@ use Illuminate\Database\Eloquent\Model;
 class SolicitudViaticos extends Model
 {
     protected $table = 'solicitudes_viaticos';
-    protected $fillable = ['nombre_comision','municipio_destino','observacion','total'];
+    protected $fillable = ['nombre_comision','municipio_destino','observacion','total','requiere_reliquidacion'];
+    protected $casts = ['requiere_reliquidacion' => 'boolean'];
 
     public function viajeros()  { return $this->hasMany(ViajeroComision::class, 'solicitud_viaticos_id'); }
 

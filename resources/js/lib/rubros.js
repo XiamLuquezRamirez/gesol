@@ -80,6 +80,15 @@ export function conteoComidas(fechaSalida, fechaRegreso, horaSalida, horaRegreso
 // Orden en que se muestran los rubros por defecto.
 const ORDEN_RUBROS = ['desayuno', 'almuerzo', 'merienda', 'cena'];
 
+// Días que corresponden a un rubro concreto según las fechas/horas del viajero.
+// Rubros de comida usan el conteo por franjas; los demás (p. ej. gasolina) usan
+// los días de comisión. Se usa para recalcular la liquidación tras un ajuste de fechas.
+export function diasDeRubro(rubro, fechaSalida, fechaRegreso, horaSalida, horaRegreso) {
+    const comidas = conteoComidas(fechaSalida, fechaRegreso, horaSalida, horaRegreso);
+    if (rubro in comidas) return comidas[rubro];
+    return diasComision(fechaSalida, fechaRegreso);
+}
+
 // Genera las asignaciones por defecto de un viajero según sus fechas y horas.
 // `rubrosDisponibles` son las claves de tarifa existentes (para no inventar rubros).
 // `tarifas` mapea rubro -> { valor_sugerido }.

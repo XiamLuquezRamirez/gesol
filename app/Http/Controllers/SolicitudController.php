@@ -158,12 +158,24 @@ class SolicitudController extends Controller
             'puedeCancelar'  => $usuario->can('cancelar', $solicitud),
             'puedeReactivar' => $usuario->can('reactivar', $solicitud),
             'puedeAjustar'   => $usuario->can('ajustar', $solicitud),
+            // Ajuste pendiente de reincorporar en la liquidacion: bloquea "enviar a revision".
+            'requiereReliquidacion' => $solicitud->tipoSolicitud->clave === 'VIA'
+                && (bool) $solicitud->solicitable?->requiere_reliquidacion,
         ]);
     }
 
     public function transicion(EjecutarTransicionRequest $request, Solicitud $solicitud)
     {
         $this->authorize('verDetalle', $solicitud);
+
+        // No se puede enviar a revision una comision de viaticos con un ajuste
+        // pendiente: el contador debe volver a guardar la liquidacion primero.
+        if ($request->accion === 'enviar_revision'
+            && $solicitud->tipoSolicitud->clave === 'VIA'
+            && $solicitud->solicitable?->requiere_reliquidacion
+        ) {
+            return back()->withErrors(['accion' => 'Hay un ajuste pendiente: vuelve a guardar la liquidación antes de enviar a revisión.']);
+        }
 
         try {
             $this->motor->aplicarTransicion(
