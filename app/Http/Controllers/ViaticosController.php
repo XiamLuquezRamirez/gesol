@@ -221,15 +221,21 @@ class ViaticosController extends Controller
 
     /**
      * El solicitante lider ajusta las fechas/horas de salida/regreso de cada viajero.
-     * No recalcula rubros (el contador lo hace manualmente), registra la transicion
-     * 'ajustar' con el motivo y avisa a RR. HH./contabilidad.
+     * No recalcula rubros; el ajuste debe revisarlo el contador. Si la comision ya
+     * paso al contador (liquidada/revisada/en_gerencia), regresa a 'liquidada' para
+     * que el contador recalcule y re-presente el informe antes de que el lider contable
+     * apruebe. Si aun esta 'enviada' (sin liquidar), solo se ajustan las fechas.
+     * Registra la transicion 'ajustar' con el motivo y avisa (contador: accion; RR. HH.: info).
      */
     public function ajustar(AjustarComisionRequest $request, Solicitud $solicitud)
     {
         $this->authorize('ajustar', $solicitud);
         $cabecera = $solicitud->solicitable;
+        $origen   = $solicitud->estado;
+        // Estados en los que el contador ya trabajo el informe: el ajuste lo devuelve.
+        $destino  = in_array($origen, ['liquidada', 'revisada', 'en_gerencia']) ? 'liquidada' : $origen;
 
-        DB::transaction(function () use ($request, $solicitud, $cabecera) {
+        DB::transaction(function () use ($request, $solicitud, $cabecera, $origen, $destino) {
             foreach ($request->viajeros as $datos) {
                 $viajero = $cabecera->viajeros()->where('id', $datos['viajero_comision_id'])->first();
                 if (! $viajero) continue; // ignora ids ajenos a la comision
@@ -238,15 +244,43 @@ class ViaticosController extends Controller
                     'fecha_regreso' => $datos['fecha_regreso'], 'hora_regreso' => $datos['hora_regreso'],
                 ]);
             }
+            if ($destino !== $origen) {
+                $solicitud->update(['estado' => $destino]);
+            }
             TransicionSolicitud::create([
-                'solicitud_id' => $solicitud->id, 'estado_origen' => $solicitud->estado,
-                'estado_destino' => $solicitud->estado, 'accion' => 'ajustar',
+                'solicitud_id' => $solicitud->id, 'estado_origen' => $origen,
+                'estado_destino' => $destino, 'accion' => 'ajustar',
                 'usuario_id' => auth()->id(), 'comentario' => $request->motivo,
             ]);
         });
 
-        $this->avisarCambioComision($solicitud->fresh(), 'ajustada', $request->motivo);
-        return back()->with('success', 'Comisión ajustada. Se notificó a contabilidad y RR. HH.');
+        $this->avisarAjuste($solicitud->fresh(), $request->motivo, $destino !== $origen);
+        $mensaje = $destino !== $origen
+            ? 'Comisión ajustada. Regresó al contador para recalcular; se notificó a contabilidad y RR. HH.'
+            : 'Comisión ajustada. Se notificó a contabilidad y RR. HH.';
+        return back()->with('success', $mensaje);
+    }
+
+    /**
+     * Avisa del ajuste: al contador con accion requerida (debe recalcular) cuando la
+     * comision regresa a liquidada, y a RR. HH. de forma informativa. Cuando no regresa
+     * (aun en 'enviada'), avisa a todos de forma informativa.
+     */
+    private function avisarAjuste(Solicitud $solicitud, ?string $motivo, bool $regresoAlContador): void
+    {
+        $actor = auth()->user()->name;
+
+        if ($regresoAlContador) {
+            foreach (Usuario::role('contador')->get() as $u) {
+                $u->notify(new AvisoTransicionNotification($solicitud, 'accion_requerida', 'ajustar', $motivo, $actor));
+            }
+            foreach (Usuario::role(['rrhh', 'contabilidad_lider'])->get() as $u) {
+                $u->notify(new AvisoTransicionNotification($solicitud, 'ajustada', 'ajustar', $motivo, $actor));
+            }
+            return;
+        }
+
+        $this->avisarCambioComision($solicitud, 'ajustada', $motivo);
     }
 
     /** Notifica a RR.HH. y contabilidad de una cancelacion/reactivacion/ajuste de comision. */

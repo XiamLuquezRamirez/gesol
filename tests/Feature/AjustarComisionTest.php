@@ -50,6 +50,50 @@ class AjustarComisionTest extends TestCase
         Notification::assertSentTo($contador, AvisoTransicionNotification::class);
     }
 
+    private function ajustar(Solicitud $s, ViajeroComision $v, Usuario $lider)
+    {
+        return $this->actingAs($lider)->put(route('viaticos.ajustar', $s), [
+            'motivo' => 'Se extiende la comision',
+            'viajeros' => [[
+                'viajero_comision_id' => $v->id,
+                'fecha_salida' => '2026-08-20', 'hora_salida' => '08:00',
+                'fecha_regreso' => '2026-08-24', 'hora_regreso' => '17:00',
+            ]],
+        ]);
+    }
+
+    public function test_ajuste_desde_revisada_regresa_a_liquidada(): void
+    {
+        $this->seed();
+        [$s, $v, $lider] = $this->comisionConViajero('revisada');
+        $this->ajustar($s, $v, $lider)->assertRedirect();
+
+        $this->assertEquals('liquidada', $s->fresh()->estado);
+        $this->assertDatabaseHas('transiciones_solicitud', [
+            'solicitud_id' => $s->id, 'accion' => 'ajustar',
+            'estado_origen' => 'revisada', 'estado_destino' => 'liquidada',
+        ]);
+    }
+
+    public function test_ajuste_desde_en_gerencia_regresa_a_liquidada(): void
+    {
+        $this->seed();
+        [$s, $v, $lider] = $this->comisionConViajero('en_gerencia');
+        $this->ajustar($s, $v, $lider)->assertRedirect();
+
+        $this->assertEquals('liquidada', $s->fresh()->estado);
+    }
+
+    public function test_ajuste_desde_enviada_no_cambia_estado(): void
+    {
+        // Aun no ha pasado al contador (no liquidada): solo se ajustan fechas.
+        $this->seed();
+        [$s, $v, $lider] = $this->comisionConViajero('enviada');
+        $this->ajustar($s, $v, $lider)->assertRedirect();
+
+        $this->assertEquals('enviada', $s->fresh()->estado);
+    }
+
     public function test_no_solicitante_no_ajusta(): void
     {
         $this->seed();
