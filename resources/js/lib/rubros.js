@@ -1,7 +1,8 @@
 // Cálculo de rubros de viáticos por defecto según las fechas Y horas de la comisión.
 //
 // Reglas:
-// - Cada comida tiene una hora tope: desayuno 09:00, almuerzo 14:00, cena 20:00.
+// - Cada comida tiene una hora de referencia: desayuno 09:00, almuerzo 14:00, cena 18:00.
+//   La cena aplica si sigue en comisión después de las 6 de la tarde (18:00).
 // - Una comida cuenta un día dado si su hora cae dentro de la ventana de presencia:
 //     · primer día  → desde hora_salida hasta fin del día  (hora_comida >= hora_salida)
 //     · último día  → desde inicio hasta hora_regreso       (hora_comida <= hora_regreso)
@@ -13,7 +14,7 @@
 const HORA_COMIDA = {
     desayuno: 9 * 60,   // 09:00
     almuerzo: 14 * 60,  // 14:00
-    cena:     20 * 60,  // 20:00
+    cena:     18 * 60,  // 18:00 — la cena aplica si sigue en comisión después de las 6 p. m.
 };
 
 // "HH:MM" -> minutos. Sin hora válida, devuelve el default indicado (inicio/fin del día).
