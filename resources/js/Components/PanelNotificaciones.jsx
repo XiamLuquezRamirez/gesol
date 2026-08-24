@@ -53,6 +53,8 @@ function mensajeNotificacion(n) {
         case 'devuelta':
             return `${n.actor_nombre} devolvió tu solicitud ${n.radicado} para corrección`;
         case 'accion_requerida':
+            if (n.accion === 'aprobar') return `Ajuste pendiente de aprobar: ${n.radicado}`;
+            if (n.accion === 'ajustar') return `Ajuste pendiente de liquidar: ${n.radicado}`;
             return `Tienes una acción pendiente en ${n.radicado}`;
         case 'comision_reportada':
             return `Comisión pendiente por revisar: ${n.radicado}`;

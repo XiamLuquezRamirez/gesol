@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 use App\Exceptions\TransicionNoPermitidaException;
 use App\Http\Requests\EjecutarTransicionRequest;
 use App\Http\Resources\{SolicitudDetalleResource, SolicitudResource};
-use App\Models\{Solicitud, SolicitudOficina, SolicitudViaticos, Usuario};
+use App\Models\{AjusteComision, Solicitud, SolicitudOficina, SolicitudViaticos, Usuario};
 use App\Notifications\ComisionCerradaNotification;
 use App\Services\MotorWorkflow;
 use Illuminate\Database\Eloquent\Builder;
@@ -53,8 +53,20 @@ class SolicitudController extends Controller
             'pendientes_lider'  => optional($this->queryPendientesLider($usuario))->count() ?? 0,
         ];
 
+        // Conjunto de solicitudes con un ajuste de comisión pendiente relevante al rol
+        // del usuario (contador: pendiente_liquidacion/devuelto; contabilidad_lider:
+        // liquidado). Una sola consulta para evitar N+1; luego se anexa el flag por item.
+        $conAjuste = $this->solicitudesConAjustePendiente($usuario, $solicitudes);
+
+        $data = collect(SolicitudResource::collection($solicitudes)->resolve())
+            ->map(function ($item) use ($conAjuste) {
+                $item['ajuste_pendiente'] = $conAjuste->has($item['id']);
+                return $item;
+            })
+            ->all();
+
         return Inertia::render('Solicitudes/Index', [
-            'solicitudes' => ['data' => SolicitudResource::collection($solicitudes)->resolve()],
+            'solicitudes' => ['data' => $data],
             'filtros'     => ['tab' => $tab],
             'conteos'     => $conteos,
         ]);
@@ -86,6 +98,28 @@ class SolicitudController extends Controller
             ->get()
             ->filter(fn ($s) => !empty($this->motor->accionesDisponibles($s, $usuario)))
             ->values();
+    }
+
+    /**
+     * Ids de las solicitudes listadas que tienen un ajuste de comisión pendiente
+     * relevante al rol del usuario. Devuelve un mapa (id => true) para lookups O(1).
+     * Una sola consulta acotada a los ids visibles: sin N+1.
+     */
+    private function solicitudesConAjustePendiente(Usuario $usuario, \Illuminate\Support\Collection $solicitudes)
+    {
+        $estados = $usuario->hasRole('contabilidad_lider')
+            ? ['liquidado']
+            : ($usuario->hasRole('contador') ? ['pendiente_liquidacion', 'devuelto'] : []);
+
+        if (empty($estados) || $solicitudes->isEmpty()) {
+            return collect();
+        }
+
+        return AjusteComision::whereIn('estado', $estados)
+            ->whereIn('solicitud_id', $solicitudes->pluck('id'))
+            ->pluck('solicitud_id')
+            ->unique()
+            ->flip();
     }
 
     /**

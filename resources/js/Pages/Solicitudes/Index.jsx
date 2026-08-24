@@ -91,6 +91,11 @@ export default function Index({ solicitudes, filtros, conteos = {} }) {
                                         <div className="flex items-center gap-2 mb-1">
                                             <span className="text-xs font-mono text-slate-400">{s.radicado}</span>
                                             <BadgeEstado estado={s.estado} />
+                                            {s.ajuste_pendiente && (
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border bg-amber-50 text-amber-700 border-amber-200">
+                                                    Ajuste pendiente
+                                                </span>
+                                            )}
                                         </div>
                                         <p className="text-sm font-medium text-slate-800 truncate">
                                             {s.viaticos
