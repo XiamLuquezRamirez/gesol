@@ -2,7 +2,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\{GuardarSolicitudViaticosRequest, ActualizarAsignacionesRequest, AjustarComisionRequest, ReajustarRubroRequest};
-use App\Models\{AsignacionViatico, Municipio, Solicitud, SolicitudViaticos, TarifaViatico, TipoSolicitud, TransicionSolicitud, Usuario, ViajeroComision, Empleados};
+use App\Models\{AjusteComision, AsignacionViatico, Municipio, Solicitud, SolicitudViaticos, TarifaViatico, TipoSolicitud, TransicionSolicitud, Usuario, ViajeroComision, Empleados};
 use App\Notifications\AvisoTransicionNotification;
 use App\Services\MotorWorkflow;
 use Illuminate\Http\Request;
@@ -234,6 +234,12 @@ class ViaticosController extends Controller
     public function ajustar(AjustarComisionRequest $request, Solicitud $solicitud)
     {
         $this->authorize('ajustar', $solicitud);
+
+        // Post-cierre: el ajuste se vuelve un anexo con estado propio (no reabre la comision).
+        if ($solicitud->estado === 'cerrada') {
+            return $this->crearAjusteAnexoFechas($request, $solicitud);
+        }
+
         $cabecera = $solicitud->solicitable;
         $origen   = $solicitud->estado;
         // La comision ya paso por el contador si esta liquidada o mas avanzada: el
@@ -298,6 +304,12 @@ class ViaticosController extends Controller
     public function reajustarRubro(ReajustarRubroRequest $request, Solicitud $solicitud)
     {
         $this->authorize('ajustar', $solicitud);
+
+        // Post-cierre: el reajuste de rubro se vuelve un anexo con estado propio.
+        if ($solicitud->estado === 'cerrada') {
+            return $this->crearAjusteAnexoRubro($request, $solicitud);
+        }
+
         $cabecera = $solicitud->solicitable;
         $viajero = $cabecera->viajeros()->where('id', $request->viajero_comision_id)->firstOrFail();
 
@@ -328,6 +340,83 @@ class ViaticosController extends Controller
 
         $this->avisarAjuste($solicitud->fresh(), $request->motivo, $yaLiquidada);
         return back()->with('success', 'Reajuste de rubro registrado. El contador lo aplicará en la liquidación.');
+    }
+
+    /**
+     * Crea un ajuste-anexo de fechas sobre una comision cerrada. No modifica las fechas
+     * reales del viajero (preserva la comision cerrada): solo guarda el snapshot ANTES
+     * (fechas actuales) y DESPUES (request) para que el contador liquide el delta.
+     */
+    private function crearAjusteAnexoFechas(AjustarComisionRequest $request, Solicitud $solicitud)
+    {
+        $cabecera = $solicitud->solicitable;
+
+        // AjustarComisionRequest valida 'viajeros' como array; para el anexo se ajusta
+        // un viajero a la vez. Tomar el primero (el frontend post-cierre envia uno).
+        $datos = $request->viajeros[0];
+        $viajero = $cabecera->viajeros()->where('id', $datos['viajero_comision_id'])->firstOrFail();
+
+        $ajuste = null;
+        DB::transaction(function () use ($request, $solicitud, $viajero, $datos, &$ajuste) {
+            $ajuste = AjusteComision::create([
+                'solicitud_id'        => $solicitud->id,
+                'viajero_comision_id' => $viajero->id,
+                'solicitado_por'      => auth()->id(),
+                'tipo'                => 'fechas',
+                'motivo'              => $request->motivo,
+                'estado'              => 'pendiente_liquidacion',
+                'fechas_antes' => [
+                    'fecha_salida'  => optional($viajero->fecha_salida)->toDateString() ?? $viajero->fecha_salida,
+                    'hora_salida'   => $viajero->hora_salida,
+                    'fecha_regreso' => optional($viajero->fecha_regreso)->toDateString() ?? $viajero->fecha_regreso,
+                    'hora_regreso'  => $viajero->hora_regreso,
+                ],
+                'fechas_despues' => [
+                    'fecha_salida'  => $datos['fecha_salida'],  'hora_salida'  => $datos['hora_salida'],
+                    'fecha_regreso' => $datos['fecha_regreso'], 'hora_regreso' => $datos['hora_regreso'],
+                ],
+            ]);
+        });
+
+        $this->avisarAjustePendiente($ajuste->fresh(), 'accion_requerida');
+        return back()->with('success', 'Ajuste solicitado. Queda pendiente de liquidacion por el contador.');
+    }
+
+    /**
+     * Crea un ajuste-anexo de rubro (gasolina/transporte) sobre una comision cerrada.
+     * No altera la comision cerrada; queda pendiente de liquidacion por el contador.
+     */
+    private function crearAjusteAnexoRubro(ReajustarRubroRequest $request, Solicitud $solicitud)
+    {
+        $cabecera = $solicitud->solicitable;
+        $viajero = $cabecera->viajeros()->where('id', $request->viajero_comision_id)->firstOrFail();
+
+        $ajuste = AjusteComision::create([
+            'solicitud_id'        => $solicitud->id,
+            'viajero_comision_id' => $viajero->id,
+            'solicitado_por'      => auth()->id(),
+            'tipo'                => 'rubro',
+            'motivo'              => $request->motivo,
+            'estado'              => 'pendiente_liquidacion',
+            'rubro'               => $request->rubro,
+            'cantidad'            => (int) $request->cantidad,
+        ]);
+
+        $this->avisarAjustePendiente($ajuste->fresh(), 'accion_requerida');
+        return back()->with('success', 'Reajuste de rubro solicitado. Queda pendiente de liquidacion por el contador.');
+    }
+
+    /** Notifica un ajuste-anexo pendiente. $tipoContador: 'accion_requerida'. */
+    private function avisarAjustePendiente(AjusteComision $ajuste, string $tipoContador): void
+    {
+        $solicitud = $ajuste->solicitud;
+        $actor = auth()->user()->name;
+        foreach (Usuario::role('contador')->get() as $u) {
+            $u->notify(new AvisoTransicionNotification($solicitud, $tipoContador, 'ajustar', $ajuste->motivo, $actor));
+        }
+        foreach (Usuario::role('rrhh')->get() as $u) {
+            $u->notify(new AvisoTransicionNotification($solicitud, 'ajustada', 'ajustar', $ajuste->motivo, $actor));
+        }
     }
 
     /**
