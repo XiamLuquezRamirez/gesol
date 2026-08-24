@@ -2,7 +2,7 @@
 
 namespace App\Policies;
 
-use App\Models\{CotizacionOficina, Solicitud, Usuario};
+use App\Models\{AjusteComision, CotizacionOficina, Solicitud, Usuario};
 use App\Services\MotorWorkflow;
 
 class SolicitudPolicy
@@ -173,5 +173,38 @@ class SolicitudPolicy
         return $solicitud->tipoSolicitud->clave === 'VIA'
             && $solicitud->estado === 'cerrada'
             && $this->verDetalle($usuario, $solicitud);
+    }
+
+    /**
+     * El contador liquida el delta de un ajuste (anexo) mientras este pendiente de
+     * liquidar o haya sido devuelto por el lider de contabilidad para recalcular.
+     */
+    public function liquidarAjuste(Usuario $usuario, Solicitud $solicitud, AjusteComision $ajuste): bool
+    {
+        return $solicitud->tipoSolicitud->clave === 'VIA'
+            && $usuario->hasRole('contador')
+            && $ajuste->solicitud_id === $solicitud->id
+            && in_array($ajuste->estado, ['pendiente_liquidacion', 'devuelto']);
+    }
+
+    /** El lider de contabilidad aprueba un ajuste ya liquidado. */
+    public function aprobarAjuste(Usuario $usuario, Solicitud $solicitud, AjusteComision $ajuste): bool
+    {
+        return $solicitud->tipoSolicitud->clave === 'VIA'
+            && $usuario->hasRole('contabilidad_lider')
+            && $ajuste->solicitud_id === $solicitud->id
+            && $ajuste->estado === 'liquidado';
+    }
+
+    /** El lider de contabilidad devuelve un ajuste liquidado para que el contador lo recalcule. */
+    public function devolverAjuste(Usuario $usuario, Solicitud $solicitud, AjusteComision $ajuste): bool
+    {
+        return $this->aprobarAjuste($usuario, $solicitud, $ajuste);
+    }
+
+    /** Ver el detalle/liquidacion de un ajuste: quien pueda ver la comision. */
+    public function verAjuste(Usuario $usuario, Solicitud $solicitud, AjusteComision $ajuste): bool
+    {
+        return $ajuste->solicitud_id === $solicitud->id && $this->verDetalle($usuario, $solicitud);
     }
 }
