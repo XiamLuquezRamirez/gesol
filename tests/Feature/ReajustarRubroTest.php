@@ -58,7 +58,12 @@ class ReajustarRubroTest extends TestCase
 
         $this->assertEquals('cerrada', $s->fresh()->estado);
         $this->assertFalse($s->solicitable->fresh()->requiere_reliquidacion);
-        $this->assertDatabaseHas('transiciones_solicitud', ['solicitud_id' => $s->id, 'accion' => 'ajustar']);
+        // El reajuste de rubro post-cierre se registra como AjusteComision pendiente
+        // de liquidacion (anexo), no como una transicion suelta.
+        $this->assertDatabaseHas('ajustes_comision', [
+            'solicitud_id' => $s->id, 'tipo' => 'rubro', 'rubro' => 'transporte',
+            'estado' => 'pendiente_liquidacion',
+        ]);
     }
 
     public function test_no_solicitante_no_reajusta_rubro(): void
