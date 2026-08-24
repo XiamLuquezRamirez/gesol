@@ -149,6 +149,23 @@ class SolicitudController extends Controller
             $rutaLiquidacion = route('viaticos.liquidacion', $solicitud);
         }
 
+        // Ajustes-anexo (AjusteComision): solo aplican a comisiones de viáticos. Para OFI
+        // se deja la lista vacía y los flags en false para no romper ese detalle.
+        $ajustes = [];
+        $permisosAjuste = ['liquidar' => false, 'aprobar' => false];
+        if ($solicitud->tipoSolicitud->clave === 'VIA') {
+            $ajustes = \App\Models\AjusteComision::where('solicitud_id', $solicitud->id)
+                ->with(['viajero.empleado', 'solicitante:id,name', 'asignaciones'])
+                ->orderByDesc('created_at')
+                ->get();
+            // Flags de rol para mostrar/ocultar botones; el servidor sigue aplicando la
+            // policy por-ajuste en los endpoints reales.
+            $permisosAjuste = [
+                'liquidar' => $usuario->hasRole('contador'),
+                'aprobar'  => $usuario->hasRole('contabilidad_lider'),
+            ];
+        }
+
         return Inertia::render('Solicitudes/Detalle', [
             'solicitud'       => (new SolicitudDetalleResource($solicitud))->resolve(),
             'acciones'        => $this->motor->accionesDisponibles($solicitud, $usuario),
@@ -161,6 +178,8 @@ class SolicitudController extends Controller
             // Ajuste pendiente de reincorporar en la liquidacion: bloquea "enviar a revision".
             'requiereReliquidacion' => $solicitud->tipoSolicitud->clave === 'VIA'
                 && (bool) $solicitud->solicitable?->requiere_reliquidacion,
+            'ajustes'        => $ajustes,
+            'permisosAjuste' => $permisosAjuste,
         ]);
     }
 
