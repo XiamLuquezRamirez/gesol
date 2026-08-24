@@ -16,6 +16,8 @@ createInertiaApp({
         root.render(<App {...props} />);
     },
     progress: {
-        color: '#4B5563',
+        color: '#4f46e5',   // indigo-600, coherente con la UI
+        delay: 120,          // aparece rapido en peticiones que tardan
+        showSpinner: true,   // ademas de la barra, un spinner en la esquina
     },
 });

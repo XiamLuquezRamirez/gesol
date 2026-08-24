@@ -1,5 +1,6 @@
 import { router, Link, usePage } from '@inertiajs/react';
 import PanelNotificaciones from '@/Components/PanelNotificaciones';
+import CargandoOverlay from '@/Components/CargandoOverlay';
 
 const IconInbox = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -97,17 +98,18 @@ export default function AppLayout({ title, children }) {
 
     return (
         <div className="flex h-screen overflow-hidden bg-slate-50">
+            <CargandoOverlay />
             {/* ── Sidebar ── */}
             <aside className="w-60 shrink-0 flex flex-col bg-slate-900">
                 {/* Branding */}
-                <div className="h-14 flex items-center px-4 border-b border-slate-800/80">
+                <div className="h-14 flex items-center px-4 border-b border-slate-800/80 justify-center my-1">
                     <Link href={route('inicio')} className="flex items-center gap-2.5 group">
-                       <img src="/images/logo.png"  alt="Logo"  className="w-full h-full" />
-                         </Link>
+                        <img src="/images/logo2.png" alt="Logo" className="w-40"  />
+                    </Link>
                 </div>
 
                 {/* Navigation */}
-                <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto">
+                <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto my-1">
                     <NavSection label="Principal">
                         <NavItem
                             href={route('inicio')}
