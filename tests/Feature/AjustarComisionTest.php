@@ -116,7 +116,11 @@ class AjustarComisionTest extends TestCase
         // Sigue cerrada (anexo, no reabre) y NO exige reliquidacion.
         $this->assertEquals('cerrada', $s->fresh()->estado);
         $this->assertFalse($s->solicitable->fresh()->requiere_reliquidacion);
-        $this->assertDatabaseHas('transiciones_solicitud', ['solicitud_id' => $s->id, 'accion' => 'ajustar']);
+        // El ajuste post-cierre se registra como AjusteComision pendiente de liquidacion
+        // (ya no como una transicion suelta); su liquidacion/aprobacion es un flujo aparte.
+        $this->assertDatabaseHas('ajustes_comision', [
+            'solicitud_id' => $s->id, 'tipo' => 'fechas', 'estado' => 'pendiente_liquidacion',
+        ]);
     }
 
     public function test_ajuste_sin_motivo_es_invalido(): void
