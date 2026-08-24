@@ -759,6 +759,13 @@ export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidaci
         preserveScroll: true, onSuccess: () => setAjustando(false),
     });
 
+    const [reajustando, setReajustando] = useState(false);
+    const viajerosReaj = solicitud.solicitable?.viajeros ?? [];
+    const formRubro = useForm({ viajero_comision_id: '', rubro: 'gasolina', cantidad: 1, motivo: '' });
+    const guardarReajusteRubro = () => formRubro.post(route('viaticos.reajustar-rubro', solicitud.id), {
+        preserveScroll: true, onSuccess: () => { setReajustando(false); formRubro.reset(); },
+    });
+
     const esOficina  = solicitud.tipo?.clave === 'OFI';
     const esViaticos = solicitud.tipo?.clave === 'VIA';
 
@@ -856,6 +863,12 @@ export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidaci
                                 onClick={() => setAjustando(true)}
                                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors">
                                 <PencilSquareIcon className="w-4 h-4" /> Ajustar comisión
+                            </button>
+                        )}
+                        {puedeAjustar && esViaticos && (
+                            <button type="button" onClick={() => setReajustando(true)}
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg">
+                                Reajustar transporte/gasolina
                             </button>
                         )}
                     </div>
@@ -999,6 +1012,61 @@ export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidaci
                             <button type="submit" disabled={formAjuste.processing}
                                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg disabled:opacity-50">
                                 {formAjuste.processing ? 'Guardando…' : 'Guardar ajuste'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </Modal>
+
+            <Modal show={reajustando} onClose={() => setReajustando(false)} maxWidth="md">
+                <div className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                        <div>
+                            <h3 className="text-base font-semibold text-slate-800">Reajustar rubro de transporte</h3>
+                            <p className="text-sm text-slate-500 mt-0.5">Solicita gasolina (camioneta) o transporte para un viajero. El contador aplicará el valor.</p>
+                        </div>
+                        <button type="button" onClick={() => setReajustando(false)} className="text-slate-400 hover:text-slate-600 text-xl leading-none">×</button>
+                    </div>
+                    <form onSubmit={(e) => { e.preventDefault(); guardarReajusteRubro(); }} className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-medium text-slate-600 mb-1">Viajero</label>
+                            <select value={formRubro.data.viajero_comision_id}
+                                onChange={(e) => formRubro.setData('viajero_comision_id', e.target.value)}
+                                className="w-full rounded-lg border border-slate-300 text-sm px-3 py-2">
+                                <option value="">— Seleccionar —</option>
+                                {viajerosReaj.map((v) => (
+                                    <option key={v.id} value={v.id}>{v.empleado ? `${v.empleado.nombres} ${v.empleado.apellidos}` : (v.nombre_externo || 'Viajero')}</option>
+                                ))}
+                            </select>
+                            {formRubro.errors.viajero_comision_id && <p className="text-red-500 text-xs mt-1">{formRubro.errors.viajero_comision_id}</p>}
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-medium text-slate-600 mb-1">Rubro</label>
+                                <select value={formRubro.data.rubro} onChange={(e) => formRubro.setData('rubro', e.target.value)}
+                                    className="w-full rounded-lg border border-slate-300 text-sm px-3 py-2">
+                                    <option value="gasolina">Gasolina (camioneta)</option>
+                                    <option value="transporte">Transporte</option>
+                                </select>
+                                {formRubro.errors.rubro && <p className="text-red-500 text-xs mt-1">{formRubro.errors.rubro}</p>}
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-slate-600 mb-1">Cantidad</label>
+                                <input type="number" min={1} value={formRubro.data.cantidad}
+                                    onChange={(e) => formRubro.setData('cantidad', parseInt(e.target.value) || 1)}
+                                    className="w-full rounded-lg border border-slate-300 text-sm px-3 py-2" />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-slate-600 mb-1">Motivo</label>
+                            <textarea rows={2} value={formRubro.data.motivo} onChange={(e) => formRubro.setData('motivo', e.target.value)}
+                                className="w-full rounded-lg border border-slate-300 text-sm px-3 py-2" placeholder="Describe el motivo del reajuste…" />
+                            {formRubro.errors.motivo && <p className="text-red-500 text-xs mt-1">{formRubro.errors.motivo}</p>}
+                        </div>
+                        <div className="flex justify-end gap-3">
+                            <button type="button" onClick={() => setReajustando(false)} className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50">Cancelar</button>
+                            <button type="submit" disabled={formRubro.processing} className="px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg disabled:opacity-50">
+                                {formRubro.processing ? 'Enviando…' : 'Solicitar reajuste'}
                             </button>
                         </div>
                     </form>
