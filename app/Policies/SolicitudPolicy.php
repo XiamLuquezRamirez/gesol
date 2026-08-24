@@ -207,4 +207,16 @@ class SolicitudPolicy
     {
         return $ajuste->solicitud_id === $solicitud->id && $this->verDetalle($usuario, $solicitud);
     }
+
+    /**
+     * Imprimir o enviar por correo el anexo (delta) de un ajuste ya aprobado.
+     * Solo para comisiones de viaticos y para quien pueda ver el detalle.
+     */
+    public function imprimirAnexo(Usuario $usuario, Solicitud $solicitud, AjusteComision $ajuste): bool
+    {
+        return $solicitud->tipoSolicitud->clave === 'VIA'
+            && $ajuste->solicitud_id === $solicitud->id
+            && $ajuste->estado === 'aprobado'
+            && $this->verDetalle($usuario, $solicitud);
+    }
 }

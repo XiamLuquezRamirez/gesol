@@ -189,7 +189,7 @@ class SolicitudController extends Controller
         $permisosAjuste = ['liquidar' => false, 'aprobar' => false];
         if ($solicitud->tipoSolicitud->clave === 'VIA') {
             $ajustes = \App\Models\AjusteComision::where('solicitud_id', $solicitud->id)
-                ->with(['viajero.empleado', 'solicitante:id,name', 'asignaciones'])
+                ->with(['viajero.empleado', 'viajero.archivos.usuario', 'solicitante:id,name', 'asignaciones'])
                 ->orderByDesc('created_at')
                 ->get();
             // Flags de rol para mostrar/ocultar botones; el servidor sigue aplicando la

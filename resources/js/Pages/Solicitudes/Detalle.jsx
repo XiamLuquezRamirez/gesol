@@ -179,8 +179,17 @@ function DetalleViaticos({ solicitable, solicitudId, cerrada, puedeGestionarComp
     const [comprobantesDeId, setComprobantesDeId] = useState(null);
     const comprobantesDe = viajeros.find((v) => v.id === comprobantesDeId) ?? null;
 
+    // Comprobantes desde la tabla de ajustes: los recibos pertenecen al viajero del
+    // ajuste. Guardamos el id del ajuste y resolvemos el viajero desde la lista fresca.
+    const [comprobantesAjusteId, setComprobantesAjusteId] = useState(null);
+    const comprobantesAjuste = listaAjustes.find((a) => a.id === comprobantesAjusteId) ?? null;
+
     const enviarCorreo = (viajeroId) => {
         router.post(route('liquidacion.correo', [solicitudId, viajeroId]), {}, { preserveScroll: true });
+    };
+
+    const enviarCorreoAnexo = (ajusteId) => {
+        router.post(route('viaticos.ajuste.correo', [solicitudId, ajusteId]), {}, { preserveScroll: true });
     };
 
 
@@ -349,6 +358,41 @@ function DetalleViaticos({ solicitable, solicitudId, cerrada, puedeGestionarComp
                                             <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">{formatearFechaHoraCompleta(a.created_at)}</td>
                                             <td className="px-3 py-2.5 whitespace-nowrap">
                                                 <div className="flex items-center gap-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setComprobantesAjusteId(a.id)}
+                                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg text-slate-600 border border-slate-300 hover:bg-slate-50 transition-colors hover:text-slate-700"
+                                                        title="Comprobantes de transferencia"
+                                                    >
+                                                        <PaperClipIcon className="w-4 h-4" /> Comprobantes
+                                                        {(a.viajero?.archivos ?? []).filter((x) => x.tipo === 'comprobante').length > 0 && (
+                                                            <span className="ml-0.5 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-semibold">
+                                                                {(a.viajero?.archivos ?? []).filter((x) => x.tipo === 'comprobante').length}
+                                                            </span>
+                                                        )}
+                                                    </button>
+                                                    {a.estado === 'aprobado' && (
+                                                        <>
+                                                            <a
+                                                                href={route('viaticos.ajuste.pdf', [solicitudId, a.id])}
+                                                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg text-slate-600 border border-slate-300 hover:bg-slate-50 transition-colors hover:text-slate-700"
+                                                                title="Imprimir / descargar PDF del anexo"
+                                                            >
+                                                                <PrinterIcon className="w-4 h-4" /> Imprimir
+                                                            </a>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => enviarCorreoAnexo(a.id)}
+                                                                disabled={!a.viajero?.empleado?.email}
+                                                                title={a.viajero?.empleado?.email
+                                                                    ? `Enviar a ${a.viajero.empleado.email}`
+                                                                    : 'El empleado no tiene correo registrado'}
+                                                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-blue-600 font-medium rounded-lg border border-blue-300 hover:bg-blue-50 transition-colors hover:text-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                                                            >
+                                                                <EnvelopeIcon className="w-4 h-4" /> Correo
+                                                            </button>
+                                                        </>
+                                                    )}
                                                     {puedeLiquidar && (
                                                         <a href={route('viaticos.ajuste.liquidar', [solicitudId, a.id])}
                                                             className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg text-white bg-teal-600 hover:bg-teal-700" title="Liquidar ajuste">
@@ -372,9 +416,6 @@ function DetalleViaticos({ solicitable, solicitudId, cerrada, puedeGestionarComp
                                                             className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg text-slate-600 border border-slate-300 hover:bg-slate-50" title="Ver liquidación del anexo">
                                                             <EyeIcon className="w-4 h-4" /> Ver liquidación del anexo
                                                         </a>
-                                                    )}
-                                                    {!puedeLiquidar && !puedeAprobar && a.estado !== 'aprobado' && (
-                                                        <span className="text-slate-400 text-xs">—</span>
                                                     )}
                                                 </div>
                                             </td>
@@ -453,6 +494,14 @@ function DetalleViaticos({ solicitable, solicitudId, cerrada, puedeGestionarComp
                 solicitudId={solicitudId}
                 puedeGestionar={puedeGestionarComprobante}
                 onClose={() => setComprobantesDeId(null)}
+            />
+
+            {/* Comprobantes del viajero desde la tabla de ajustes (mismo modal). */}
+            <ModalComprobantes
+                viajero={comprobantesAjuste?.viajero ?? null}
+                solicitudId={solicitudId}
+                puedeGestionar={puedeGestionarComprobante}
+                onClose={() => setComprobantesAjusteId(null)}
             />
 
             {/* Modal: devolver ajuste (líder de contabilidad) */}
