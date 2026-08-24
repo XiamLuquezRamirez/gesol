@@ -124,7 +124,8 @@ const ETIQUETAS_PAGO = { efectivo: 'Efectivo', transferencia: 'Transferencia' };
 function DetalleViaticos({ solicitable, solicitudId, cerrada, puedeGestionarComprobante = false, transiciones = [] }) {
     if (!solicitable) return null;
     const viajeros = solicitable.viajeros ?? [];
-    const ajustes = (transiciones ?? []).filter((t) => t.accion === 'ajustar');
+    const listaTransiciones = Array.isArray(transiciones) ? transiciones : (transiciones?.data ?? []);
+    const ajustes = listaTransiciones.filter((t) => t.accion === 'ajustar');
     const viajeroDe = (id) => viajeros.find((v) => v.id === id) ?? null;
     const describeCambio = (m) => {
         if (!m) return '—';
@@ -886,7 +887,7 @@ export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidaci
                             solicitudId={solicitud.id}
                             cerrada={solicitud.estado === 'cerrada'}
                             puedeGestionarComprobante={puedeGestionarComprobante}
-                            transiciones={solicitud.transiciones ?? []}
+                            transiciones={transiciones}
                         />
                     )}
                 </SeccionCard>
