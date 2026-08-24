@@ -69,7 +69,7 @@ Para poder mostrar "qué cambió" en la tabla de ajustes, la transición `ajusta
 
 ### Rubro transporte
 - `app/Enums/Rubro.php`: añadir `case Transporte = 'transporte';`.
-- `TarifaViaticosSeeder`: añadir `['rubro' => 'transporte', 'valor_sugerido' => 40000]` (valor a confirmar; placeholder razonable).
+- `TarifaViaticosSeeder`: añadir `['rubro' => 'transporte', 'valor_sugerido' => 0]` (el contador fija siempre el valor).
 - Migración: ALTER del enum `asignaciones_viaticos.rubro` para incluir `'transporte'`. Driver-aware:
   - MySQL/MariaDB: `DB::statement("ALTER TABLE asignaciones_viaticos MODIFY rubro ENUM('desayuno','almuerzo','cena','merienda','gasolina','transporte')")`.
   - SQLite (tests): la columna enum se crea como texto/check; para :memory: recrear no es trivial, pero SQLite no impone el CHECK del enum de la misma forma — verificar en implementación. Alternativa: la migración original de asignaciones en SQLite no aplica el CHECK estricto, así que insertar 'transporte' podría funcionar sin ALTER. El implementador confirma con un test.
