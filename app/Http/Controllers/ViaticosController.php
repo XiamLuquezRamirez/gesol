@@ -427,17 +427,20 @@ class ViaticosController extends Controller
      */
     public function liquidacionAjuste(Solicitud $solicitud, AjusteComision $ajuste)
     {
-        $this->authorize('liquidarAjuste', [$solicitud, $ajuste]);
+        // Ver la pantalla es de lectura para cualquiera que pueda ver el detalle
+        // (p. ej. consultar un ajuste ya aprobado). Guardar exige 'liquidarAjuste'.
+        $this->authorize('verAjuste', [$solicitud, $ajuste]);
         $ajuste->load('asignaciones', 'viajero.empleado');
 
         $delta = $this->deltaPropuesto($solicitud, $ajuste);
 
         return Inertia::render('Viaticos/LiquidacionAjuste', [
-            'solicitud' => $solicitud->only('id', 'radicado', 'estado'),
-            'ajuste'    => $ajuste,
-            'delta'     => $delta,          // [{rubro, dias, valor_unitario, subtotal}]
-            'tarifas'   => TarifaViatico::all()->keyBy('rubro'),
-            'rubros'    => TarifaViatico::orderBy('id')->pluck('rubro')->toArray(),
+            'solicitud'     => $solicitud->only('id', 'radicado', 'estado'),
+            'ajuste'        => $ajuste,
+            'delta'         => $delta,          // [{rubro, dias, valor_unitario, subtotal}]
+            'tarifas'       => TarifaViatico::all()->keyBy('rubro'),
+            'rubros'        => TarifaViatico::orderBy('id')->pluck('rubro')->toArray(),
+            'puedeLiquidar' => auth()->user()->can('liquidarAjuste', [$solicitud, $ajuste]),
         ]);
     }
 

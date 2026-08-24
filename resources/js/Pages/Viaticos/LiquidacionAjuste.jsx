@@ -23,7 +23,7 @@ const nombreViajero = (ajuste) => {
  * guardar, el ajuste queda liquidado y pasa al lider de contabilidad para aprobar.
  * No altera la liquidacion original: la comision sigue cerrada.
  */
-export default function LiquidacionAjuste({ solicitud, ajuste, delta = [], tarifas = {}, rubros = [] }) {
+export default function LiquidacionAjuste({ solicitud, ajuste, delta = [], tarifas = {}, rubros = [], puedeLiquidar = true }) {
     const { data, setData, put, processing } = useForm({
         asignaciones: (delta ?? []).map((fila) => ({
             rubro: fila.rubro,
@@ -118,21 +118,27 @@ export default function LiquidacionAjuste({ solicitud, ajuste, delta = [], tarif
                                                         <input
                                                             type="number"
                                                             value={fila.dias}
+                                                            readOnly={!puedeLiquidar}
                                                             onChange={(e) =>
                                                                 actualizar(i, 'dias', parseInt(e.target.value, 10) || 0)
                                                             }
                                                             className={[
                                                                 'w-full rounded-lg border border-slate-300 text-sm py-2 px-3 focus:ring-2 focus:ring-indigo-500 outline-none',
+                                                                !puedeLiquidar ? 'bg-slate-50 text-slate-500' : '',
                                                                 fila.dias < 0 ? 'text-red-600 font-semibold' : '',
                                                             ].join(' ')}
                                                         />
                                                     </td>
                                                     <td className="px-5 py-2.5">
-                                                        <CampoMoneda
-                                                            value={fila.valor_unitario}
-                                                            onChange={(v) => actualizar(i, 'valor_unitario', v)}
-                                                            error={null}
-                                                        />
+                                                        {puedeLiquidar ? (
+                                                            <CampoMoneda
+                                                                value={fila.valor_unitario}
+                                                                onChange={(v) => actualizar(i, 'valor_unitario', v)}
+                                                                error={null}
+                                                            />
+                                                        ) : (
+                                                            <span className="text-slate-700">{formatearMoneda(fila.valor_unitario)}</span>
+                                                        )}
                                                     </td>
                                                     <td className={[
                                                         'px-5 py-2.5 text-right font-medium',
@@ -141,14 +147,16 @@ export default function LiquidacionAjuste({ solicitud, ajuste, delta = [], tarif
                                                         {formatearMoneda(sub)}
                                                     </td>
                                                     <td className="px-3 py-2.5">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => quitarRubro(i)}
-                                                            className="p-1 rounded text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
-                                                            title="Quitar rubro"
-                                                        >
-                                                            <XMarkIcon className="w-4 h-4" />
-                                                        </button>
+                                                        {puedeLiquidar && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => quitarRubro(i)}
+                                                                className="p-1 rounded text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                                                                title="Quitar rubro"
+                                                            >
+                                                                <XMarkIcon className="w-4 h-4" />
+                                                            </button>
+                                                        )}
                                                     </td>
                                                 </tr>
                                             );
@@ -175,15 +183,17 @@ export default function LiquidacionAjuste({ solicitud, ajuste, delta = [], tarif
                                 href={route('solicitudes.show', solicitud.id)}
                                 className="px-5 py-2 text-sm text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50"
                             >
-                                Cancelar
+                                {puedeLiquidar ? 'Cancelar' : 'Volver'}
                             </Link>
-                            <button
-                                type="submit"
-                                disabled={processing}
-                                className="px-5 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                            >
-                                {processing ? 'Guardando…' : 'Guardar liquidación del ajuste'}
-                            </button>
+                            {puedeLiquidar && (
+                                <button
+                                    type="submit"
+                                    disabled={processing}
+                                    className="px-5 py-2 text-sm text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                                >
+                                    {processing ? 'Guardando…' : 'Guardar liquidación del ajuste'}
+                                </button>
+                            )}
                         </div>
                     </form>
                 </div>
