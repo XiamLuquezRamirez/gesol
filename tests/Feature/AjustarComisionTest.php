@@ -178,4 +178,17 @@ class AjustarComisionTest extends TestCase
             ->assertRedirect();
         $this->assertEquals('revisada', $s->fresh()->estado);
     }
+
+    public function test_ajuste_guarda_metadatos_de_fechas(): void
+    {
+        $this->seed();
+        [$s, $v, $lider] = $this->comisionConViajero('liquidada');
+        $this->ajustar($s, $v, $lider)->assertRedirect();
+
+        $t = \App\Models\TransicionSolicitud::where('solicitud_id', $s->id)->where('accion', 'ajustar')->latest('id')->first();
+        $this->assertNotNull($t);
+        $this->assertEquals('fechas', $t->metadatos['tipo'] ?? null);
+        $this->assertEquals($v->id, $t->metadatos['viajeros'][0]['viajero_comision_id'] ?? null);
+        $this->assertEquals('2026-08-24', $t->metadatos['viajeros'][0]['despues']['fecha_regreso'] ?? null);
+    }
 }
