@@ -149,4 +149,114 @@ class AjusteComisionFlujoTest extends TestCase
         $solicitud->refresh();
         $this->assertSame('cerrada', $solicitud->estado);
     }
+
+    public function test_lider_contabilidad_aprueba_ajuste(): void
+    {
+        Notification::fake();
+        $this->seed();
+        [$solicitud, $viajero, $lider] = $this->comisionCerrada();
+        $lcontab = Usuario::factory()->create();
+        $lcontab->assignRole('contabilidad_lider');
+
+        $ajuste = AjusteComision::create([
+            'solicitud_id'        => $solicitud->id,
+            'viajero_comision_id' => $viajero->id,
+            'solicitado_por'      => $lider->id,
+            'tipo'                => 'rubro',
+            'motivo'              => 'x',
+            'estado'              => 'liquidado',
+            'rubro'               => 'gasolina',
+            'cantidad'            => 1,
+            'total_delta'         => 50000,
+        ]);
+
+        $this->actingAs($lcontab)
+            ->post(route('viaticos.ajuste.aprobar', [$solicitud, $ajuste]))
+            ->assertRedirect();
+
+        $ajuste->refresh();
+        $this->assertSame('aprobado', $ajuste->estado);
+        $this->assertNotNull($ajuste->aprobado_por);
+        $this->assertNotNull($ajuste->aprobado_en);
+    }
+
+    public function test_lider_contabilidad_devuelve_ajuste_para_recalcular(): void
+    {
+        Notification::fake();
+        $this->seed();
+        [$solicitud, $viajero, $lider] = $this->comisionCerrada();
+        $contador = Usuario::factory()->create();
+        $contador->assignRole('contador');
+        $lcontab = Usuario::factory()->create();
+        $lcontab->assignRole('contabilidad_lider');
+
+        $ajuste = AjusteComision::create([
+            'solicitud_id'        => $solicitud->id,
+            'viajero_comision_id' => $viajero->id,
+            'solicitado_por'      => $lider->id,
+            'tipo'                => 'rubro',
+            'motivo'              => 'x',
+            'estado'              => 'liquidado',
+            'rubro'               => 'gasolina',
+            'cantidad'            => 1,
+        ]);
+
+        $this->actingAs($lcontab)
+            ->post(route('viaticos.ajuste.devolver', [$solicitud, $ajuste]), [
+                'motivo_devolucion' => 'Revisar el valor',
+            ])
+            ->assertRedirect();
+
+        $ajuste->refresh();
+        $this->assertSame('devuelto', $ajuste->estado);
+        $this->assertSame('Revisar el valor', $ajuste->motivo_devolucion);
+
+        Notification::assertSentTo($contador, AvisoTransicionNotification::class);
+    }
+
+    public function test_contador_no_puede_aprobar(): void
+    {
+        $this->seed();
+        [$solicitud, $viajero, $lider] = $this->comisionCerrada();
+        $contador = Usuario::factory()->create();
+        $contador->assignRole('contador');
+
+        $ajuste = AjusteComision::create([
+            'solicitud_id'        => $solicitud->id,
+            'viajero_comision_id' => $viajero->id,
+            'solicitado_por'      => $lider->id,
+            'tipo'                => 'rubro',
+            'motivo'              => 'x',
+            'estado'              => 'liquidado',
+            'rubro'               => 'gasolina',
+            'cantidad'            => 1,
+        ]);
+
+        $this->actingAs($contador)
+            ->post(route('viaticos.ajuste.aprobar', [$solicitud, $ajuste]))
+            ->assertForbidden();
+    }
+
+    public function test_no_aprueba_ajuste_no_liquidado(): void
+    {
+        $this->seed();
+        [$solicitud, $viajero, $lider] = $this->comisionCerrada();
+        $lcontab = Usuario::factory()->create();
+        $lcontab->assignRole('contabilidad_lider');
+
+        $ajuste = AjusteComision::create([
+            'solicitud_id'        => $solicitud->id,
+            'viajero_comision_id' => $viajero->id,
+            'solicitado_por'      => $lider->id,
+            'tipo'                => 'rubro',
+            'motivo'              => 'x',
+            'estado'              => 'pendiente_liquidacion',
+            'rubro'               => 'gasolina',
+            'cantidad'            => 1,
+        ]);
+
+        $this->actingAs($lcontab)
+            ->post(route('viaticos.ajuste.aprobar', [$solicitud, $ajuste]))
+            ->assertForbidden();
+    }
 }

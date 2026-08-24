@@ -45,6 +45,8 @@ Route::middleware(['auth','verified'])->group(function () {
     Route::post('/viaticos/{solicitud}/reajustar-rubro', [ViaticosController::class, 'reajustarRubro'])->name('viaticos.reajustar-rubro');
     Route::get('/viaticos/{solicitud}/ajustes/{ajuste}/liquidar',     [ViaticosController::class, 'liquidacionAjuste'])->name('viaticos.ajuste.liquidar');
     Route::put('/viaticos/{solicitud}/ajustes/{ajuste}/asignaciones', [ViaticosController::class, 'updateAjuste'])->name('viaticos.ajuste.asignaciones');
+    Route::post('/viaticos/{solicitud}/ajustes/{ajuste}/aprobar',  [ViaticosController::class, 'aprobarAjuste'])->name('viaticos.ajuste.aprobar');
+    Route::post('/viaticos/{solicitud}/ajustes/{ajuste}/devolver', [ViaticosController::class, 'devolverAjuste'])->name('viaticos.ajuste.devolver');
     Route::post('/viaticos/{solicitud}/viajeros/{viajero}/archivos',            [ArchivoViajeroController::class, 'store'])->name('viaticos.archivos.store');
     Route::get('/viaticos/{solicitud}/viajeros/{viajero}/archivos/{archivo}',   [ArchivoViajeroController::class, 'descargar'])->name('viaticos.archivos.descargar');
     Route::delete('/viaticos/{solicitud}/viajeros/{viajero}/archivos/{archivo}', [ArchivoViajeroController::class, 'destroy'])->name('viaticos.archivos.destroy');

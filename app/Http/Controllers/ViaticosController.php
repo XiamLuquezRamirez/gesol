@@ -1,7 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
-use App\Http\Requests\{GuardarSolicitudViaticosRequest, ActualizarAsignacionesRequest, AjustarComisionRequest, ReajustarRubroRequest, LiquidarAjusteRequest};
+use App\Http\Requests\{GuardarSolicitudViaticosRequest, ActualizarAsignacionesRequest, AjustarComisionRequest, ReajustarRubroRequest, LiquidarAjusteRequest, DevolverAjusteRequest};
 use App\Models\{AjusteComision, AsignacionViatico, Municipio, Solicitud, SolicitudViaticos, TarifaViatico, TipoSolicitud, TransicionSolicitud, Usuario, ViajeroComision, Empleados};
 use App\Notifications\AvisoTransicionNotification;
 use App\Services\CalculadoraRubrosViaticos;
@@ -532,6 +532,41 @@ class ViaticosController extends Controller
         foreach (Usuario::role('contabilidad_lider')->get() as $u) {
             $u->notify(new AvisoTransicionNotification($ajuste->solicitud, 'accion_requerida', 'aprobar', $ajuste->motivo, $actor));
         }
+    }
+
+    /**
+     * El lider de contabilidad aprueba un ajuste ya liquidado: lo marca como aprobado,
+     * sella aprobado_por/en y avisa (informativo) al solicitante y a los contadores.
+     * No toca la comision cerrada.
+     */
+    public function aprobarAjuste(Solicitud $solicitud, AjusteComision $ajuste)
+    {
+        $this->authorize('aprobarAjuste', [$solicitud, $ajuste]);
+        $ajuste->update(['estado' => 'aprobado', 'aprobado_por' => auth()->id(), 'aprobado_en' => now()]);
+
+        $actor = auth()->user()->name;
+        $ajuste->solicitante->notify(new AvisoTransicionNotification($solicitud, 'ajustada', 'aprobar', $ajuste->motivo, $actor));
+        foreach (Usuario::role('contador')->get() as $u) {
+            $u->notify(new AvisoTransicionNotification($solicitud, 'ajustada', 'aprobar', $ajuste->motivo, $actor));
+        }
+        return back()->with('success', 'Ajuste aprobado.');
+    }
+
+    /**
+     * El lider de contabilidad devuelve un ajuste liquidado para que el contador lo
+     * recalcule: lo marca como devuelto con el motivo y avisa a los contadores (accion
+     * requerida). No toca la comision cerrada.
+     */
+    public function devolverAjuste(DevolverAjusteRequest $request, Solicitud $solicitud, AjusteComision $ajuste)
+    {
+        $this->authorize('devolverAjuste', [$solicitud, $ajuste]);
+        $ajuste->update(['estado' => 'devuelto', 'motivo_devolucion' => $request->motivo_devolucion]);
+
+        $actor = auth()->user()->name;
+        foreach (Usuario::role('contador')->get() as $u) {
+            $u->notify(new AvisoTransicionNotification($solicitud, 'accion_requerida', 'ajustar', $request->motivo_devolucion, $actor));
+        }
+        return back()->with('success', 'Ajuste devuelto al contador para recalcular.');
     }
 
     /**
