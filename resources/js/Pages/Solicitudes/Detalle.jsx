@@ -121,24 +121,59 @@ const etiquetaRubro = (r) =>
 
 const ETIQUETAS_PAGO = { efectivo: 'Efectivo', transferencia: 'Transferencia' };
 
-function DetalleViaticos({ solicitable, solicitudId, cerrada, puedeGestionarComprobante = false, transiciones = [] }) {
+const BADGE_AJUSTE = {
+    pendiente_liquidacion: { txt: 'Pendiente de liquidación', cls: 'bg-amber-100 text-amber-800' },
+    liquidado:             { txt: 'Liquidado',                 cls: 'bg-blue-100 text-blue-800' },
+    aprobado:              { txt: 'Aprobado',                  cls: 'bg-green-100 text-green-800' },
+    devuelto:              { txt: 'Devuelto',                  cls: 'bg-red-100 text-red-800' },
+};
+
+// Nombre a mostrar de un viajero de un AjusteComision (empleado o externo).
+const nombreViajeroAjuste = (v) => {
+    if (!v) return '—';
+    if (v.empleado) return `${v.empleado.nombres} ${v.empleado.apellidos}`;
+    return v.nombre_externo || '—';
+};
+
+function DetalleViaticos({ solicitable, solicitudId, cerrada, puedeGestionarComprobante = false, transiciones = [], ajustes = [], permisos = {} }) {
     if (!solicitable) return null;
     const viajeros = solicitable.viajeros ?? [];
-    const listaTransiciones = Array.isArray(transiciones) ? transiciones : (transiciones?.data ?? []);
-    const ajustes = listaTransiciones.filter((t) => t.accion === 'ajustar');
-    const viajeroDe = (id) => viajeros.find((v) => v.id === id) ?? null;
-    const describeCambio = (m) => {
-        if (!m) return '—';
-        if (m.tipo === 'rubro') {
-            return `${etiquetaRubro(m.rubro)} × ${m.cantidad} (solicitado)`;
-        }
-        const n = (m.viajeros ?? []).length;
-        if (n === 0) return 'Ajuste de fechas';
-        const v0 = m.viajeros[0];
-        const resumen = `${v0.antes?.fecha_regreso ?? '?'} → ${v0.despues?.fecha_regreso ?? '?'}`;
-        return n === 1 ? `Fechas: ${resumen}` : `Fechas (${n} viajeros)`;
-    };
+    // La tabla de "Ajustes" usa ahora los registros AjusteComision (prop `ajustes`).
+    // Las transiciones se mantienen intactas para la línea de tiempo del historial.
+    const listaAjustes = Array.isArray(ajustes) ? ajustes : [];
     const [rubrosDe, setRubrosDe] = useState(null); // viajero seleccionado para ver sus rubros
+    // Ajuste seleccionado para el modal de "Devolver".
+    const [devolviendo, setDevolviendo] = useState(null);
+    const [motivoDevolucion, setMotivoDevolucion] = useState('');
+
+    const aprobarAjuste = (ajusteId) => {
+        router.post(route('viaticos.ajuste.aprobar', [solicitudId, ajusteId]), {}, { preserveScroll: true });
+    };
+    const confirmarDevolucion = () => {
+        if (!devolviendo) return;
+        router.post(route('viaticos.ajuste.devolver', [solicitudId, devolviendo.id]),
+            { motivo_devolucion: motivoDevolucion },
+            {
+                preserveScroll: true,
+                onSuccess: () => { setDevolviendo(null); setMotivoDevolucion(''); },
+            },
+        );
+    };
+    const describeCambioAjuste = (a) => {
+        if (!a) return '—';
+        if (a.tipo === 'rubro') {
+            return `${etiquetaRubro(a.rubro)} × ${a.cantidad}`;
+        }
+        const antes = a.fechas_antes ?? {};
+        const despues = a.fechas_despues ?? {};
+        return (
+            <span className="whitespace-nowrap">
+                {formatFechaHora(antes.fecha_regreso, antes.hora_regreso)}
+                {' → '}
+                {formatFechaHora(despues.fecha_regreso, despues.hora_regreso)}
+            </span>
+        );
+    };
     // Guardamos solo el id: el viajero se resuelve desde la lista actual para que,
     // al subir un comprobante (Inertia recarga props), el modal muestre los datos frescos.
     const [comprobantesDeId, setComprobantesDeId] = useState(null);
@@ -265,73 +300,86 @@ function DetalleViaticos({ solicitable, solicitudId, cerrada, puedeGestionarComp
                 </>
             )}
 
-            {ajustes.length > 0 && (
+            {listaAjustes.length > 0 && (
                 <div className="border-t border-slate-100 pt-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-3">
-                        Ajustes ({ajustes.length})
+                        Ajustes ({listaAjustes.length})
                     </p>
                     <div className="overflow-x-auto rounded-lg border border-amber-100">
                         <table className="w-full text-sm">
                             <thead className="bg-amber-50 border-b border-amber-100">
                                 <tr className="text-left text-xs text-amber-700">
-                                    <th className="px-3 py-2 font-medium">Ajuste</th>
                                     <th className="px-3 py-2 font-medium">Viajero</th>
                                     <th className="px-3 py-2 font-medium">Cambio</th>
                                     <th className="px-3 py-2 font-medium">Motivo</th>
+                                    <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Total delta</th>
+                                    <th className="px-3 py-2 font-medium">Estado</th>
                                     <th className="px-3 py-2 font-medium whitespace-nowrap">Fecha</th>
-                                    <th className="px-3 py-2 font-medium">Por</th>
                                     <th className="px-3 py-2 font-medium text-left whitespace-nowrap">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50">
-                                {ajustes.flatMap((t) => {
-                                    const m = t.metadatos ?? {};
-                                    const filas = m.tipo === 'rubro'
-                                        ? [{ viajero_comision_id: m.viajero_comision_id, nombre: m.nombre }]
-                                        : (m.viajeros ?? [{ nombre: '—' }]);
-                                    return filas.map((f, i) => {
-                                        const v = viajeroDe(f.viajero_comision_id);
-                                        return (
-                                            <tr key={`${t.id}-${i}`} className="hover:bg-amber-50/40">
-                                                {i === 0 && (
-                                                    <td rowSpan={filas.length} className="px-3 py-2.5 align-top">
-                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-medium">Ajuste</span>
-                                                    </td>
+                                {listaAjustes.map((a) => {
+                                    const badge = BADGE_AJUSTE[a.estado] ?? { txt: a.estado, cls: 'bg-slate-100 text-slate-700' };
+                                    const delta = Number(a.total_delta ?? 0);
+                                    const puedeLiquidar = permisos.liquidar && ['pendiente_liquidacion', 'devuelto'].includes(a.estado);
+                                    const puedeAprobar = permisos.aprobar && a.estado === 'liquidado';
+                                    return (
+                                        <tr key={a.id} className="hover:bg-amber-50/40">
+                                            <td className="px-3 py-2.5 font-medium text-slate-800 whitespace-nowrap">
+                                                {nombreViajeroAjuste(a.viajero)}
+                                            </td>
+                                            <td className="px-3 py-2.5 text-slate-600">{describeCambioAjuste(a)}</td>
+                                            <td className="px-3 py-2.5 text-slate-600 max-w-xs">
+                                                <p className="truncate" title={a.motivo}>{a.motivo || '—'}</p>
+                                                {a.estado === 'devuelto' && a.motivo_devolucion && (
+                                                    <p className="mt-1 text-xs text-red-600 truncate" title={a.motivo_devolucion}>
+                                                        Devuelto: {a.motivo_devolucion}
+                                                    </p>
                                                 )}
-                                                <td className="px-3 py-2.5 font-medium text-slate-800 whitespace-nowrap">{f.nombre ?? '—'}</td>
-                                                <td className="px-3 py-2.5 text-slate-600">{i === 0 ? describeCambio(m) : ''}</td>
-                                                <td className="px-3 py-2.5 text-slate-600 max-w-xs">{i === 0 ? <p className="truncate" title={t.comentario}>{t.comentario || '—'}</p> : ''}</td>
-                                                <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">{i === 0 ? formatearFechaHoraCompleta(t.created_at) : ''}</td>
-                                                <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">{i === 0 ? (t.usuario?.name ?? '—') : ''}</td>
-                                                <td className="px-3 py-2.5 whitespace-nowrap">
-                                                    {v ? (
-                                                        <div className="flex items-center gap-1">
-                                                            <button type="button" onClick={() => setRubrosDe(v)}
-                                                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-lg text-blue-600 border border-blue-300 hover:bg-blue-50" title="Ver rubros">
-                                                                <EyeIcon className="w-4 h-4" /> Rubros
+                                            </td>
+                                            <td className={`px-3 py-2.5 text-right whitespace-nowrap font-medium ${delta < 0 ? 'text-red-600' : 'text-slate-800'}`}>
+                                                {delta.toLocaleString('es-CO')}
+                                            </td>
+                                            <td className="px-3 py-2.5 whitespace-nowrap">
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${badge.cls}`}>
+                                                    {badge.txt}
+                                                </span>
+                                            </td>
+                                            <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">{formatearFechaHoraCompleta(a.created_at)}</td>
+                                            <td className="px-3 py-2.5 whitespace-nowrap">
+                                                <div className="flex items-center gap-1">
+                                                    {puedeLiquidar && (
+                                                        <a href={route('viaticos.ajuste.liquidar', [solicitudId, a.id])}
+                                                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg text-white bg-teal-600 hover:bg-teal-700" title="Liquidar ajuste">
+                                                            <CheckIcon className="w-4 h-4" /> Liquidar ajuste
+                                                        </a>
+                                                    )}
+                                                    {puedeAprobar && (
+                                                        <>
+                                                            <button type="button" onClick={() => aprobarAjuste(a.id)}
+                                                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg text-white bg-green-600 hover:bg-green-700" title="Aprobar ajuste">
+                                                                <CheckCircleIcon className="w-4 h-4" /> Aprobar
                                                             </button>
-                                                            <button type="button" onClick={() => setComprobantesDeId(v.id)}
-                                                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-lg text-slate-600 border border-slate-300 hover:bg-slate-50" title="Comprobantes">
-                                                                <PaperClipIcon className="w-4 h-4" />
+                                                            <button type="button" onClick={() => { setDevolviendo(a); setMotivoDevolucion(''); }}
+                                                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg text-white bg-orange-600 hover:bg-orange-700" title="Devolver ajuste">
+                                                                <ArrowUturnLeftIcon className="w-4 h-4" /> Devolver
                                                             </button>
-                                                            {cerrada && (
-                                                                <>
-                                                                    <a href={route('liquidacion.pdf', [solicitudId, v.id])}
-                                                                        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-lg text-slate-600 border border-slate-300 hover:bg-slate-50" title="PDF">
-                                                                        <PrinterIcon className="w-4 h-4" />
-                                                                    </a>
-                                                                    <button type="button" onClick={() => enviarCorreo(v.id)} disabled={!v.empleado?.email}
-                                                                        className="inline-flex items-center gap-1 px-2 py-1 text-xs text-blue-600 rounded-lg border border-blue-300 hover:bg-blue-50 disabled:opacity-40" title="Correo">
-                                                                        <EnvelopeIcon className="w-4 h-4" />
-                                                                    </button>
-                                                                </>
-                                                            )}
-                                                        </div>
-                                                    ) : <span className="text-slate-400 text-xs">—</span>}
-                                                </td>
-                                            </tr>
-                                        );
-                                    });
+                                                        </>
+                                                    )}
+                                                    {a.estado === 'aprobado' && (
+                                                        <a href={route('viaticos.ajuste.liquidar', [solicitudId, a.id])}
+                                                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg text-slate-600 border border-slate-300 hover:bg-slate-50" title="Ver liquidación del anexo">
+                                                            <EyeIcon className="w-4 h-4" /> Ver liquidación del anexo
+                                                        </a>
+                                                    )}
+                                                    {!puedeLiquidar && !puedeAprobar && a.estado !== 'aprobado' && (
+                                                        <span className="text-slate-400 text-xs">—</span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
                                 })}
                             </tbody>
                         </table>
@@ -406,6 +454,37 @@ function DetalleViaticos({ solicitable, solicitudId, cerrada, puedeGestionarComp
                 puedeGestionar={puedeGestionarComprobante}
                 onClose={() => setComprobantesDeId(null)}
             />
+
+            {/* Modal: devolver ajuste (líder de contabilidad) */}
+            <Modal show={devolviendo !== null} onClose={() => setDevolviendo(null)} maxWidth="md">
+                <div className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                        <div>
+                            <h3 className="text-base font-semibold text-slate-800">Devolver ajuste</h3>
+                            <p className="text-sm text-slate-500 mt-0.5">Indica el motivo para que el contador lo recalcule.</p>
+                        </div>
+                        <button type="button" onClick={() => setDevolviendo(null)}
+                            className="text-slate-400 hover:text-slate-600 text-xl leading-none" aria-label="Cerrar">×</button>
+                    </div>
+                    <textarea
+                        value={motivoDevolucion}
+                        onChange={(e) => setMotivoDevolucion(e.target.value)}
+                        rows={3}
+                        placeholder="Motivo de la devolución…"
+                        className="w-full rounded-lg border border-slate-300 text-sm px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                    />
+                    <div className="flex justify-end gap-3 mt-5">
+                        <button type="button" onClick={() => setDevolviendo(null)}
+                            className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50">
+                            Cancelar
+                        </button>
+                        <button type="button" onClick={confirmarDevolucion} disabled={!motivoDevolucion.trim()}
+                            className="px-4 py-2 text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 rounded-lg disabled:opacity-50">
+                            Devolver ajuste
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }
@@ -730,7 +809,7 @@ function SeccionPagos({ solicitud }) {
     );
 }
 
-export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidacion, puedeGestionarComprobante = false, puedeCancelar = false, puedeReactivar = false, puedeAjustar = false, requiereReliquidacion = false }) {
+export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidacion, puedeGestionarComprobante = false, puedeCancelar = false, puedeReactivar = false, puedeAjustar = false, requiereReliquidacion = false, ajustes = [], permisosAjuste = {} }) {
     const [accionActiva, setAccionActiva] = useState(null);
     const [ajustando, setAjustando] = useState(false);
     const [cancelando, setCancelando] = useState(false);
@@ -888,6 +967,8 @@ export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidaci
                             cerrada={solicitud.estado === 'cerrada'}
                             puedeGestionarComprobante={puedeGestionarComprobante}
                             transiciones={transiciones}
+                            ajustes={ajustes ?? []}
+                            permisos={permisosAjuste ?? {}}
                         />
                     )}
                 </SeccionCard>
