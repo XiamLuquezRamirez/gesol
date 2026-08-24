@@ -154,13 +154,14 @@ class SolicitudPolicy
 
     /**
      * El solicitante lider ajusta las fechas/horas de salida/regreso de cada viajero
-     * de su comision de viaticos en cualquier momento, salvo cerrada o cancelada.
+     * de su comision de viaticos en cualquier estado salvo cancelada. Si la comision
+     * ya esta cerrada, el ajuste queda como anexo (no reabre ni exige reliquidacion).
      */
     public function ajustar(Usuario $usuario, Solicitud $solicitud): bool
     {
         return $solicitud->tipoSolicitud->clave === 'VIA'
             && $usuario->id === $solicitud->solicitante_id
-            && ! in_array($solicitud->estado, ['cerrada', 'cancelada']);
+            && $solicitud->estado !== 'cancelada';
     }
 
     /**

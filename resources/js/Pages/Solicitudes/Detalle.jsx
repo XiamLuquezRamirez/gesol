@@ -121,9 +121,22 @@ const etiquetaRubro = (r) =>
 
 const ETIQUETAS_PAGO = { efectivo: 'Efectivo', transferencia: 'Transferencia' };
 
-function DetalleViaticos({ solicitable, solicitudId, cerrada, puedeGestionarComprobante = false }) {
+function DetalleViaticos({ solicitable, solicitudId, cerrada, puedeGestionarComprobante = false, transiciones = [] }) {
     if (!solicitable) return null;
     const viajeros = solicitable.viajeros ?? [];
+    const ajustes = (transiciones ?? []).filter((t) => t.accion === 'ajustar');
+    const viajeroDe = (id) => viajeros.find((v) => v.id === id) ?? null;
+    const describeCambio = (m) => {
+        if (!m) return '—';
+        if (m.tipo === 'rubro') {
+            return `${etiquetaRubro(m.rubro)} × ${m.cantidad} (solicitado)`;
+        }
+        const n = (m.viajeros ?? []).length;
+        if (n === 0) return 'Ajuste de fechas';
+        const v0 = m.viajeros[0];
+        const resumen = `${v0.antes?.fecha_regreso ?? '?'} → ${v0.despues?.fecha_regreso ?? '?'}`;
+        return n === 1 ? `Fechas: ${resumen}` : `Fechas (${n} viajeros)`;
+    };
     const [rubrosDe, setRubrosDe] = useState(null); // viajero seleccionado para ver sus rubros
     // Guardamos solo el id: el viajero se resuelve desde la lista actual para que,
     // al subir un comprobante (Inertia recarga props), el modal muestre los datos frescos.
@@ -249,6 +262,80 @@ function DetalleViaticos({ solicitable, solicitudId, cerrada, puedeGestionarComp
                         </div>
                     </div>
                 </>
+            )}
+
+            {ajustes.length > 0 && (
+                <div className="border-t border-slate-100 pt-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-3">
+                        Ajustes ({ajustes.length})
+                    </p>
+                    <div className="overflow-x-auto rounded-lg border border-amber-100">
+                        <table className="w-full text-sm">
+                            <thead className="bg-amber-50 border-b border-amber-100">
+                                <tr className="text-left text-xs text-amber-700">
+                                    <th className="px-3 py-2 font-medium">Ajuste</th>
+                                    <th className="px-3 py-2 font-medium">Viajero</th>
+                                    <th className="px-3 py-2 font-medium">Cambio</th>
+                                    <th className="px-3 py-2 font-medium">Motivo</th>
+                                    <th className="px-3 py-2 font-medium whitespace-nowrap">Fecha</th>
+                                    <th className="px-3 py-2 font-medium">Por</th>
+                                    <th className="px-3 py-2 font-medium text-left whitespace-nowrap">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                                {ajustes.flatMap((t) => {
+                                    const m = t.metadatos ?? {};
+                                    const filas = m.tipo === 'rubro'
+                                        ? [{ viajero_comision_id: m.viajero_comision_id, nombre: m.nombre }]
+                                        : (m.viajeros ?? [{ nombre: '—' }]);
+                                    return filas.map((f, i) => {
+                                        const v = viajeroDe(f.viajero_comision_id);
+                                        return (
+                                            <tr key={`${t.id}-${i}`} className="hover:bg-amber-50/40">
+                                                {i === 0 && (
+                                                    <td rowSpan={filas.length} className="px-3 py-2.5 align-top">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-medium">Ajuste</span>
+                                                    </td>
+                                                )}
+                                                <td className="px-3 py-2.5 font-medium text-slate-800 whitespace-nowrap">{f.nombre ?? '—'}</td>
+                                                <td className="px-3 py-2.5 text-slate-600">{i === 0 ? describeCambio(m) : ''}</td>
+                                                <td className="px-3 py-2.5 text-slate-600 max-w-xs">{i === 0 ? <p className="truncate" title={t.comentario}>{t.comentario || '—'}</p> : ''}</td>
+                                                <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">{i === 0 ? formatearFechaHoraCompleta(t.created_at) : ''}</td>
+                                                <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">{i === 0 ? (t.usuario?.name ?? '—') : ''}</td>
+                                                <td className="px-3 py-2.5 whitespace-nowrap">
+                                                    {v ? (
+                                                        <div className="flex items-center gap-1">
+                                                            <button type="button" onClick={() => setRubrosDe(v)}
+                                                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-lg text-blue-600 border border-blue-300 hover:bg-blue-50" title="Ver rubros">
+                                                                <EyeIcon className="w-4 h-4" /> Rubros
+                                                            </button>
+                                                            <button type="button" onClick={() => setComprobantesDeId(v.id)}
+                                                                className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-lg text-slate-600 border border-slate-300 hover:bg-slate-50" title="Comprobantes">
+                                                                <PaperClipIcon className="w-4 h-4" />
+                                                            </button>
+                                                            {cerrada && (
+                                                                <>
+                                                                    <a href={route('liquidacion.pdf', [solicitudId, v.id])}
+                                                                        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-lg text-slate-600 border border-slate-300 hover:bg-slate-50" title="PDF">
+                                                                        <PrinterIcon className="w-4 h-4" />
+                                                                    </a>
+                                                                    <button type="button" onClick={() => enviarCorreo(v.id)} disabled={!v.empleado?.email}
+                                                                        className="inline-flex items-center gap-1 px-2 py-1 text-xs text-blue-600 rounded-lg border border-blue-300 hover:bg-blue-50 disabled:opacity-40" title="Correo">
+                                                                        <EnvelopeIcon className="w-4 h-4" />
+                                                                    </button>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    ) : <span className="text-slate-400 text-xs">—</span>}
+                                                </td>
+                                            </tr>
+                                        );
+                                    });
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             )}
 
             {/* Modal: rubros asignados al viajero */}
@@ -672,6 +759,13 @@ export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidaci
         preserveScroll: true, onSuccess: () => setAjustando(false),
     });
 
+    const [reajustando, setReajustando] = useState(false);
+    const viajerosReaj = solicitud.solicitable?.viajeros ?? [];
+    const formRubro = useForm({ viajero_comision_id: '', rubro: 'gasolina', cantidad: 1, motivo: '' });
+    const guardarReajusteRubro = () => formRubro.post(route('viaticos.reajustar-rubro', solicitud.id), {
+        preserveScroll: true, onSuccess: () => { setReajustando(false); formRubro.reset(); },
+    });
+
     const esOficina  = solicitud.tipo?.clave === 'OFI';
     const esViaticos = solicitud.tipo?.clave === 'VIA';
 
@@ -771,6 +865,12 @@ export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidaci
                                 <PencilSquareIcon className="w-4 h-4" /> Ajustar comisión
                             </button>
                         )}
+                        {puedeAjustar && esViaticos && (
+                            <button type="button" onClick={() => setReajustando(true)}
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg">
+                                Reajustar transporte/gasolina
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -786,6 +886,7 @@ export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidaci
                             solicitudId={solicitud.id}
                             cerrada={solicitud.estado === 'cerrada'}
                             puedeGestionarComprobante={puedeGestionarComprobante}
+                            transiciones={solicitud.transiciones ?? []}
                         />
                     )}
                 </SeccionCard>
@@ -911,6 +1012,61 @@ export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidaci
                             <button type="submit" disabled={formAjuste.processing}
                                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg disabled:opacity-50">
                                 {formAjuste.processing ? 'Guardando…' : 'Guardar ajuste'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </Modal>
+
+            <Modal show={reajustando} onClose={() => setReajustando(false)} maxWidth="md">
+                <div className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                        <div>
+                            <h3 className="text-base font-semibold text-slate-800">Reajustar rubro de transporte</h3>
+                            <p className="text-sm text-slate-500 mt-0.5">Solicita gasolina (camioneta) o transporte para un viajero. El contador aplicará el valor.</p>
+                        </div>
+                        <button type="button" onClick={() => setReajustando(false)} className="text-slate-400 hover:text-slate-600 text-xl leading-none">×</button>
+                    </div>
+                    <form onSubmit={(e) => { e.preventDefault(); guardarReajusteRubro(); }} className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-medium text-slate-600 mb-1">Viajero</label>
+                            <select value={formRubro.data.viajero_comision_id}
+                                onChange={(e) => formRubro.setData('viajero_comision_id', e.target.value)}
+                                className="w-full rounded-lg border border-slate-300 text-sm px-3 py-2">
+                                <option value="">— Seleccionar —</option>
+                                {viajerosReaj.map((v) => (
+                                    <option key={v.id} value={v.id}>{v.empleado ? `${v.empleado.nombres} ${v.empleado.apellidos}` : (v.nombre_externo || 'Viajero')}</option>
+                                ))}
+                            </select>
+                            {formRubro.errors.viajero_comision_id && <p className="text-red-500 text-xs mt-1">{formRubro.errors.viajero_comision_id}</p>}
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-medium text-slate-600 mb-1">Rubro</label>
+                                <select value={formRubro.data.rubro} onChange={(e) => formRubro.setData('rubro', e.target.value)}
+                                    className="w-full rounded-lg border border-slate-300 text-sm px-3 py-2">
+                                    <option value="gasolina">Gasolina (camioneta)</option>
+                                    <option value="transporte">Transporte</option>
+                                </select>
+                                {formRubro.errors.rubro && <p className="text-red-500 text-xs mt-1">{formRubro.errors.rubro}</p>}
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-slate-600 mb-1">Cantidad</label>
+                                <input type="number" min={1} value={formRubro.data.cantidad}
+                                    onChange={(e) => formRubro.setData('cantidad', parseInt(e.target.value) || 1)}
+                                    className="w-full rounded-lg border border-slate-300 text-sm px-3 py-2" />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-slate-600 mb-1">Motivo</label>
+                            <textarea rows={2} value={formRubro.data.motivo} onChange={(e) => formRubro.setData('motivo', e.target.value)}
+                                className="w-full rounded-lg border border-slate-300 text-sm px-3 py-2" placeholder="Describe el motivo del reajuste…" />
+                            {formRubro.errors.motivo && <p className="text-red-500 text-xs mt-1">{formRubro.errors.motivo}</p>}
+                        </div>
+                        <div className="flex justify-end gap-3">
+                            <button type="button" onClick={() => setReajustando(false)} className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50">Cancelar</button>
+                            <button type="submit" disabled={formRubro.processing} className="px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg disabled:opacity-50">
+                                {formRubro.processing ? 'Enviando…' : 'Solicitar reajuste'}
                             </button>
                         </div>
                     </form>

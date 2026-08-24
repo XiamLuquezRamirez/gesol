@@ -1,7 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
-use App\Http\Requests\{GuardarSolicitudViaticosRequest, ActualizarAsignacionesRequest, AjustarComisionRequest};
+use App\Http\Requests\{GuardarSolicitudViaticosRequest, ActualizarAsignacionesRequest, AjustarComisionRequest, ReajustarRubroRequest};
 use App\Models\{AsignacionViatico, Municipio, Solicitud, SolicitudViaticos, TarifaViatico, TipoSolicitud, TransicionSolicitud, Usuario, ViajeroComision, Empleados};
 use App\Notifications\AvisoTransicionNotification;
 use App\Services\MotorWorkflow;
@@ -241,10 +241,25 @@ class ViaticosController extends Controller
         $yaLiquidada = in_array($origen, ['liquidada', 'revisada', 'en_gerencia']);
         $destino  = $yaLiquidada ? 'liquidada' : $origen;
 
-        DB::transaction(function () use ($request, $solicitud, $cabecera, $origen, $destino, $yaLiquidada) {
+        $detalle = [];
+        DB::transaction(function () use ($request, $solicitud, $cabecera, $origen, $destino, $yaLiquidada, &$detalle) {
             foreach ($request->viajeros as $datos) {
                 $viajero = $cabecera->viajeros()->where('id', $datos['viajero_comision_id'])->first();
-                if (! $viajero) continue; // ignora ids ajenos a la comision
+                if (! $viajero) continue;
+                $detalle[] = [
+                    'viajero_comision_id' => $viajero->id,
+                    'nombre' => $viajero->nombreMostrado,
+                    'antes' => [
+                        'fecha_salida'  => optional($viajero->fecha_salida)->toDateString() ?? $viajero->fecha_salida,
+                        'hora_salida'   => $viajero->hora_salida,
+                        'fecha_regreso' => optional($viajero->fecha_regreso)->toDateString() ?? $viajero->fecha_regreso,
+                        'hora_regreso'  => $viajero->hora_regreso,
+                    ],
+                    'despues' => [
+                        'fecha_salida'  => $datos['fecha_salida'],  'hora_salida'  => $datos['hora_salida'],
+                        'fecha_regreso' => $datos['fecha_regreso'], 'hora_regreso' => $datos['hora_regreso'],
+                    ],
+                ];
                 $viajero->update([
                     'fecha_salida'  => $datos['fecha_salida'],  'hora_salida'  => $datos['hora_salida'],
                     'fecha_regreso' => $datos['fecha_regreso'], 'hora_regreso' => $datos['hora_regreso'],
@@ -254,14 +269,13 @@ class ViaticosController extends Controller
                 $solicitud->update(['estado' => $destino]);
             }
             if ($yaLiquidada) {
-                // El contador debe recalcular la liquidacion con las nuevas fechas antes
-                // de poder enviar a revision; el front recalcula los dias al abrirla.
                 $cabecera->updateQuietly(['requiere_reliquidacion' => true]);
             }
             TransicionSolicitud::create([
                 'solicitud_id' => $solicitud->id, 'estado_origen' => $origen,
                 'estado_destino' => $destino, 'accion' => 'ajustar',
                 'usuario_id' => auth()->id(), 'comentario' => $request->motivo,
+                'metadatos' => ['tipo' => 'fechas', 'viajeros' => $detalle],
             ]);
         });
 
@@ -270,6 +284,50 @@ class ViaticosController extends Controller
             ? 'Comisión ajustada. Regresó al contador para recalcular; se notificó a contabilidad y RR. HH.'
             : 'Comisión ajustada. Se notificó a contabilidad y RR. HH.';
         return back()->with('success', $mensaje);
+    }
+
+    /**
+     * El solicitante lider solicita un REAJUSTE de rubro (gasolina o transporte) por
+     * viajero: indica viajero + rubro + cantidad + motivo. No edita montos; el contador
+     * aplicara el valor al liquidar. Se registra como transicion 'ajustar' con
+     * metadatos={tipo:'rubro', viajero_comision_id, nombre, rubro, cantidad}. Si la
+     * comision ya paso por el contador (liquidada/revisada/en_gerencia) regresa a
+     * 'liquidada' y enciende requiere_reliquidacion; si esta cerrada queda como anexo
+     * (sin flag, sin cambio de estado); si esta enviada no cambia estado.
+     */
+    public function reajustarRubro(ReajustarRubroRequest $request, Solicitud $solicitud)
+    {
+        $this->authorize('ajustar', $solicitud);
+        $cabecera = $solicitud->solicitable;
+        $viajero = $cabecera->viajeros()->where('id', $request->viajero_comision_id)->firstOrFail();
+
+        $origen = $solicitud->estado;
+        $yaLiquidada = in_array($origen, ['liquidada', 'revisada', 'en_gerencia']);
+        $destino = $yaLiquidada ? 'liquidada' : $origen;
+
+        DB::transaction(function () use ($request, $solicitud, $cabecera, $viajero, $origen, $destino, $yaLiquidada) {
+            if ($destino !== $origen) {
+                $solicitud->update(['estado' => $destino]);
+            }
+            if ($yaLiquidada) {
+                $cabecera->updateQuietly(['requiere_reliquidacion' => true]);
+            }
+            TransicionSolicitud::create([
+                'solicitud_id' => $solicitud->id, 'estado_origen' => $origen,
+                'estado_destino' => $destino, 'accion' => 'ajustar',
+                'usuario_id' => auth()->id(), 'comentario' => $request->motivo,
+                'metadatos' => [
+                    'tipo' => 'rubro',
+                    'viajero_comision_id' => $viajero->id,
+                    'nombre' => $viajero->nombreMostrado,
+                    'rubro' => $request->rubro,
+                    'cantidad' => (int) $request->cantidad,
+                ],
+            ]);
+        });
+
+        $this->avisarAjuste($solicitud->fresh(), $request->motivo, $yaLiquidada);
+        return back()->with('success', 'Reajuste de rubro registrado. El contador lo aplicará en la liquidación.');
     }
 
     /**
