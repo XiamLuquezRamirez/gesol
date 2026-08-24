@@ -79,6 +79,49 @@ class AjusteComisionFlujoTest extends TestCase
         Notification::assertSentTo($contador, AvisoTransicionNotification::class);
     }
 
+    public function test_ajuste_fechas_multiviajero_crea_uno_por_viajero_cambiado(): void
+    {
+        Notification::fake();
+        $this->seed();
+        [$solicitud, $viajero, $lider] = $this->comisionCerrada();
+        // Segundo viajero en la misma comision.
+        $viajero2 = ViajeroComision::create([
+            'solicitud_viaticos_id' => $solicitud->solicitable_id,
+            'empleado_id'           => Empleados::first()->id,
+            'motivo'                => 'm2',
+            'fecha_salida'          => '2026-01-10', 'hora_salida'  => '08:00',
+            'fecha_regreso'         => '2026-01-10', 'hora_regreso' => '15:00',
+        ]);
+        $contador = Usuario::factory()->create();
+        $contador->assignRole('contador');
+
+        // El modal envia TODOS los viajeros; solo el segundo cambia de fecha.
+        $this->actingAs($lider)->put(route('viaticos.ajustar', $solicitud), [
+            'motivo'   => 'Solo el segundo se extendio',
+            'viajeros' => [
+                [   // sin cambios
+                    'viajero_comision_id' => $viajero->id,
+                    'fecha_salida'  => '2026-01-10', 'hora_salida'  => '08:00',
+                    'fecha_regreso' => '2026-01-10', 'hora_regreso' => '15:00',
+                ],
+                [   // cambia el regreso
+                    'viajero_comision_id' => $viajero2->id,
+                    'fecha_salida'  => '2026-01-10', 'hora_salida'  => '08:00',
+                    'fecha_regreso' => '2026-01-11', 'hora_regreso' => '19:00',
+                ],
+            ],
+        ])->assertRedirect();
+
+        // Se crea exactamente un ajuste, para el viajero que cambio.
+        $this->assertSame(1, AjusteComision::where('solicitud_id', $solicitud->id)->count());
+        $this->assertDatabaseHas('ajustes_comision', [
+            'solicitud_id' => $solicitud->id, 'viajero_comision_id' => $viajero2->id, 'tipo' => 'fechas',
+        ]);
+        $this->assertDatabaseMissing('ajustes_comision', [
+            'viajero_comision_id' => $viajero->id,
+        ]);
+    }
+
     public function test_lider_solicita_ajuste_rubro_cerrada_crea_pendiente(): void
     {
         Notification::fake();

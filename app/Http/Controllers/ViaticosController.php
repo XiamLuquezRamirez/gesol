@@ -344,43 +344,59 @@ class ViaticosController extends Controller
     }
 
     /**
-     * Crea un ajuste-anexo de fechas sobre una comision cerrada. No modifica las fechas
-     * reales del viajero (preserva la comision cerrada): solo guarda el snapshot ANTES
-     * (fechas actuales) y DESPUES (request) para que el contador liquide el delta.
+     * Crea ajustes-anexo de fechas sobre una comision cerrada. No modifica las fechas
+     * reales de los viajeros (preserva la comision cerrada): por cada viajero cuyas
+     * fechas/horas cambien, guarda un AjusteComision con el snapshot ANTES (fechas
+     * actuales) y DESPUES (request) para que el contador liquide el delta. Los viajeros
+     * sin cambios se omiten (el modal envia todos los de la comision).
      */
     private function crearAjusteAnexoFechas(AjustarComisionRequest $request, Solicitud $solicitud)
     {
         $cabecera = $solicitud->solicitable;
 
-        // AjustarComisionRequest valida 'viajeros' como array; para el anexo se ajusta
-        // un viajero a la vez. Tomar el primero (el frontend post-cierre envia uno).
-        $datos = $request->viajeros[0];
-        $viajero = $cabecera->viajeros()->where('id', $datos['viajero_comision_id'])->firstOrFail();
+        $creados = [];
+        DB::transaction(function () use ($request, $solicitud, $cabecera, &$creados) {
+            foreach ($request->viajeros as $datos) {
+                $viajero = $cabecera->viajeros()->where('id', $datos['viajero_comision_id'])->first();
+                if (! $viajero) continue;
 
-        $ajuste = null;
-        DB::transaction(function () use ($request, $solicitud, $viajero, $datos, &$ajuste) {
-            $ajuste = AjusteComision::create([
-                'solicitud_id'        => $solicitud->id,
-                'viajero_comision_id' => $viajero->id,
-                'solicitado_por'      => auth()->id(),
-                'tipo'                => 'fechas',
-                'motivo'              => $request->motivo,
-                'estado'              => 'pendiente_liquidacion',
-                'fechas_antes' => [
+                $antes = [
                     'fecha_salida'  => optional($viajero->fecha_salida)->toDateString() ?? $viajero->fecha_salida,
                     'hora_salida'   => $viajero->hora_salida,
                     'fecha_regreso' => optional($viajero->fecha_regreso)->toDateString() ?? $viajero->fecha_regreso,
                     'hora_regreso'  => $viajero->hora_regreso,
-                ],
-                'fechas_despues' => [
+                ];
+                $despues = [
                     'fecha_salida'  => $datos['fecha_salida'],  'hora_salida'  => $datos['hora_salida'],
                     'fecha_regreso' => $datos['fecha_regreso'], 'hora_regreso' => $datos['hora_regreso'],
-                ],
-            ]);
+                ];
+
+                // Omitir viajeros sin cambio real (el modal envia toda la comision).
+                if ($antes == $despues) continue;
+
+                $creados[] = AjusteComision::create([
+                    'solicitud_id'        => $solicitud->id,
+                    'viajero_comision_id' => $viajero->id,
+                    'solicitado_por'      => auth()->id(),
+                    'tipo'                => 'fechas',
+                    'motivo'              => $request->motivo,
+                    'estado'              => 'pendiente_liquidacion',
+                    'fechas_antes'        => $antes,
+                    'fechas_despues'      => $despues,
+                ]);
+            }
         });
 
-        $this->avisarAjustePendiente($ajuste->fresh(), 'accion_requerida');
-        return back()->with('success', 'Ajuste solicitado. Queda pendiente de liquidacion por el contador.');
+        if (empty($creados)) {
+            return back()->with('info', 'No hubo cambios de fecha para ajustar.');
+        }
+
+        // Basta con un aviso al contador (accion requerida) para la comision.
+        $this->avisarAjustePendiente($creados[0]->fresh(), 'accion_requerida');
+        $mensaje = count($creados) === 1
+            ? 'Ajuste solicitado. Queda pendiente de liquidacion por el contador.'
+            : count($creados).' ajustes solicitados. Quedan pendientes de liquidacion por el contador.';
+        return back()->with('success', $mensaje);
     }
 
     /**
