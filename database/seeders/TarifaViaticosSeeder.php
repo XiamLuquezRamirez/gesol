@@ -15,6 +15,7 @@ class TarifaViaticosSeeder extends Seeder
             ['rubro' => 'cena', 'valor_sugerido' => 20000],
             ['rubro' => 'merienda', 'valor_sugerido' => 10000],
             ['rubro' => 'gasolina', 'valor_sugerido' => 50000],
+            ['rubro' => 'transporte', 'valor_sugerido' => 0],
         ];
 
         foreach ($tarifas as $t) {

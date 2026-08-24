@@ -7,4 +7,5 @@ enum Rubro: string {
     case Cena     = 'cena';
     case Merienda = 'merienda';
     case Gasolina = 'gasolina';
+    case Transporte = 'transporte';
 }
