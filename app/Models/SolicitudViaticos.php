@@ -22,6 +22,7 @@ class SolicitudViaticos extends Model
     {
         $total = $this->viajeros()
             ->join('asignaciones_viaticos','viajeros_comision.id','=','asignaciones_viaticos.viajero_comision_id')
+            ->whereNull('asignaciones_viaticos.ajuste_comision_id') // excluir anexos
             ->sum('asignaciones_viaticos.subtotal');
         $this->updateQuietly(['total' => $total]);
         $this->solicitud()->update(['total' => $total]);

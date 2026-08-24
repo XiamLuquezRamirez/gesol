@@ -31,6 +31,7 @@ class ViajeroComision extends Model
     public function contrato()          { return $this->belongsTo(Contrato::class, 'contrato_id'); }
     public function solicitudViaticos() { return $this->belongsTo(SolicitudViaticos::class, 'solicitud_viaticos_id'); }
     public function asignaciones()      { return $this->hasMany(AsignacionViatico::class, 'viajero_comision_id'); }
+    public function ajustes()           { return $this->hasMany(AjusteComision::class, 'viajero_comision_id'); }
 
     public function archivos()
     {
