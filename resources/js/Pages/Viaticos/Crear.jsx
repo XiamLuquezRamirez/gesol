@@ -383,8 +383,9 @@ export default function Crear({ empleados, contratos = [], solicitud = null, edi
                            <XCircleIcon className="w-4 h-4" /> Cancelar
                         </a>
                         <button type="submit" disabled={processing}
-                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors">
-                           <CheckCircleIcon className="w-4 h-4" /> {editar ? 'Guardar cambios' : 'Crear solicitud'}
+                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+                           <CheckCircleIcon className="w-4 h-4" />
+                           {processing ? 'Guardando…' : (editar ? 'Guardar cambios' : 'Crear solicitud')}
                         </button>
                     </div>
 
