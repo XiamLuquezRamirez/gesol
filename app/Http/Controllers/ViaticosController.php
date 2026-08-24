@@ -1,9 +1,10 @@
 <?php
 namespace App\Http\Controllers;
 
-use App\Http\Requests\{GuardarSolicitudViaticosRequest, ActualizarAsignacionesRequest, AjustarComisionRequest, ReajustarRubroRequest};
+use App\Http\Requests\{GuardarSolicitudViaticosRequest, ActualizarAsignacionesRequest, AjustarComisionRequest, ReajustarRubroRequest, LiquidarAjusteRequest};
 use App\Models\{AjusteComision, AsignacionViatico, Municipio, Solicitud, SolicitudViaticos, TarifaViatico, TipoSolicitud, TransicionSolicitud, Usuario, ViajeroComision, Empleados};
 use App\Notifications\AvisoTransicionNotification;
+use App\Services\CalculadoraRubrosViaticos;
 use App\Services\MotorWorkflow;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -416,6 +417,120 @@ class ViaticosController extends Controller
         }
         foreach (Usuario::role('rrhh')->get() as $u) {
             $u->notify(new AvisoTransicionNotification($solicitud, 'ajustada', 'ajustar', $ajuste->motivo, $actor));
+        }
+    }
+
+    /**
+     * Pantalla de liquidacion de un ajuste-anexo. Propone el delta de rubros (calculado
+     * por fechas o por rubro/cantidad) con el valor unitario tomado de la liquidacion
+     * original del viajero, para que el contador lo edite/confirme.
+     */
+    public function liquidacionAjuste(Solicitud $solicitud, AjusteComision $ajuste)
+    {
+        $this->authorize('liquidarAjuste', [$solicitud, $ajuste]);
+        $ajuste->load('asignaciones', 'viajero.empleado');
+
+        $delta = $this->deltaPropuesto($solicitud, $ajuste);
+
+        return Inertia::render('Viaticos/LiquidacionAjuste', [
+            'solicitud' => $solicitud->only('id', 'radicado', 'estado'),
+            'ajuste'    => $ajuste,
+            'delta'     => $delta,          // [{rubro, dias, valor_unitario, subtotal}]
+            'tarifas'   => TarifaViatico::all()->keyBy('rubro'),
+            'rubros'    => TarifaViatico::orderBy('id')->pluck('rubro')->toArray(),
+        ]);
+    }
+
+    /**
+     * Construye el delta de rubros propuesto para el ajuste:
+     * - tipo 'fechas': usa CalculadoraRubrosViaticos::calcularDelta(antes, despues).
+     * - tipo 'rubro': un solo rubro con dias = cantidad.
+     * Cada fila trae valor_unitario = el de la liquidacion original del viajero para ese
+     * rubro; si el rubro no existia en la original, cae a la tarifa vigente.
+     * Si el ajuste ya fue liquidado antes (devuelto y re-liquidando), precarga sus asignaciones.
+     */
+    private function deltaPropuesto(Solicitud $solicitud, AjusteComision $ajuste): array
+    {
+        // Si ya tiene asignaciones (re-liquidacion tras devolucion), devolver esas.
+        if ($ajuste->asignaciones->isNotEmpty()) {
+            return $ajuste->asignaciones->map(fn ($a) => [
+                'rubro' => $a->rubro->value ?? $a->rubro,
+                'dias' => $a->dias, 'valor_unitario' => (float) $a->valor_unitario,
+                'subtotal' => (float) $a->subtotal,
+            ])->values()->all();
+        }
+
+        $viajero = $ajuste->viajero;
+        // Valor unitario original por rubro (asignaciones sin ajuste)
+        $originales = AsignacionViatico::where('viajero_comision_id', $viajero->id)
+            ->whereNull('ajuste_comision_id')->get()
+            ->mapWithKeys(fn ($a) => [($a->rubro->value ?? $a->rubro) => (float) $a->valor_unitario]);
+        $tarifas = TarifaViatico::all()->keyBy('rubro');
+
+        $valorDe = fn (string $rubro) => $originales[$rubro]
+            ?? (float) ($tarifas[$rubro]->valor_sugerido ?? 0);
+
+        if ($ajuste->tipo === 'rubro') {
+            $rubro = $ajuste->rubro;
+            $dias = (int) $ajuste->cantidad;
+            $vu = $valorDe($rubro);
+            return [[
+                'rubro' => $rubro, 'dias' => $dias, 'valor_unitario' => $vu,
+                'subtotal' => $vu * $dias,
+            ]];
+        }
+
+        // tipo 'fechas'
+        $calc = app(CalculadoraRubrosViaticos::class);
+        $delta = $calc->calcularDelta($ajuste->fechas_antes, $ajuste->fechas_despues);
+        $filas = [];
+        foreach ($delta as $rubro => $dias) {
+            $vu = $valorDe($rubro);
+            $filas[] = ['rubro' => $rubro, 'dias' => $dias, 'valor_unitario' => $vu, 'subtotal' => $vu * $dias];
+        }
+        return $filas;
+    }
+
+    /**
+     * Persiste las asignaciones anexas del ajuste (delta liquidado por el contador),
+     * recalcula el total_delta, marca el ajuste como liquidado y avisa al lider de
+     * contabilidad. No toca la comision cerrada (los anexos llevan ajuste_comision_id).
+     */
+    public function updateAjuste(LiquidarAjusteRequest $request, Solicitud $solicitud, AjusteComision $ajuste)
+    {
+        $this->authorize('liquidarAjuste', [$solicitud, $ajuste]);
+
+        DB::transaction(function () use ($request, $ajuste) {
+            $ajuste->asignaciones()->delete(); // recrear
+            foreach ($request->asignaciones as $data) {
+                AsignacionViatico::create([
+                    'viajero_comision_id' => $ajuste->viajero_comision_id,
+                    'ajuste_comision_id'  => $ajuste->id,
+                    'rubro'               => $data['rubro'],
+                    'valor_unitario'      => $data['valor_unitario'],
+                    'dias'                => $data['dias'],
+                    'subtotal'            => $data['valor_unitario'] * $data['dias'],
+                ]);
+            }
+            $ajuste->recalcularTotalDelta();
+            $ajuste->update([
+                'estado' => 'liquidado',
+                'liquidado_por' => auth()->id(),
+                'liquidado_en' => now(),
+            ]);
+        });
+
+        $this->avisarAjusteLiquidado($ajuste->fresh());
+        return redirect()->route('solicitudes.show', $solicitud)
+            ->with('success', 'Ajuste liquidado. Queda pendiente de aprobacion del lider de contabilidad.');
+    }
+
+    /** Notifica al lider de contabilidad que un ajuste quedo liquidado (accion requerida). */
+    private function avisarAjusteLiquidado(AjusteComision $ajuste): void
+    {
+        $actor = auth()->user()->name;
+        foreach (Usuario::role('contabilidad_lider')->get() as $u) {
+            $u->notify(new AvisoTransicionNotification($ajuste->solicitud, 'accion_requerida', 'aprobar', $ajuste->motivo, $actor));
         }
     }
 

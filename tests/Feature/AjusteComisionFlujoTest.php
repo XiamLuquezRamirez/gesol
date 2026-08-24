@@ -5,6 +5,7 @@ use App\Models\{AjusteComision, Empleados, Solicitud, SolicitudViaticos, TipoSol
 use App\Notifications\AvisoTransicionNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 class AjusteComisionFlujoTest extends TestCase
@@ -100,5 +101,52 @@ class AjusteComisionFlujoTest extends TestCase
         $this->assertSame('pendiente_liquidacion', $ajuste->estado);
         $this->assertSame('gasolina', $ajuste->rubro);
         $this->assertSame(1, $ajuste->cantidad);
+    }
+
+    public function test_contador_liquida_ajuste_calcula_delta_y_pasa_a_liquidado(): void
+    {
+        Notification::fake();
+        $this->seed();
+        [$solicitud, $viajero, $lider] = $this->comisionCerrada();
+        $contador = Usuario::factory()->create();
+        $contador->assignRole('contador');
+        $lcontab = Usuario::factory()->create();
+        $lcontab->assignRole('contabilidad_lider');
+
+        // Ajuste de fechas: 1 dia (10@08:00-15:00) -> 2 dias (10@08:00 al 11@19:00)
+        $ajuste = AjusteComision::create([
+            'solicitud_id'        => $solicitud->id,
+            'viajero_comision_id' => $viajero->id,
+            'solicitado_por'      => $lider->id,
+            'tipo'                => 'fechas',
+            'motivo'              => 'x',
+            'estado'              => 'pendiente_liquidacion',
+            'fechas_antes'   => ['fecha_salida' => '2026-01-10', 'hora_salida' => '08:00', 'fecha_regreso' => '2026-01-10', 'hora_regreso' => '15:00'],
+            'fechas_despues' => ['fecha_salida' => '2026-01-10', 'hora_salida' => '08:00', 'fecha_regreso' => '2026-01-11', 'hora_regreso' => '19:00'],
+        ]);
+
+        // GET pantalla: debe traer el delta propuesto
+        $this->actingAs($contador)
+            ->get(route('viaticos.ajuste.liquidar', [$solicitud, $ajuste]))
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $p) => $p->component('Viaticos/LiquidacionAjuste')->has('delta'));
+
+        // PUT: persistir asignaciones del anexo
+        $this->actingAs($contador)->put(route('viaticos.ajuste.asignaciones', [$solicitud, $ajuste]), [
+            'asignaciones' => [
+                ['rubro' => 'gasolina', 'valor_unitario' => 50000, 'dias' => 1],
+                ['rubro' => 'cena', 'valor_unitario' => 20000, 'dias' => 1],
+            ],
+        ])->assertRedirect();
+
+        $ajuste->refresh();
+        $this->assertSame('liquidado', $ajuste->estado);
+        $this->assertEquals(70000, $ajuste->total_delta);
+        $this->assertNotNull($ajuste->liquidado_por);
+        Notification::assertSentTo($lcontab, AvisoTransicionNotification::class);
+
+        // La comision cerrada no cambia estado
+        $solicitud->refresh();
+        $this->assertSame('cerrada', $solicitud->estado);
     }
 }
