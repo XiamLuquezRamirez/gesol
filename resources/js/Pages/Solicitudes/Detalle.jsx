@@ -9,7 +9,7 @@ import { formatearMoneda, formatearFecha, formatFechaHora, formatearFechaHoraCom
 import { useState, useRef } from 'react';
 import { usePage, router, useForm } from '@inertiajs/react';
 import { Head } from '@inertiajs/react';
-import { ArrowLeftIcon, ArrowRightIcon, ArrowUturnLeftIcon, CheckCircleIcon, CheckIcon, XCircleIcon, CreditCardIcon, PencilSquareIcon, PrinterIcon, EnvelopeIcon, EyeIcon, PaperClipIcon, ArrowPathIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, ArrowRightIcon, ArrowUturnLeftIcon, ArrowPathIcon, CheckCircleIcon, CheckIcon, XCircleIcon, CreditCardIcon, PencilSquareIcon, PrinterIcon, EnvelopeIcon, EyeIcon, PaperClipIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 function SeccionCard({ titulo, children }) {
     return (
@@ -997,7 +997,7 @@ export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidaci
                         {puedeAjustar && esViaticos && (
                             <button type="button" onClick={() => setReajustando(true)}
                                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg">
-                                Reajustar transporte/gasolina
+                                <ArrowPathIcon className="w-4 h-4" /> Reajustar transporte/gasolina
                             </button>
                         )}
                     </div>

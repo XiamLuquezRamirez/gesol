@@ -39,7 +39,7 @@ class LiquidacionPdf
             'es_efectivo'      => $viajero->tipo_pago === 'efectivo',
             'es_transferencia' => $viajero->tipo_pago === 'transferencia',
             'realizado_por'    => 'DEPARTAMENTO DE CONTABILIDAD',
-            'aprobado_por'     => strtoupper($aprobacion?->usuario?->name ?? '—'),
+            'aprobado_por'     => strtoupper('LIBANIS ARGUELLES DAZA'),
             'radicado'         => $solicitud->radicado,
         ];
     }
