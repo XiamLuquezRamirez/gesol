@@ -1,7 +1,9 @@
 import AppLayout from '@/Layouts/AppLayout';
 import CampoMoneda from '@/Components/CampoMoneda';
+import MultiSelectBuscador from '@/Components/MultiSelectBuscador';
+import { etiquetaEmpleado } from '@/lib/viajeros';
 import { Head, useForm } from '@inertiajs/react';
-import { XCircleIcon, CheckCircleIcon, PlusCircleIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { XCircleIcon, CheckCircleIcon, PlusCircleIcon, TrashIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 
 function SelectField({ label, name, value, onChange, options, error, placeholder }) {
     return (
@@ -45,11 +47,11 @@ function TextField({ label, name, value, onChange, error, multiline, ...props })
 
 const ITEM_VACIO = { nombre: '', categoria: 'producto', cantidad: 1, costo_estimado: '', notas: '' };
 
-export default function Crear({ areas, usuarios, empleados = [], solicitud, editar }) {
+export default function Crear({ areas, usuarios, empleados = [], solicitud, editar, puedeEnviar = false }) {
     const titulo = editar ? 'Editar solicitud de oficina' : 'Nueva solicitud de oficina';
     const solicitable = solicitud?.solicitable;
 
-    const { data, setData, post, put, processing, errors } = useForm({
+    const { data, setData, post, put, transform, processing, errors } = useForm({
         area_id:          solicitud?.area_id ?? '',
         beneficiarios:    solicitable?.beneficiarios?.map(b => b.id) ?? [],
         urgencia:         solicitable?.urgencia ?? 'media',
@@ -70,6 +72,8 @@ export default function Crear({ areas, usuarios, empleados = [], solicitud, edit
 
     const esGeneral = esAreaGeneral(data.area_id);
     const empleadosDelArea = empleadosPorArea(data.area_id);
+    // Opciones para el buscador de beneficiarios (mismo componente que en viáticos).
+    const opcionesEmpleados = empleadosDelArea.map((e) => ({ id: e.id, nombre: etiquetaEmpleado(e) }));
 
     const cambiarArea = (v) => {
         setData('area_id', v);
@@ -86,11 +90,14 @@ export default function Crear({ areas, usuarios, empleados = [], solicitud, edit
         setData('items', items);
     };
 
-    const submit = (e) => {
+    // enviar=true crea la solicitud y la manda de una vez a RR. HH.; false la deja en borrador.
+    const submit = (e, enviar = false) => {
         e.preventDefault();
         if (editar) {
             put(route('oficina.update', solicitud.id));
         } else {
+            // transform inyecta el flag 'enviar' en el payload de este submit concreto.
+            transform((datos) => ({ ...datos, enviar }));
             post(route('oficina.store'));
         }
     };
@@ -115,33 +122,19 @@ export default function Crear({ areas, usuarios, empleados = [], solicitud, edit
                                     <p className="text-sm text-slate-500 border border-slate-200 rounded-lg p-3 bg-slate-50">
                                         Solicitud institucional (papelería, aseo): aplica a toda la organización.
                                     </p>
+                                ) : !data.area_id ? (
+                                    <p className="text-sm text-slate-400 border border-slate-200 rounded-lg p-3 bg-slate-50">
+                                        Seleccione primero un departamento.
+                                    </p>
                                 ) : (
                                     <>
-                                        <div className="border border-slate-300 rounded-lg p-3 max-h-40 overflow-y-auto space-y-1">
-                                            {!data.area_id && (
-                                                <p className="text-xs text-slate-400">Seleccione primero un departamento.</p>
-                                            )}
-                                            {data.area_id && empleadosDelArea.length === 0 && (
-                                                <p className="text-xs text-slate-400">Este departamento no tiene empleados.</p>
-                                            )}
-                                            {empleadosDelArea.map((e) => (
-                                                <label key={e.id} className="flex items-center gap-2 text-sm text-slate-700">
-                                                    <input
-                                                        type="checkbox"
-                                                        className="rounded border-slate-300 text-indigo-600"
-                                                        checked={data.beneficiarios.includes(e.id)}
-                                                        onChange={(ev) => {
-                                                            const next = ev.target.checked
-                                                                ? [...data.beneficiarios, e.id]
-                                                                : data.beneficiarios.filter((id) => id !== e.id);
-                                                            setData('beneficiarios', next);
-                                                        }}
-                                                    />
-                                                    {e.nombres} {e.apellidos}
-                                                    <span className="text-xs text-slate-400">({e.identificacion})</span>
-                                                </label>
-                                            ))}
-                                        </div>
+                                        <MultiSelectBuscador
+                                            opciones={opcionesEmpleados}
+                                            seleccionados={data.beneficiarios}
+                                            onChange={(ids) => setData('beneficiarios', ids)}
+                                            placeholder="Buscar por nombre o identificación…"
+                                            vacio="Este departamento no tiene empleados."
+                                        />
                                         {errors.beneficiarios && <p className="text-red-500 text-xs mt-1">{errors.beneficiarios}</p>}
                                     </>
                                 )}
@@ -227,6 +220,14 @@ export default function Crear({ areas, usuarios, empleados = [], solicitud, edit
                            <CheckCircleIcon className="w-4 h-4" />
                            {processing ? 'Guardando…' : (editar ? 'Guardar cambios' : 'Crear solicitud')}
                         </button>
+                        {/* Crear y enviar de una vez a RR. HH. (solo al crear y si el rol puede enviar). */}
+                        {!editar && puedeEnviar && (
+                            <button type="button" disabled={processing} onClick={(e) => submit(e, true)}
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+                               <ArrowRightIcon className="w-4 h-4" />
+                               {processing ? 'Enviando…' : 'Crear y enviar a RR. HH.'}
+                            </button>
+                        )}
                     </div>
                 </form>
             </div>

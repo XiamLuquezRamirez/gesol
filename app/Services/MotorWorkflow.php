@@ -90,7 +90,10 @@ class MotorWorkflow
         if (!empty($transicion['notificar'])) {
             $observadores = Usuario::role($transicion['notificar'])->get();
             foreach ($observadores as $u) {
-                $u->notify(new AvisoTransicionNotification($solicitud, 'informativo'));
+                // Se pasa la accion para que el aviso informativo pueda mostrar un
+                // mensaje especifico (p. ej. "enviada a gerencia" / "cerrada") y no
+                // solo un texto generico. Da trazabilidad al observador (RR. HH.).
+                $u->notify(new AvisoTransicionNotification($solicitud, 'informativo', $accion));
             }
         }
 

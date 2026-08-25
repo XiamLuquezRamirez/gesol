@@ -61,6 +61,12 @@ function mensajeNotificacion(n) {
         case 'ajustada':   return `Comisión ajustada: ${n.radicado}`;
         case 'cancelada':  return `Comisión cancelada: ${n.radicado}`;
         case 'reactivada': return `Comisión reactivada: ${n.radicado}`;
+        case 'informativo':
+            if (n.accion === 'aprobar')  return `Solicitud enviada a gerencia: ${n.radicado}`;
+            if (n.accion === 'cerrar')   return `Solicitud cerrada: ${n.radicado}`;
+            if (n.accion === 'reenviar') return `Solicitud reenviada a contabilidad: ${n.radicado}`;
+            if (n.accion === 'verificar')return `Solicitud verificada: ${n.radicado}`;
+            return `Actualización en ${n.radicado}`;
         default:
             return `Actualización en ${n.radicado}`;
     }

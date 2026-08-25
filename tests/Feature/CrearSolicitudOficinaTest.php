@@ -96,6 +96,43 @@ class CrearSolicitudOficinaTest extends TestCase
         $this->assertEqualsCanonicalizing($empleados, $cabecera->beneficiarios->pluck('id')->all());
     }
 
+    public function test_crear_sin_enviar_queda_en_borrador(): void
+    {
+        $this->actingAs($this->liderArea)
+            ->post(route('oficina.store'), $this->payloadBase())
+            ->assertRedirect();
+
+        $solicitud = \App\Models\Solicitud::latest('id')->first();
+        $this->assertSame('borrador', $solicitud->estado);
+    }
+
+    public function test_crear_y_enviar_deja_la_solicitud_enviada(): void
+    {
+        $this->actingAs($this->liderArea)
+            ->post(route('oficina.store'), array_merge($this->payloadBase(), ['enviar' => true]))
+            ->assertRedirect();
+
+        $solicitud = \App\Models\Solicitud::latest('id')->first();
+        $this->assertSame('enviada', $solicitud->estado);
+        // Se registra la transicion de envio.
+        $this->assertDatabaseHas('transiciones_solicitud', [
+            'solicitud_id' => $solicitud->id, 'accion' => 'enviar', 'estado_destino' => 'enviada',
+        ]);
+    }
+
+    public function test_crear_y_enviar_sin_rol_para_enviar_queda_en_borrador(): void
+    {
+        // El rol contador no tiene la transicion 'enviar' de OFI: la solicitud se crea
+        // pero permanece en borrador (no se fuerza el envio).
+        $contador = Usuario::where('email', 'contador@demo.test')->firstOrFail();
+        $this->actingAs($contador)
+            ->post(route('oficina.store'), array_merge($this->payloadBase(), ['enviar' => true]))
+            ->assertRedirect();
+
+        $solicitud = \App\Models\Solicitud::latest('id')->first();
+        $this->assertSame('borrador', $solicitud->estado);
+    }
+
     public function test_editar_sincroniza_los_beneficiarios(): void
     {
         $area = Area::where('es_general', false)->has('empleados', '>=', 2)->first();

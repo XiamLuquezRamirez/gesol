@@ -19,12 +19,14 @@ class TipoSolicitudSeeder extends Seeder
                         ['origen'=>'enviada',         'accion'=>'verificar', 'destino'=>'verificada',       'roles'=>['rrhh'], 'notificar'=>['contador'],           'label'=>'Verificar'],
                         ['origen'=>'enviada',         'accion'=>'devolver',  'destino'=>'borrador',         'roles'=>['rrhh'],                                      'label'=>'Devolver'],
                         // Contabilidad envia a gerencia; el pago se registra por abonos (no es transicion del motor).
-                        ['origen'=>'verificada',      'accion'=>'aprobar',   'destino'=>'aprobada',         'roles'=>['contabilidad_lider'],                        'label'=>'Enviar a gerencia'],
+                        // Se notifica a RR. HH. para que tenga trazabilidad del envio a gerencia.
+                        ['origen'=>'verificada',      'accion'=>'aprobar',   'destino'=>'aprobada',         'roles'=>['contabilidad_lider'], 'notificar'=>['rrhh'], 'label'=>'Enviar a gerencia'],
                         ['origen'=>'verificada',      'accion'=>'rechazar',  'destino'=>'rechazada',        'roles'=>['contabilidad_lider'],                        'label'=>'Rechazar'],
                         // Rechazada por falta de cotizacion: RR. HH. anexa y reenvia a contabilidad.
                         ['origen'=>'rechazada',       'accion'=>'reenviar',  'destino'=>'verificada',       'roles'=>['rrhh'], 'notificar'=>['contabilidad_lider'], 'label'=>'Reenviar a contabilidad'],
                         // El primer abono lleva la solicitud a 'pendiente_cierre'; desde ahi se cierra.
-                        ['origen'=>'pendiente_cierre','accion'=>'cerrar',    'destino'=>'cerrada',          'roles'=>['contabilidad_lider','lider_area'],           'label'=>'Cerrar'],
+                        // Se notifica a RR. HH. del cierre para cerrar la trazabilidad de la solicitud.
+                        ['origen'=>'pendiente_cierre','accion'=>'cerrar',    'destino'=>'cerrada',          'roles'=>['contabilidad_lider','lider_area'], 'notificar'=>['rrhh'], 'label'=>'Cerrar'],
                     ]),
                     'created_at' => now(), 'updated_at' => now(),
                 ],

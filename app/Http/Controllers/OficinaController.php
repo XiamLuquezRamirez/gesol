@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\GuardarSolicitudOficinaRequest;
 use App\Models\{Area, CotizacionOficina, Empleados, Solicitud, SolicitudOficina, ItemOficina, TipoSolicitud, Usuario};
+use App\Services\MotorWorkflow;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -17,7 +18,22 @@ class OficinaController extends Controller
             'areas'     => Area::orderBy('nombre')->get(['id','nombre','es_general']),
             'usuarios'  => Usuario::orderBy('name')->get(['id','name']),
             'empleados' => Empleados::orderBy('nombres')->get(['id','nombres','apellidos','identificacion','area_id']),
+            // ¿El usuario puede, ademas de crear, enviar de una vez la solicitud a RR. HH.?
+            // (la transicion 'enviar' desde 'borrador' pide el rol lider_area.)
+            'puedeEnviar' => $this->puedeEnviarOficina(auth()->user()),
         ]);
+    }
+
+    /** ¿El usuario tiene un rol habilitado para la transicion 'enviar' de una solicitud OFI en borrador? */
+    private function puedeEnviarOficina(Usuario $usuario): bool
+    {
+        $tipo = TipoSolicitud::where('clave', 'OFI')->first();
+        if (! $tipo) return false;
+        $roles = $usuario->getRoleNames()->toArray();
+        return collect($tipo->transiciones)
+            ->contains(fn ($t) => $t['origen'] === 'borrador'
+                && $t['accion'] === 'enviar'
+                && ! empty(array_intersect($t['roles'], $roles)));
     }
 
     public function store(GuardarSolicitudOficinaRequest $request)
@@ -52,6 +68,19 @@ class OficinaController extends Controller
 
             return $solicitud;
         });
+
+        // Envio inmediato a RR. HH. si el usuario lo pidio ("Crear y enviar").
+        // Reusa el motor (borrador -> enviada), que valida rol y notifica a RR. HH.
+        if ($request->boolean('enviar')) {
+            $motor = app(MotorWorkflow::class);
+            if ($motor->puede($solicitud, 'enviar', auth()->user())) {
+                $motor->aplicarTransicion($solicitud, 'enviar', auth()->user());
+                return redirect()->route('solicitudes.show', $solicitud)
+                    ->with('success', 'Solicitud creada y enviada a RR. HH.: '.$solicitud->radicado);
+            }
+            return redirect()->route('solicitudes.show', $solicitud)
+                ->with('success', 'Solicitud creada: '.$solicitud->radicado.'. Quedó en borrador (tu rol no puede enviarla a RR. HH.).');
+        }
 
         return redirect()->route('solicitudes.show', $solicitud)
             ->with('success', 'Solicitud creada: '.$solicitud->radicado);
