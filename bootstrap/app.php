@@ -16,6 +16,16 @@ $app = new Illuminate\Foundation\Application(
 );
 
 /*
+| Despliegue en subcarpeta sin document root a public/: cuando el index.php
+| vive en la raiz del proyecto (junto a vendor/, build/, etc.), la carpeta
+| "publica" ES la raiz. Activar con PUBLIC_PATH_IS_BASE=true en el .env.
+| En local/normal (index.php dentro de public/) NO se define y todo sigue igual.
+*/
+if (filter_var($_ENV['PUBLIC_PATH_IS_BASE'] ?? getenv('PUBLIC_PATH_IS_BASE'), FILTER_VALIDATE_BOOLEAN)) {
+    $app->usePublicPath($app->basePath());
+}
+
+/*
 |--------------------------------------------------------------------------
 | Bind Important Interfaces
 |--------------------------------------------------------------------------
