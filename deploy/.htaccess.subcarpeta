@@ -1,0 +1,35 @@
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+
+    # Handle Authorization Header
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Redirect Trailing Slashes If Not A Folder...
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} (.+)/$
+    RewriteRule ^ %1 [L,R=301]
+
+    # Send Requests To Front Controller...
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# --- SEGURIDAD ---------------------------------------------------------------
+# No listar el contenido de carpetas.
+Options -Indexes
+
+# Bloquear el acceso directo por URL a las carpetas del framework y del codigo.
+# (index.php, build/, favicon, robots quedan accesibles; el resto NO.)
+RewriteEngine On
+RewriteRule ^(app|bootstrap|config|database|lang|resources|routes|storage|tests|vendor|docs)(/.*)?$ - [F,L]
+
+# Bloquear archivos sensibles concretos aunque existan.
+<FilesMatch "(^\.env|^\.env\..*|composer\.(json|lock)|package(-lock)?\.json|^artisan$|\.sh$|\.md$|^phpunit\.xml$|^vite\.config\.js$|^tailwind\.config\.js$|^postcss\.config\.js$|^\.gitignore$)">
+    Require all denied
+</FilesMatch>
