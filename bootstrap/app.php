@@ -16,12 +16,14 @@ $app = new Illuminate\Foundation\Application(
 );
 
 /*
-| Despliegue en subcarpeta sin document root a public/: cuando el index.php
-| vive en la raiz del proyecto (junto a vendor/, build/, etc.), la carpeta
-| "publica" ES la raiz. Activar con PUBLIC_PATH_IS_BASE=true en el .env.
-| En local/normal (index.php dentro de public/) NO se define y todo sigue igual.
+| Despliegue en subcarpeta sin document root a public/: cuando el contenido de
+| public/ (index.php, build/) se movio a la RAIZ del proyecto, la carpeta
+| "publica" es la raiz. Se autodetecta: si hay build/manifest.json en la raiz
+| pero NO en public/, Laravel usa la raiz como public path. No depende del .env
+| (que aun no esta cargado en este punto). En local/normal no cambia nada.
 */
-if (filter_var($_ENV['PUBLIC_PATH_IS_BASE'] ?? getenv('PUBLIC_PATH_IS_BASE'), FILTER_VALIDATE_BOOLEAN)) {
+if (is_file($app->basePath('build/manifest.json'))
+    && ! is_file($app->basePath('public/build/manifest.json'))) {
     $app->usePublicPath($app->basePath());
 }
 
