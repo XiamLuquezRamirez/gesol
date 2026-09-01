@@ -34,7 +34,11 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(RouteServiceProvider::HOME);
+        // Ir SIEMPRE a 'inicio' (ruta con nombre, respeta el prefijo de
+        // subcarpeta via forceRootUrl). No se usa intended() porque en despliegues
+        // en subcarpeta puede traer una URL guardada sin el prefijo /gesol, que
+        // redirige a la raiz del dominio (portada de otro sitio).
+        return redirect()->route('inicio');
     }
 
     /**
@@ -48,6 +52,7 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        // route('login') respeta el prefijo de subcarpeta; '/' no siempre.
+        return redirect()->route('login');
     }
 }
