@@ -428,12 +428,8 @@ class ViaticosController extends Controller
     {
         $solicitud = $ajuste->solicitud;
         $actor = auth()->user()->name;
-        foreach (Usuario::role('contador')->get() as $u) {
-            $u->notify(new AvisoTransicionNotification($solicitud, $tipoContador, 'ajustar', $ajuste->motivo, $actor));
-        }
-        foreach (Usuario::role('rrhh')->get() as $u) {
-            $u->notify(new AvisoTransicionNotification($solicitud, 'ajustada', 'ajustar', $ajuste->motivo, $actor));
-        }
+        \App\Support\Avisos::enviar(Usuario::role('contador')->get(), new AvisoTransicionNotification($solicitud, $tipoContador, 'ajustar', $ajuste->motivo, $actor));
+        \App\Support\Avisos::enviar(Usuario::role('rrhh')->get(), new AvisoTransicionNotification($solicitud, 'ajustada', 'ajustar', $ajuste->motivo, $actor));
     }
 
     /**
@@ -548,9 +544,7 @@ class ViaticosController extends Controller
     private function avisarAjusteLiquidado(AjusteComision $ajuste): void
     {
         $actor = auth()->user()->name;
-        foreach (Usuario::role('contabilidad_lider')->get() as $u) {
-            $u->notify(new AvisoTransicionNotification($ajuste->solicitud, 'accion_requerida', 'aprobar', $ajuste->motivo, $actor));
-        }
+        \App\Support\Avisos::enviar(Usuario::role('contabilidad_lider')->get(), new AvisoTransicionNotification($ajuste->solicitud, 'accion_requerida', 'aprobar', $ajuste->motivo, $actor));
     }
 
     /**
@@ -564,10 +558,8 @@ class ViaticosController extends Controller
         $ajuste->update(['estado' => 'aprobado', 'aprobado_por' => auth()->id(), 'aprobado_en' => now()]);
 
         $actor = auth()->user()->name;
-        $ajuste->solicitante->notify(new AvisoTransicionNotification($solicitud, 'ajustada', 'aprobar', $ajuste->motivo, $actor));
-        foreach (Usuario::role('contador')->get() as $u) {
-            $u->notify(new AvisoTransicionNotification($solicitud, 'ajustada', 'aprobar', $ajuste->motivo, $actor));
-        }
+        \App\Support\Avisos::enviar($ajuste->solicitante, new AvisoTransicionNotification($solicitud, 'ajustada', 'aprobar', $ajuste->motivo, $actor));
+        \App\Support\Avisos::enviar(Usuario::role('contador')->get(), new AvisoTransicionNotification($solicitud, 'ajustada', 'aprobar', $ajuste->motivo, $actor));
         return back()->with('success', 'Ajuste aprobado.');
     }
 
@@ -582,9 +574,7 @@ class ViaticosController extends Controller
         $ajuste->update(['estado' => 'devuelto', 'motivo_devolucion' => $request->motivo_devolucion]);
 
         $actor = auth()->user()->name;
-        foreach (Usuario::role('contador')->get() as $u) {
-            $u->notify(new AvisoTransicionNotification($solicitud, 'accion_requerida', 'ajustar', $request->motivo_devolucion, $actor));
-        }
+        \App\Support\Avisos::enviar(Usuario::role('contador')->get(), new AvisoTransicionNotification($solicitud, 'accion_requerida', 'ajustar', $request->motivo_devolucion, $actor));
         return back()->with('success', 'Ajuste devuelto al contador para recalcular.');
     }
 
@@ -598,12 +588,8 @@ class ViaticosController extends Controller
         $actor = auth()->user()->name;
 
         if ($regresoAlContador) {
-            foreach (Usuario::role('contador')->get() as $u) {
-                $u->notify(new AvisoTransicionNotification($solicitud, 'accion_requerida', 'ajustar', $motivo, $actor));
-            }
-            foreach (Usuario::role(['rrhh', 'contabilidad_lider'])->get() as $u) {
-                $u->notify(new AvisoTransicionNotification($solicitud, 'ajustada', 'ajustar', $motivo, $actor));
-            }
+            \App\Support\Avisos::enviar(Usuario::role('contador')->get(), new AvisoTransicionNotification($solicitud, 'accion_requerida', 'ajustar', $motivo, $actor));
+            \App\Support\Avisos::enviar(Usuario::role(['rrhh', 'contabilidad_lider'])->get(), new AvisoTransicionNotification($solicitud, 'ajustada', 'ajustar', $motivo, $actor));
             return;
         }
 
@@ -614,10 +600,8 @@ class ViaticosController extends Controller
     private function avisarCambioComision(Solicitud $solicitud, string $tipo, ?string $comentario): void
     {
         $usuarios = Usuario::role(['rrhh', 'contador', 'contabilidad_lider'])->get();
-        foreach ($usuarios as $u) {
-            $u->notify(new AvisoTransicionNotification(
-                $solicitud, $tipo, $tipo, $comentario, auth()->user()->name
-            ));
-        }
+        \App\Support\Avisos::enviar($usuarios, new AvisoTransicionNotification(
+            $solicitud, $tipo, $tipo, $comentario, auth()->user()->name
+        ));
     }
 }

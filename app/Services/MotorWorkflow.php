@@ -82,24 +82,20 @@ class MotorWorkflow
 
         if (!empty($rolesActores)) {
             $usuarios = Usuario::role($rolesActores)->get();
-            foreach ($usuarios as $u) {
-                $u->notify(new AvisoTransicionNotification($solicitud, 'accion_requerida'));
-            }
+            \App\Support\Avisos::enviar($usuarios, new AvisoTransicionNotification($solicitud, 'accion_requerida'));
         }
 
         if (!empty($transicion['notificar'])) {
+            // Se pasa la accion para que el aviso informativo pueda mostrar un
+            // mensaje especifico (p. ej. "enviada a gerencia" / "cerrada") y no
+            // solo un texto generico. Da trazabilidad al observador (RR. HH.).
             $observadores = Usuario::role($transicion['notificar'])->get();
-            foreach ($observadores as $u) {
-                // Se pasa la accion para que el aviso informativo pueda mostrar un
-                // mensaje especifico (p. ej. "enviada a gerencia" / "cerrada") y no
-                // solo un texto generico. Da trazabilidad al observador (RR. HH.).
-                $u->notify(new AvisoTransicionNotification($solicitud, 'informativo', $accion));
-            }
+            \App\Support\Avisos::enviar($observadores, new AvisoTransicionNotification($solicitud, 'informativo', $accion));
         }
 
         if (in_array($accion, ['rechazar', 'devolver']) && $solicitud->solicitante_id !== $actor->id) {
             $tipoAviso = $accion === 'rechazar' ? 'rechazada' : 'devuelta';
-            $solicitud->solicitante->notify(new AvisoTransicionNotification(
+            \App\Support\Avisos::enviar($solicitud->solicitante, new AvisoTransicionNotification(
                 $solicitud,
                 $tipoAviso,
                 $accion,
