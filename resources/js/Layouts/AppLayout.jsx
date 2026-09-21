@@ -48,6 +48,13 @@ const IconUsers = ({ className }) => (
     </svg>
 );
 
+const IconChart = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
+        <path fillRule="evenodd" d="M2.25 13.5a8.25 8.25 0 0 1 8.25-8.25.75.75 0 0 1 .75.75v6.75H18a.75.75 0 0 1 .75.75 8.25 8.25 0 0 1-16.5 0Z" clipRule="evenodd" />
+        <path fillRule="evenodd" d="M12.75 3a.75.75 0 0 1 .75-.75 8.25 8.25 0 0 1 8.25 8.25.75.75 0 0 1-.75.75h-7.5a.75.75 0 0 1-.75-.75V3Z" clipRule="evenodd" />
+    </svg>
+);
+
 const IconLogout = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
         <path fillRule="evenodd" d="M16.5 3.75a1.5 1.5 0 0 1 1.5 1.5v13.5a1.5 1.5 0 0 1-1.5 1.5h-6a1.5 1.5 0 0 1-1.5-1.5V15a.75.75 0 0 0-1.5 0v3.75a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V5.25a3 3 0 0 0-3-3h-6a3 3 0 0 0-3 3V9A.75.75 0 0 0 9 9V5.25a1.5 1.5 0 0 1 1.5-1.5h6ZM5.78 8.47a.75.75 0 0 0-1.06 0l-3 3a.75.75 0 0 0 0 1.06l3 3a.75.75 0 0 0 1.06-1.06l-1.72-1.72H15a.75.75 0 0 0 0-1.5H4.06l1.72-1.72a.75.75 0 0 0 0-1.06Z" clipRule="evenodd" />
@@ -98,6 +105,8 @@ export default function AppLayout({ title, children }) {
     const initials = getInitials(usuario.name);
     const esAdmin = usuario.roles?.some((r) => r.name === 'admin');
     const esRrhh = usuario.roles?.some((r) => r.name === 'rrhh');
+    // Reportes: admin y contabilidad (contador o lider de contabilidad).
+    const veReportes = usuario.roles?.some((r) => ['admin', 'contador', 'contabilidad_lider'].includes(r.name));
 
     return (
         <div className="flex h-screen overflow-hidden bg-slate-50">
@@ -135,6 +144,15 @@ export default function AppLayout({ title, children }) {
                                 icon={IconUsers}
                             >
                                 Comisiones RR. HH.
+                            </NavItem>
+                        )}
+                        {veReportes && (
+                            <NavItem
+                                href={route('reportes.index')}
+                                active={route().current('reportes.*')}
+                                icon={IconChart}
+                            >
+                                Reportes
                             </NavItem>
                         )}
                     </NavSection>
