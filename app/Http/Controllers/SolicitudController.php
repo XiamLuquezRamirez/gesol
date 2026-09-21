@@ -170,6 +170,7 @@ class SolicitudController extends Controller
             'solicitable' => fn ($morphTo) => $morphTo->morphWith([
                 SolicitudOficina::class  => ['items', 'cotizaciones.usuario', 'beneficiarios', 'abonos.usuario'],
                 SolicitudViaticos::class => ['viajeros.empleado', 'viajeros.asignaciones', 'viajeros.contrato', 'viajeros.archivos.usuario', 'municipios'],
+                \App\Models\SolicitudObra::class => ['items', 'cotizaciones.usuario', 'abonos.usuario', 'abonos.retenedor', 'contrato'],
             ]),
             'transiciones.usuario',
         ]);
@@ -205,12 +206,25 @@ class SolicitudController extends Controller
             ];
         }
 
+        // Lista de contratos para relacionar en una solicitud de obra (solo la
+        // necesita RR. HH. en el detalle OBR; para otros tipos se deja vacia).
+        $esObra    = $solicitud->tipoSolicitud->clave === 'OBR';
+        $contratos = $esObra
+            ? \App\Models\Contrato::orderBy('descripcion')->get(['id', 'descripcion'])
+            : [];
+
         return Inertia::render('Solicitudes/Detalle', [
             'solicitud'       => (new SolicitudDetalleResource($solicitud))->resolve(),
             'acciones'        => $this->motor->accionesDisponibles($solicitud, $usuario),
             'rutaEditar'      => $rutaEditar,
             'rutaLiquidacion' => $rutaLiquidacion,
             'puedeGestionarComprobante' => $usuario->can('gestionarComprobante', $solicitud),
+            // Flags de rol para el detalle de obra (OBR). Las policies ya validan la
+            // clave OBR y devuelven false para OFI/VIA, asi que son seguras para todos.
+            'puedeCotizarObra' => $usuario->can('cotizarObra', $solicitud),
+            'puedePagarObra'   => $usuario->can('pagarObra', $solicitud),
+            'puedeRetenerObra' => $usuario->can('gestionarRetencionObra', $solicitud),
+            'contratos'        => $contratos,
             'puedeCancelar'  => $usuario->can('cancelar', $solicitud),
             'puedeReactivar' => $usuario->can('reactivar', $solicitud),
             'puedeAjustar'   => $usuario->can('ajustar', $solicitud),

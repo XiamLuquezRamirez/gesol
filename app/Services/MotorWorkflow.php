@@ -119,5 +119,29 @@ class MotorWorkflow
                 $actor->name,
             ));
         }
+
+        // Obras: trazabilidad total. Cada transicion avisa a TODOS los involucrados
+        // (creador + quienes ya ejecutaron alguna transicion), menos el actor actual.
+        // Al solicitante ya se le avisa arriba cuando no es el actor: se excluye aqui
+        // para no duplicar su aviso, pero el push del solicitante cubre el caso en que
+        // el actor sea otro participante y el solicitante siga en la lista.
+        if ($solicitud->tipoSolicitud->clave === 'OBR') {
+            $ids = $solicitud->transiciones()->pluck('usuario_id')
+                ->push($solicitud->solicitante_id)
+                ->filter()
+                ->unique()
+                ->reject(fn ($id) => $id === $actor->id || $id === $solicitud->solicitante_id)
+                ->values();
+            if ($ids->isNotEmpty()) {
+                $involucrados = \App\Models\Usuario::whereIn('id', $ids)->get();
+                \App\Support\Avisos::enviar($involucrados, new AvisoTransicionNotification(
+                    $solicitud,
+                    'seguimiento',
+                    $accion,
+                    null,
+                    $actor->name,
+                ));
+            }
+        }
     }
 }

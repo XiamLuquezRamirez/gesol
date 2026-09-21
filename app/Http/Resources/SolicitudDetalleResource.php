@@ -9,6 +9,7 @@ class SolicitudDetalleResource extends JsonResource
     public function toArray($request): array
     {
         $esOficina = $this->tipoSolicitud->clave === 'OFI';
+        $esObra    = $this->tipoSolicitud->clave === 'OBR';
         $usuario   = $request->user();
 
         return [
@@ -51,6 +52,44 @@ class SolicitudDetalleResource extends JsonResource
                     'autor'       => $a->usuario?->name,
                     'observacion' => $a->observacion,
                 ])->values(),
+            ]),
+            'obra'        => $this->when($esObra, fn () => [
+                'items' => $this->solicitable->items->map(fn ($i) => [
+                    'id'             => $i->id,
+                    'especificacion' => $i->especificacion,
+                    'unidad'         => $i->unidad,
+                    'cantidad'       => (float) $i->cantidad,
+                    'sede'           => $i->sede,
+                    'valor_unitario' => $i->valor_unitario !== null ? (float) $i->valor_unitario : null,
+                    'subtotal'       => $i->subtotal !== null ? (float) $i->subtotal : null,
+                ])->values(),
+                'cotizaciones' => $this->solicitable->cotizaciones->map(fn ($c) => [
+                    'id'     => $c->id,
+                    'nombre' => $c->nombre_original,
+                    'tipo'   => $c->tipo,
+                    'autor'  => $c->usuario?->name,
+                ])->values(),
+                'contrato' => $this->solicitable->contrato
+                    ? ['id' => $this->solicitable->contrato->id, 'descripcion' => $this->solicitable->contrato->descripcion]
+                    : null,
+                'pagos' => [
+                    'total_a_pagar' => $this->solicitable->total_a_pagar !== null ? (float) $this->solicitable->total_a_pagar : null,
+                    'pagado'        => $this->solicitable->totalPagado(),
+                    'saldo'         => $this->solicitable->saldoPendiente(),
+                    'abonos'        => $this->solicitable->abonos->map(fn ($a) => [
+                        'id'              => $a->id,
+                        'monto'           => (float) $a->monto,
+                        'retencion_tipo'  => $a->retencion_tipo,
+                        'retencion_valor' => $a->retencion_valor !== null ? (float) $a->retencion_valor : null,
+                        'retencion_monto' => $a->retencion_monto !== null ? (float) $a->retencion_monto : null,
+                        'retenedor'       => $a->retenedor?->name,
+                        'fecha_pago'      => optional($a->fecha_pago)->toDateString(),
+                        'soporte'         => $a->soporte_nombre,
+                        'soporte_url'     => $a->soporte_path ? route('obra.abono.soporte', [$this->id, $a->id], false) : null,
+                        'autor'           => $a->usuario?->name,
+                        'observacion'     => $a->observacion,
+                    ])->values(),
+                ],
             ]),
             'created_at'  => $this->created_at->format('Y-m-d H:i'),
         ];

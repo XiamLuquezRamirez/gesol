@@ -549,6 +549,380 @@ function DetalleViaticos({ solicitable, solicitudId, cerrada, puedeGestionarComp
     );
 }
 
+const ETIQUETA_RETENCION = { porcentaje: 'Porcentaje', valor: 'Valor fijo' };
+
+// Detalle del proceso de Obras (OBR): datos, items (con cotizacion), contrato,
+// documentos anexos y pagos por abonos con retencion del contador.
+function DetalleObra({
+    solicitud,
+    obra,
+    puedeCotizar = false,
+    puedePagar = false,
+    puedeRetener = false,
+    contratos = [],
+}) {
+    const solicitable = solicitud.solicitable;
+    if (!solicitable || !obra) return null;
+
+    const items = obra.items ?? [];
+    const cotizaciones = obra.cotizaciones ?? [];
+    const pagos = obra.pagos ?? { abonos: [] };
+    // La cotizacion (editar valores unitarios / total) esta habilitada mientras la
+    // solicitud sigue enviada o cotizada, y solo para quien puede cotizar (RR. HH.).
+    const puedeEditarCotizacion = puedeCotizar && ['enviada', 'cotizada'].includes(solicitud.estado);
+
+    // Formulario de cotizacion: valores unitarios por item + total a pagar.
+    const formCot = useForm({
+        total_a_pagar: obra.pagos?.total_a_pagar ?? '',
+        items: items.map((i) => ({ id: i.id, valor_unitario: i.valor_unitario ?? '' })),
+    });
+    const setValorItem = (idx, valor) => formCot.setData('items',
+        formCot.data.items.map((x, i) => (i === idx ? { ...x, valor_unitario: valor } : x)));
+    const guardarCotizacion = (e) => {
+        e.preventDefault();
+        formCot.put(route('obra.cotizar', solicitud.id), { preserveScroll: true });
+    };
+
+    // Relacionar contrato.
+    const formContrato = useForm({ contrato_id: obra.contrato?.id ?? '' });
+    const guardarContrato = (e) => {
+        e.preventDefault();
+        formContrato.put(route('obra.contrato', solicitud.id), { preserveScroll: true });
+    };
+
+    // Anexar documento.
+    const docRef = useRef(null);
+    const formDoc = useForm({ documento: null });
+    const anexarDocumento = (e) => {
+        e.preventDefault();
+        formDoc.post(route('obra.documento', solicitud.id), {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => { formDoc.reset(); if (docRef.current) docRef.current.value = ''; },
+        });
+    };
+
+    // Registrar abono (pago parcial).
+    const soporteRef = useRef(null);
+    const formAbono = useForm({ monto: '', fecha_pago: '', soporte: null, observacion: '' });
+    const registrarAbono = (e) => {
+        e.preventDefault();
+        formAbono.post(route('obra.abono.store', solicitud.id), {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => { formAbono.reset(); if (soporteRef.current) soporteRef.current.value = ''; },
+        });
+    };
+
+    // Aplicar retencion a un abono (solo el contador). Un mini-form por abono.
+    const [retencionDe, setRetencionDe] = useState(null); // abono seleccionado
+    const formRet = useForm({ retencion_tipo: 'porcentaje', retencion_valor: '' });
+    const abrirRetencion = (ab) => {
+        setRetencionDe(ab.id);
+        formRet.setData({
+            retencion_tipo: ab.retencion_tipo ?? 'porcentaje',
+            retencion_valor: ab.retencion_valor ?? '',
+        });
+    };
+    const guardarRetencion = (abonoId) => {
+        formRet.put(route('obra.abono.retencion', [solicitud.id, abonoId]), {
+            preserveScroll: true,
+            onSuccess: () => setRetencionDe(null),
+        });
+    };
+
+    return (
+        <div className="space-y-5">
+            {/* Informacion general */}
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-4">
+                <Campo label="Solicitante" valor={solicitable.nombre_solicitante} />
+                <Campo label="Fecha de solicitud" valor={formatearFecha(solicitable.fecha_solicitud)} />
+                <Campo label="Fecha de entrega" valor={solicitable.fecha_entrega ? formatearFecha(solicitable.fecha_entrega) : null} />
+                <Campo label="Contrato relacionado" valor={obra.contrato ? obra.contrato.descripcion : 'Sin contrato'} />
+                {solicitable.observacion && (
+                    <div className="col-span-2">
+                        <Campo label="Observación" valor={solicitable.observacion} />
+                    </div>
+                )}
+            </dl>
+
+            {/* Items */}
+            {items.length > 0 && (
+                <div className="border-t border-slate-100 pt-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-3">
+                        Ítems ({items.length})
+                    </p>
+                    <form onSubmit={guardarCotizacion}>
+                        <div className="overflow-x-auto rounded-lg border border-slate-100">
+                            <table className="w-full text-sm">
+                                <thead className="bg-slate-50 border-b border-slate-100">
+                                    <tr className="text-left text-xs text-slate-500">
+                                        <th className="px-3 py-2 font-medium">Especificación</th>
+                                        <th className="px-3 py-2 font-medium">Unidad</th>
+                                        <th className="px-3 py-2 font-medium text-center">Cant.</th>
+                                        <th className="px-3 py-2 font-medium">Sede</th>
+                                        <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Valor unit.</th>
+                                        <th className="px-3 py-2 font-medium text-right">Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50">
+                                    {items.map((it, idx) => (
+                                        <tr key={it.id} className="text-slate-700 hover:bg-slate-50">
+                                            <td className="px-3 py-2.5">{it.especificacion}</td>
+                                            <td className="px-3 py-2.5">{it.unidad || '—'}</td>
+                                            <td className="px-3 py-2.5 text-center">{it.cantidad}</td>
+                                            <td className="px-3 py-2.5">{it.sede || '—'}</td>
+                                            <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                                                {puedeEditarCotizacion ? (
+                                                    <input
+                                                        type="number" min={0} step="0.01"
+                                                        value={formCot.data.items[idx]?.valor_unitario ?? ''}
+                                                        onChange={(e) => setValorItem(idx, e.target.value)}
+                                                        className="w-28 rounded-lg border border-slate-300 text-sm px-2 py-1 text-right focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                        placeholder="0"
+                                                    />
+                                                ) : (
+                                                    it.valor_unitario !== null ? formatearMoneda(it.valor_unitario) : '—'
+                                                )}
+                                            </td>
+                                            <td className="px-3 py-2.5 text-right font-medium">
+                                                {it.subtotal !== null ? formatearMoneda(it.subtotal) : '—'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {puedeEditarCotizacion && (
+                            <div className="flex flex-wrap items-end justify-end gap-3 mt-4">
+                                <div>
+                                    <label className="block text-xs text-slate-600 mb-1">Total a pagar</label>
+                                    <CampoMoneda
+                                        value={formCot.data.total_a_pagar}
+                                        onChange={(v) => formCot.setData('total_a_pagar', v)}
+                                        error={formCot.errors.total_a_pagar}
+                                    />
+                                </div>
+                                <button type="submit" disabled={formCot.processing}
+                                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg disabled:opacity-50">
+                                    <CheckCircleIcon className="w-4 h-4" /> {formCot.processing ? 'Guardando…' : 'Guardar cotización'}
+                                </button>
+                            </div>
+                        )}
+                    </form>
+                </div>
+            )}
+
+            {/* Relacionar contrato + anexar documentos (solo RR. HH. mientras cotiza) */}
+            {puedeCotizar && (
+                <div className="border-t border-slate-100 pt-4 grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <form onSubmit={guardarContrato} className="space-y-2">
+                        <label className="block text-xs font-medium text-slate-600">Relacionar contrato</label>
+                        <select
+                            value={formContrato.data.contrato_id}
+                            onChange={(e) => formContrato.setData('contrato_id', e.target.value)}
+                            className="w-full rounded-lg border border-slate-300 text-sm px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <option value="">— Seleccionar contrato —</option>
+                            {contratos.map((c) => (
+                                <option key={c.id} value={c.id}>{c.descripcion}</option>
+                            ))}
+                        </select>
+                        {formContrato.errors.contrato_id && <p className="text-red-500 text-xs">{formContrato.errors.contrato_id}</p>}
+                        <div className="flex justify-end">
+                            <button type="submit" disabled={formContrato.processing || !formContrato.data.contrato_id}
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50">
+                                <PaperClipIcon className="w-4 h-4" /> Relacionar contrato
+                            </button>
+                        </div>
+                    </form>
+
+                    <form onSubmit={anexarDocumento} className="space-y-2">
+                        <label className="block text-xs font-medium text-slate-600">Anexar documento (PDF, imagen o Excel)</label>
+                        <input
+                            type="file" ref={docRef}
+                            accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls"
+                            onChange={(e) => formDoc.setData('documento', e.target.files[0])}
+                            className="block w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
+                        {formDoc.errors.documento && <p className="text-red-500 text-xs">{formDoc.errors.documento}</p>}
+                        <div className="flex justify-end">
+                            <button type="submit" disabled={formDoc.processing || !formDoc.data.documento}
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-slate-600 hover:bg-slate-700 rounded-lg disabled:opacity-50">
+                                <PaperClipIcon className="w-4 h-4" /> Anexar documento
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            )}
+
+            {/* Cotizaciones y documentos anexados (listado sin descarga: no hay ruta GET aun) */}
+            {cotizaciones.length > 0 && (
+                <div className="border-t border-slate-100 pt-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-3">
+                        Cotizaciones y documentos ({cotizaciones.length})
+                    </p>
+                    <ul className="space-y-1.5">
+                        {cotizaciones.map((c) => (
+                            <li key={c.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 px-3 py-2">
+                                <div className="min-w-0 flex items-center gap-2">
+                                    <PaperClipIcon className="w-4 h-4 shrink-0 text-slate-400" />
+                                    <span className="truncate text-sm text-slate-700">{c.nombre}</span>
+                                </div>
+                                <div className="flex items-center gap-3 shrink-0">
+                                    <span className="text-xs text-slate-400 capitalize">{c.tipo}</span>
+                                    {c.autor && <span className="text-xs text-slate-400">· {c.autor}</span>}
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
+            {/* Pagos (abonos + retencion) */}
+            <div className="border-t border-slate-100 pt-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-3">Pagos</p>
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <p className="text-xs text-slate-500">Total a pagar</p>
+                        <p className="text-sm font-semibold text-slate-800">
+                            {pagos.total_a_pagar !== null ? formatearMoneda(pagos.total_a_pagar) : '—'}
+                        </p>
+                    </div>
+                    <div>
+                        <p className="text-xs text-slate-500">Pagado</p>
+                        <p className="text-sm font-semibold text-emerald-700">{formatearMoneda(pagos.pagado)}</p>
+                    </div>
+                    <div>
+                        <p className="text-xs text-slate-500">Saldo</p>
+                        <p className={`text-sm font-semibold ${pagos.saldo > 0 ? 'text-amber-700' : 'text-slate-500'}`}>
+                            {pagos.total_a_pagar !== null ? formatearMoneda(pagos.saldo) : '—'}
+                        </p>
+                    </div>
+                </div>
+
+                {pagos.abonos.length > 0 && (
+                    <div className="overflow-x-auto rounded-lg border border-slate-100 mb-4">
+                        <table className="w-full text-sm">
+                            <thead className="bg-slate-50 border-b border-slate-100">
+                                <tr className="text-left text-xs text-slate-500">
+                                    <th className="px-3 py-2 font-medium text-right">Monto</th>
+                                    <th className="px-3 py-2 font-medium">Retención</th>
+                                    <th className="px-3 py-2 font-medium whitespace-nowrap">Fecha</th>
+                                    <th className="px-3 py-2 font-medium">Soporte</th>
+                                    {puedeRetener && <th className="px-3 py-2 font-medium text-left">Acciones</th>}
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                                {pagos.abonos.map((ab) => (
+                                    <tr key={ab.id} className="text-slate-700 align-top">
+                                        <td className="px-3 py-2.5 text-right font-medium whitespace-nowrap">{formatearMoneda(ab.monto)}</td>
+                                        <td className="px-3 py-2.5">
+                                            {ab.retencion_monto ? (
+                                                <div className="text-xs">
+                                                    <span className="font-medium text-slate-700">{formatearMoneda(ab.retencion_monto)}</span>
+                                                    <span className="text-slate-400"> · {ETIQUETA_RETENCION[ab.retencion_tipo] ?? ab.retencion_tipo}
+                                                        {ab.retencion_tipo === 'porcentaje' && ab.retencion_valor !== null ? ` (${ab.retencion_valor}%)` : ''}
+                                                    </span>
+                                                    {ab.retenedor && <p className="text-slate-400">Por {ab.retenedor}</p>}
+                                                </div>
+                                            ) : (
+                                                <span className="text-xs text-slate-400 italic">Sin retención</span>
+                                            )}
+                                        </td>
+                                        <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">{ab.fecha_pago || '—'}</td>
+                                        <td className="px-3 py-2.5">
+                                            {ab.soporte_url
+                                                ? <a href={ab.soporte_url} className="text-xs text-indigo-600 hover:underline">{ab.soporte || 'Soporte'}</a>
+                                                : <span className="text-xs text-slate-400">—</span>}
+                                        </td>
+                                        {puedeRetener && (
+                                            <td className="px-3 py-2.5">
+                                                {retencionDe === ab.id ? (
+                                                    <div className="flex flex-wrap items-end gap-2">
+                                                        <div>
+                                                            <label className="block text-[11px] text-slate-500 mb-0.5">Tipo</label>
+                                                            <select value={formRet.data.retencion_tipo}
+                                                                onChange={(e) => formRet.setData('retencion_tipo', e.target.value)}
+                                                                className="rounded-lg border border-slate-300 text-xs px-2 py-1">
+                                                                <option value="porcentaje">Porcentaje</option>
+                                                                <option value="valor">Valor fijo</option>
+                                                            </select>
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[11px] text-slate-500 mb-0.5">Valor</label>
+                                                            <input type="number" min={0} step="0.01"
+                                                                value={formRet.data.retencion_valor}
+                                                                onChange={(e) => formRet.setData('retencion_valor', e.target.value)}
+                                                                className="w-24 rounded-lg border border-slate-300 text-xs px-2 py-1" />
+                                                        </div>
+                                                        <button type="button" onClick={() => guardarRetencion(ab.id)} disabled={formRet.processing}
+                                                            className="px-2.5 py-1.5 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg disabled:opacity-50">
+                                                            Aplicar
+                                                        </button>
+                                                        <button type="button" onClick={() => setRetencionDe(null)}
+                                                            className="px-2.5 py-1.5 text-xs font-medium text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50">
+                                                            Cancelar
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <button type="button" onClick={() => abrirRetencion(ab)}
+                                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg text-slate-600 border border-slate-300 hover:bg-slate-50">
+                                                        <PencilSquareIcon className="w-4 h-4" /> {ab.retencion_monto ? 'Editar retención' : 'Aplicar retención'}
+                                                    </button>
+                                                )}
+                                            </td>
+                                        )}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+
+                {puedePagar && (
+                    <form onSubmit={registrarAbono} className="border-t border-slate-100 pt-4 space-y-3">
+                        <p className="text-xs font-medium text-slate-600">Registrar abono</p>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs text-slate-600 mb-1">Monto</label>
+                                <CampoMoneda value={formAbono.data.monto}
+                                    onChange={(v) => formAbono.setData('monto', v)}
+                                    error={formAbono.errors.monto} />
+                            </div>
+                            <div>
+                                <label className="block text-xs text-slate-600 mb-1">Fecha de pago</label>
+                                <input type="date" value={formAbono.data.fecha_pago}
+                                    onChange={(e) => formAbono.setData('fecha_pago', e.target.value)}
+                                    className="w-full rounded-lg border-slate-300 text-sm" />
+                                {formAbono.errors.fecha_pago && <p className="text-red-500 text-xs mt-1">{formAbono.errors.fecha_pago}</p>}
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs text-slate-600 mb-1">Soporte de pago (PDF/imagen)</label>
+                            <input type="file" accept=".pdf,.jpg,.jpeg,.png" ref={soporteRef}
+                                onChange={(e) => formAbono.setData('soporte', e.target.files[0])}
+                                className="block w-full text-sm text-slate-600" />
+                            {formAbono.errors.soporte && <p className="text-red-500 text-xs mt-1">{formAbono.errors.soporte}</p>}
+                        </div>
+                        <div>
+                            <label className="block text-xs text-slate-600 mb-1">Observación (opcional)</label>
+                            <input type="text" value={formAbono.data.observacion}
+                                onChange={(e) => formAbono.setData('observacion', e.target.value)}
+                                className="w-full rounded-lg border-slate-300 text-sm" />
+                        </div>
+                        <div className="flex justify-end">
+                            <button type="submit" disabled={formAbono.processing}
+                                className="px-4 py-2 text-sm text-white bg-violet-600 hover:bg-violet-700 rounded-lg disabled:opacity-50">
+                                Registrar abono
+                            </button>
+                        </div>
+                    </form>
+                )}
+            </div>
+        </div>
+    );
+}
+
 function AvisoRechazo({ transicion, rutaEditar }) {
     const esRechazo = transicion.accion === 'rechazar';
 
@@ -869,7 +1243,7 @@ function SeccionPagos({ solicitud }) {
     );
 }
 
-export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidacion, puedeGestionarComprobante = false, puedeCancelar = false, puedeReactivar = false, puedeAjustar = false, requiereReliquidacion = false, ajustes = [], permisosAjuste = {} }) {
+export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidacion, puedeGestionarComprobante = false, puedeCancelar = false, puedeReactivar = false, puedeAjustar = false, requiereReliquidacion = false, ajustes = [], permisosAjuste = {}, puedeCotizarObra = false, puedePagarObra = false, puedeRetenerObra = false, contratos = [] }) {
     const [accionActiva, setAccionActiva] = useState(null);
     const [ajustando, setAjustando] = useState(false);
     const [cancelando, setCancelando] = useState(false);
@@ -908,6 +1282,7 @@ export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidaci
 
     const esOficina  = solicitud.tipo?.clave === 'OFI';
     const esViaticos = solicitud.tipo?.clave === 'VIA';
+    const esObra     = solicitud.tipo?.clave === 'OBR';
 
     const transicionesRaw  = solicitud.transiciones;
     const transiciones     = Array.isArray(transicionesRaw)
@@ -1029,6 +1404,16 @@ export default function Detalle({ solicitud, acciones, rutaEditar, rutaLiquidaci
                             transiciones={transiciones}
                             ajustes={ajustes ?? []}
                             permisos={permisosAjuste ?? {}}
+                        />
+                    )}
+                    {esObra && (
+                        <DetalleObra
+                            solicitud={solicitud}
+                            obra={solicitud.obra}
+                            puedeCotizar={puedeCotizarObra}
+                            puedePagar={puedePagarObra}
+                            puedeRetener={puedeRetenerObra}
+                            contratos={contratos}
                         />
                     )}
                 </SeccionCard>
