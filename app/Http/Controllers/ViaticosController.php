@@ -469,7 +469,7 @@ class ViaticosController extends Controller
         // Si ya tiene asignaciones (re-liquidacion tras devolucion), devolver esas.
         if ($ajuste->asignaciones->isNotEmpty()) {
             return $ajuste->asignaciones->map(fn ($a) => [
-                'rubro' => $a->rubro->value ?? $a->rubro,
+                'rubro' => (string) $a->rubro,
                 'dias' => $a->dias, 'valor_unitario' => (float) $a->valor_unitario,
                 'subtotal' => (float) $a->subtotal,
             ])->values()->all();
@@ -479,7 +479,7 @@ class ViaticosController extends Controller
         // Valor unitario original por rubro (asignaciones sin ajuste)
         $originales = AsignacionViatico::where('viajero_comision_id', $viajero->id)
             ->whereNull('ajuste_comision_id')->get()
-            ->mapWithKeys(fn ($a) => [($a->rubro->value ?? $a->rubro) => (float) $a->valor_unitario]);
+            ->mapWithKeys(fn ($a) => [(string) $a->rubro => (float) $a->valor_unitario]);
         $tarifas = TarifaViatico::all()->keyBy('rubro');
 
         $valorDe = fn (string $rubro) => $originales[$rubro]

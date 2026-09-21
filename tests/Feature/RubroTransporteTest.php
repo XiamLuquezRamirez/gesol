@@ -1,7 +1,6 @@
 <?php
 namespace Tests\Feature;
 
-use App\Enums\Rubro;
 use App\Models\{AsignacionViatico, Empleados, SolicitudViaticos, ViajeroComision};
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -14,7 +13,6 @@ class RubroTransporteTest extends TestCase
     {
         $this->seed();
         $this->assertDatabaseHas('tarifas_viaticos', ['rubro' => 'transporte']);
-        $this->assertTrue(Rubro::tryFrom('transporte') === Rubro::Transporte);
     }
 
     public function test_se_puede_asignar_transporte_a_un_viajero(): void
@@ -30,7 +28,27 @@ class RubroTransporteTest extends TestCase
             'viajero_comision_id' => $v->id, 'rubro' => 'transporte',
             'valor_unitario' => 30000, 'dias' => 2,
         ]);
-        $this->assertEquals(Rubro::Transporte, $a->fresh()->rubro);
+        // El rubro se guarda como texto libre (no enum), para admitir rubros configurables.
+        $this->assertSame('transporte', $a->fresh()->rubro);
         $this->assertEquals(60000, $a->fresh()->subtotal);
+    }
+
+    public function test_admite_rubro_personalizado_como_peaje(): void
+    {
+        // Regresion: en produccion se creo el rubro "Peaje" (configurable en Parametros).
+        // Con el enum cerrado esto reventaba con 500 al liquidar; ahora debe funcionar.
+        $this->seed();
+        $cab = SolicitudViaticos::create(['nombre_comision' => 'C', 'municipio_destino' => '', 'observacion' => 'x']);
+        $v = ViajeroComision::create([
+            'solicitud_viaticos_id' => $cab->id, 'empleado_id' => Empleados::first()->id,
+            'motivo' => 'm', 'fecha_salida' => '2026-08-20', 'hora_salida' => '08:00',
+            'fecha_regreso' => '2026-08-21', 'hora_regreso' => '17:00',
+        ]);
+        $a = AsignacionViatico::create([
+            'viajero_comision_id' => $v->id, 'rubro' => 'Peaje',
+            'valor_unitario' => 15000, 'dias' => 1,
+        ]);
+        $this->assertSame('Peaje', $a->fresh()->rubro);
+        $this->assertEquals(15000, $a->fresh()->subtotal);
     }
 }

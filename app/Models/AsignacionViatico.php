@@ -1,13 +1,14 @@
 <?php
 namespace App\Models;
-use App\Enums\Rubro;
 use Illuminate\Database\Eloquent\Model;
 
 class AsignacionViatico extends Model
 {
     protected $table = 'asignaciones_viaticos';
     protected $fillable = ['viajero_comision_id','ajuste_comision_id','rubro','valor_unitario','dias','subtotal'];
-    protected $casts = ['rubro' => Rubro::class];
+    // 'rubro' se guarda como texto libre: los rubros son configurables en Parametros
+    // (tarifas_viaticos), no una lista cerrada. No se castea a enum para admitir
+    // rubros nuevos (p. ej. "Peaje", "Hospedaje") sin tocar codigo.
 
     protected static function booted(): void
     {
