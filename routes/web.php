@@ -40,6 +40,9 @@ Route::middleware(['auth','verified'])->group(function () {
     // Obra
     Route::get('/obra/crear',  [ObraController::class, 'create'])->name('obra.crear');
     Route::post('/obra',       [ObraController::class, 'store'])->name('obra.store');
+    Route::put('/obra/{solicitud}/cotizar',   [ObraController::class, 'cotizar'])->name('obra.cotizar');
+    Route::put('/obra/{solicitud}/contrato',  [ObraController::class, 'relacionarContrato'])->name('obra.contrato');
+    Route::post('/obra/{solicitud}/documento',[ObraController::class, 'anexarDocumento'])->name('obra.documento');
 
     // Viáticos
     Route::get('/viaticos/crear',                    [ViaticosController::class, 'create'])->name('viaticos.crear');

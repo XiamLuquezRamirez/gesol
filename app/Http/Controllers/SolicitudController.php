@@ -235,6 +235,14 @@ class SolicitudController extends Controller
             return back()->withErrors(['accion' => 'Hay un ajuste pendiente: vuelve a guardar la liquidación antes de enviar a revisión.']);
         }
 
+        // Una solicitud de obra no puede pasar a contabilidad sin un contrato relacionado.
+        if ($request->accion === 'enviar_contabilidad'
+            && $solicitud->tipoSolicitud->clave === 'OBR'
+            && $solicitud->solicitable?->contrato_id === null
+        ) {
+            return back()->withErrors(['accion' => 'Debe relacionar un contrato antes de enviar a contabilidad.']);
+        }
+
         try {
             $this->motor->aplicarTransicion(
                 $solicitud,

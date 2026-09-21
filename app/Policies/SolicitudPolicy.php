@@ -22,6 +22,17 @@ class SolicitudPolicy
         return $usuario->hasAnyRole(['residente', 'lider_area']);
     }
 
+    /**
+     * RR. HH. cotiza los items y relaciona el contrato de una solicitud de obra (OBR)
+     * mientras este enviada (para cotizar) o cotizada (para ajustar/relacionar contrato).
+     */
+    public function cotizarObra($usuario, Solicitud $solicitud): bool
+    {
+        return $solicitud->tipoSolicitud->clave === 'OBR'
+            && $usuario->hasRole('rrhh')
+            && in_array($solicitud->estado, ['enviada', 'cotizada']);
+    }
+
     public function verDetalle(Usuario $usuario, Solicitud $solicitud): bool
     {
         if ($usuario->id === $solicitud->solicitante_id) return true;

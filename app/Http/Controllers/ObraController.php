@@ -59,4 +59,54 @@ class ObraController extends Controller
         return redirect()->route('solicitudes.show', $solicitud)
             ->with('success', $request->boolean('enviar') ? 'Solicitud enviada a RR. HH.' : 'Borrador guardado.');
     }
+
+    public function cotizar(\Illuminate\Http\Request $request, Solicitud $solicitud)
+    {
+        $this->authorize('cotizarObra', $solicitud);
+        $request->validate([
+            'total_a_pagar' => 'nullable|numeric|min:0',
+            'items' => 'array',
+            'items.*.id' => 'required|integer',
+            'items.*.valor_unitario' => 'nullable|numeric|min:0',
+        ]);
+        $cab = $solicitud->solicitable;
+        DB::transaction(function () use ($request, $solicitud, $cab) {
+            if ($request->filled('total_a_pagar')) {
+                $cab->update(['total_a_pagar' => $request->total_a_pagar]);
+            }
+            foreach ($request->input('items', []) as $it) {
+                $item = ItemObra::where('id', $it['id'])
+                    ->where('solicitud_obra_id', $cab->id)->first();
+                if ($item) {
+                    $item->valor_unitario = $it['valor_unitario'] ?? null;
+                    $item->save(); // dispara saving() -> recalcula subtotal
+                }
+            }
+            if ($solicitud->estado === 'enviada' && $this->motor->puede($solicitud, 'cotizar', auth()->user())) {
+                $this->motor->aplicarTransicion($solicitud, 'cotizar', auth()->user());
+            }
+        });
+        return back()->with('success', 'Cotización guardada.');
+    }
+
+    public function relacionarContrato(\Illuminate\Http\Request $request, Solicitud $solicitud)
+    {
+        $this->authorize('cotizarObra', $solicitud);
+        $request->validate(['contrato_id' => 'required|exists:contratos,id']);
+        $solicitud->solicitable->update(['contrato_id' => $request->contrato_id]);
+        return back()->with('success', 'Contrato relacionado.');
+    }
+
+    public function anexarDocumento(\Illuminate\Http\Request $request, Solicitud $solicitud)
+    {
+        $this->authorize('cotizarObra', $solicitud);
+        $request->validate(['documento' => 'required|file|mimes:pdf,jpg,jpeg,png,xlsx,xls|max:5120']);
+        $path = $request->file('documento')->store('cotizaciones_obra', 'local');
+        CotizacionObra::create([
+            'solicitud_obra_id' => $solicitud->solicitable_id, 'tipo' => 'documento',
+            'path' => $path, 'nombre_original' => $request->file('documento')->getClientOriginalName(),
+            'usuario_id' => auth()->id(),
+        ]);
+        return back()->with('success', 'Documento anexado.');
+    }
 }
