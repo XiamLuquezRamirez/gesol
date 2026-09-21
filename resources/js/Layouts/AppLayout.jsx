@@ -107,6 +107,8 @@ export default function AppLayout({ title, children }) {
     const esRrhh = usuario.roles?.some((r) => r.name === 'rrhh');
     // Reportes: admin y contabilidad (contador o lider de contabilidad).
     const veReportes = usuario.roles?.some((r) => ['admin', 'contador', 'contabilidad_lider'].includes(r.name));
+    // Solicitudes de obra: residente de obra o lider de area.
+    const puedeCrearObra = usuario.roles?.some((r) => ['residente', 'lider_area'].includes(r.name));
 
     return (
         <div className="flex h-screen overflow-hidden bg-slate-50">
@@ -172,6 +174,15 @@ export default function AppLayout({ title, children }) {
                         >
                             Viáticos
                         </NavItem>
+                        {puedeCrearObra && (
+                            <NavItem
+                                href={route('obra.crear')}
+                                active={route().current('obra.*')}
+                                icon={IconBuilding}
+                            >
+                                Obras
+                            </NavItem>
+                        )}
                     </NavSection>
 
                     <NavSection label="Configuración">

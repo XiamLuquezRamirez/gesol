@@ -1,5 +1,5 @@
 <?php
-use App\Http\Controllers\{AbonoOficinaController, ArchivoViajeroController, ComisionesRrhhController, InicioController, LiquidacionPdfController, NotificacionController, OficinaController, ParametrosController, ProfileController, ReporteController, SolicitudController, UsuarioController, ViaticosController};
+use App\Http\Controllers\{AbonoOficinaController, ArchivoViajeroController, ComisionesRrhhController, InicioController, LiquidacionPdfController, NotificacionController, ObraController, OficinaController, ParametrosController, ProfileController, ReporteController, SolicitudController, UsuarioController, ViaticosController};
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -36,6 +36,10 @@ Route::middleware(['auth','verified'])->group(function () {
     // Formato de liquidación por viajero (comisión cerrada)
     Route::get('/solicitudes/{solicitud}/viajeros/{viajero}/liquidacion.pdf', [LiquidacionPdfController::class, 'descargar'])->name('liquidacion.pdf');
     Route::post('/solicitudes/{solicitud}/viajeros/{viajero}/liquidacion/correo', [LiquidacionPdfController::class, 'enviarCorreo'])->name('liquidacion.correo');
+
+    // Obra
+    Route::get('/obra/crear',  [ObraController::class, 'create'])->name('obra.crear');
+    Route::post('/obra',       [ObraController::class, 'store'])->name('obra.store');
 
     // Viáticos
     Route::get('/viaticos/crear',                    [ViaticosController::class, 'create'])->name('viaticos.crear');

@@ -14,6 +14,14 @@ class SolicitudPolicy
         return true;
     }
 
+    /**
+     * Crear una solicitud de obra (proceso OBR): el residente de obra o el lider de area.
+     */
+    public function crearObra(Usuario $usuario): bool
+    {
+        return $usuario->hasAnyRole(['residente', 'lider_area']);
+    }
+
     public function verDetalle(Usuario $usuario, Solicitud $solicitud): bool
     {
         if ($usuario->id === $solicitud->solicitante_id) return true;
