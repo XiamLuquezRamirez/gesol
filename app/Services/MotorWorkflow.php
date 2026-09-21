@@ -102,6 +102,22 @@ class MotorWorkflow
                 $comentario,
                 $actor->name,
             ));
+
+            return; // El aviso de rechazo/devolucion ya cubre al solicitante; no duplicar con 'seguimiento'.
+        }
+
+        // Trazabilidad para el solicitante: en CADA cambio de estado se le avisa del
+        // avance de su solicitud (verificada, aprobada, en gerencia, cerrada, etc.).
+        // Se omite cuando el solicitante es el propio actor (no auto-notificarse) y
+        // cuando ya recibio el aviso de rechazo/devolucion (return anterior).
+        if ($solicitud->solicitante_id !== $actor->id) {
+            \App\Support\Avisos::enviar($solicitud->solicitante, new AvisoTransicionNotification(
+                $solicitud,
+                'seguimiento',
+                $accion,
+                null,
+                $actor->name,
+            ));
         }
     }
 }

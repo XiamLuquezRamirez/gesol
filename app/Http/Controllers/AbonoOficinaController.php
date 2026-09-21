@@ -3,6 +3,8 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\RegistrarAbonoOficinaRequest;
 use App\Models\{AbonoOficina, SolicitudOficina, Solicitud};
+use App\Notifications\AvisoTransicionNotification;
+use App\Support\Avisos;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -20,6 +22,10 @@ class AbonoOficinaController extends Controller
         // El archivo se guarda fuera de la transaccion de BD.
         $soportePath   = $request->file('soporte')->store('soportes_pago', 'local');
         $soporteNombre = $request->file('soporte')->getClientOriginalName();
+
+        // Se recuerda el estado previo para avisar al solicitante solo en el PRIMER
+        // abono (el que dispara aprobada -> pendiente_cierre), no en los siguientes.
+        $estadoPrevio = $solicitud->estado;
 
         // El abono y el avance de estado son una sola unidad atomica.
         DB::transaction(function () use ($cabecera, $solicitud, $request, $soportePath, $soporteNombre) {
@@ -54,6 +60,18 @@ class AbonoOficinaController extends Controller
                 $solicitud->update(['estado' => 'pendiente_cierre']);
             }
         });
+
+        // El paso aprobada -> pendiente_cierre ocurre fuera del motor; el solicitante
+        // igual debe enterarse por correo del avance de su solicitud. Se hace tras la
+        // transaccion y de forma fail-safe (un fallo de SMTP no rompe el registro del abono).
+        if ($estadoPrevio === 'aprobada'
+            && $solicitud->fresh()->estado === 'pendiente_cierre'
+            && $solicitud->solicitante_id !== auth()->id()
+        ) {
+            Avisos::enviar($solicitud->solicitante, new AvisoTransicionNotification(
+                $solicitud->fresh(), 'seguimiento', 'abonar', null, auth()->user()->name,
+            ));
+        }
 
         return back()->with('success', 'Abono registrado.');
     }

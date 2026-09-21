@@ -89,14 +89,19 @@ class SolicitudController extends Controller
     }
 
     /**
-     * Solicitudes donde el usuario tiene alguna accion disponible. Se resuelve en
-     * PHP porque "accion disponible" depende del motor de workflow, no de SQL.
+     * Solicitudes "pendientes por aprobar" para el usuario: aquellas donde tiene
+     * una accion disponible del motor de workflow, MAS las comisiones de viaticos
+     * con un ajuste (AjusteComision) pendiente relevante a su rol (el reajuste del
+     * lider de area NO es una transicion del motor, asi que se anexa aparte).
      */
     private function colaPendientes(Usuario $usuario): Collection
     {
+        $idsConAjuste = AjusteComision::solicitudesConPendientePara($usuario)->flip();
+
         return Solicitud::with($this->relacionesListado())
             ->get()
-            ->filter(fn ($s) => !empty($this->motor->accionesDisponibles($s, $usuario)))
+            ->filter(fn ($s) => ! empty($this->motor->accionesDisponibles($s, $usuario))
+                || $idsConAjuste->has($s->id))
             ->values();
     }
 

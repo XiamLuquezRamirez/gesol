@@ -83,6 +83,13 @@ class AvisoTransicionNotification extends Notification
                 }
                 break;
 
+            case 'seguimiento':
+                // Aviso al solicitante del avance de SU solicitud, en cada cambio de estado.
+                $mail->greeting('Tu solicitud avanzó')
+                    ->line('Tu solicitud '.$radicado.' ('.$tipoNombre.') cambió de estado.')
+                    ->line('Estado actual: '.$estado.'.');
+                break;
+
             default: // 'informativo', 'ajustada', 'comision_reportada', etc.
                 $mail->greeting('Actualización de solicitud')
                     ->line('Hubo una actualización en la solicitud '.$radicado.' ('.$tipoNombre.').')
@@ -106,6 +113,7 @@ class AvisoTransicionNotification extends Notification
             'rechazada'        => 'Solicitud rechazada',
             'devuelta'         => 'Solicitud devuelta',
             'accion_requerida' => 'Acción requerida',
+            'seguimiento'      => 'Tu solicitud avanzó',
             default            => 'Actualización de solicitud',
         };
     }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AjusteComision;
 use App\Models\Solicitud;
 use App\Services\MotorWorkflow;
 use Inertia\Inertia;
@@ -24,10 +25,18 @@ class InicioController extends Controller
             ->whereYear('created_at', now()->year)
             ->count();
 
+        // Comisiones con un ajuste (reajuste post-cierre) pendiente relevante al rol
+        // del usuario. El reajuste NO es una transicion del motor y ademas vive sobre
+        // comisiones ya 'cerrada', por eso se cuentan aparte del filtro por estado.
+        $idsConAjuste = AjusteComision::solicitudesConPendientePara($usuario)->flip();
+
         $pendientes = Solicitud::with('tipoSolicitud')
-            ->whereNotIn('estado', ['cerrada', 'rechazada', 'borrador'])
+            ->where(fn($q) => $q
+                ->whereNotIn('estado', ['cerrada', 'rechazada', 'borrador'])
+                ->orWhereIn('id', $idsConAjuste->keys()->all()))
             ->get()
-            ->filter(fn($s) => !empty($this->motor->accionesDisponibles($s, $usuario)))
+            ->filter(fn($s) => !empty($this->motor->accionesDisponibles($s, $usuario))
+                || $idsConAjuste->has($s->id))
             ->count();
 
         $recientes = Solicitud::with('tipoSolicitud')
