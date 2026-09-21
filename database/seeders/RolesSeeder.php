@@ -16,6 +16,7 @@ class RolesSeeder extends Seeder
             'rrhh',
             'contabilidad_lider',
             'contador',
+            'residente',
         ];
 
         foreach ($roles as $rol) {
