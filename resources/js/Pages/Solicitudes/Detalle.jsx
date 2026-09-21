@@ -440,10 +440,21 @@ function DetalleViaticos({ solicitable, solicitudId, cerrada, puedeGestionarComp
                                 <button type="button" onClick={() => setRubrosDe(null)}
                                     className="text-slate-400 hover:text-slate-600 text-xl leading-none" aria-label="Cerrar">×</button>
                             </div>
-                            <p className="text-sm text-slate-500 mb-4">
+                            <p className="text-sm text-slate-500 mb-2">
                                 {rubrosDe.empleado ? `${rubrosDe.empleado.nombres} ${rubrosDe.empleado.apellidos}` : (rubrosDe.nombre_externo || '—')}
                                 {rubrosDe.tipo_pago ? ` · ${ETIQUETAS_PAGO[rubrosDe.tipo_pago] ?? rubrosDe.tipo_pago}` : ''}
                             </p>
+                            {/* Salida y regreso: justifican los dias y, por tanto, los rubros liquidados. */}
+                            <div className="flex flex-wrap gap-x-6 gap-y-1 mb-4 text-xs">
+                                <span className="text-slate-500">
+                                    <span className="font-medium text-slate-600">Salida:</span>{' '}
+                                    {formatFechaHora(rubrosDe.fecha_salida, rubrosDe.hora_salida)}
+                                </span>
+                                <span className="text-slate-500">
+                                    <span className="font-medium text-slate-600">Regreso:</span>{' '}
+                                    {formatFechaHora(rubrosDe.fecha_regreso, rubrosDe.hora_regreso)}
+                                </span>
+                            </div>
 
                             {asigs.length === 0 ? (
                                 <p className="text-sm text-slate-400 text-center py-6">Este viajero no tiene rubros asignados.</p>

@@ -276,10 +276,21 @@ export default function Comisiones({ comisionados, oficina = [], filtros }) {
                                 ×
                             </button>
                         </div>
-                        <p className="text-sm text-slate-500 mb-4">
+                        <p className="text-sm text-slate-500 mb-2">
                             {detalle.empleado} · {detalle.comision ?? '—'}
                             {detalle.tipo_pago ? ` · ${ETIQUETAS_PAGO[detalle.tipo_pago] ?? detalle.tipo_pago}` : ''}
                         </p>
+                        {/* Salida y regreso: justifican los dias y, por tanto, los rubros liquidados. */}
+                        <div className="flex flex-wrap gap-x-6 gap-y-1 mb-4 text-xs">
+                            <span className="text-slate-500">
+                                <span className="font-medium text-slate-600">Salida:</span>{' '}
+                                {formatFechaHora(detalle.fecha_salida, detalle.hora_salida)}
+                            </span>
+                            <span className="text-slate-500">
+                                <span className="font-medium text-slate-600">Regreso:</span>{' '}
+                                {formatFechaHora(detalle.fecha_regreso, detalle.hora_regreso)}
+                            </span>
+                        </div>
 
                         {(!detalle.rubros || detalle.rubros.length === 0) ? (
                             <p className="text-sm text-slate-400 text-center py-6">
