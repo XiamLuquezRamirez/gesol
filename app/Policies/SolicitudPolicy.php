@@ -33,6 +33,25 @@ class SolicitudPolicy
             && in_array($solicitud->estado, ['enviada', 'cotizada']);
     }
 
+    /**
+     * El lider de contabilidad registra pagos (abonos) de una solicitud de obra (OBR)
+     * mientras este aprobada o pendiente de cierre. Cerrada => inmutable.
+     */
+    public function pagarObra($usuario, Solicitud $solicitud): bool
+    {
+        return $solicitud->tipoSolicitud->clave === 'OBR'
+            && $usuario->hasRole('contabilidad_lider')
+            && in_array($solicitud->estado, ['aprobada', 'pendiente_cierre']);
+    }
+
+    /**
+     * Solo el contador puede aplicar/gestionar la retencion de un pago de obra (OBR).
+     */
+    public function gestionarRetencionObra($usuario, Solicitud $solicitud): bool
+    {
+        return $solicitud->tipoSolicitud->clave === 'OBR' && $usuario->hasRole('contador');
+    }
+
     public function verDetalle(Usuario $usuario, Solicitud $solicitud): bool
     {
         if ($usuario->id === $solicitud->solicitante_id) return true;

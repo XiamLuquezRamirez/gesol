@@ -1,5 +1,5 @@
 <?php
-use App\Http\Controllers\{AbonoOficinaController, ArchivoViajeroController, ComisionesRrhhController, InicioController, LiquidacionPdfController, NotificacionController, ObraController, OficinaController, ParametrosController, ProfileController, ReporteController, SolicitudController, UsuarioController, ViaticosController};
+use App\Http\Controllers\{AbonoObraController, AbonoOficinaController, ArchivoViajeroController, ComisionesRrhhController, InicioController, LiquidacionPdfController, NotificacionController, ObraController, OficinaController, ParametrosController, ProfileController, ReporteController, SolicitudController, UsuarioController, ViaticosController};
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -43,6 +43,9 @@ Route::middleware(['auth','verified'])->group(function () {
     Route::put('/obra/{solicitud}/cotizar',   [ObraController::class, 'cotizar'])->name('obra.cotizar');
     Route::put('/obra/{solicitud}/contrato',  [ObraController::class, 'relacionarContrato'])->name('obra.contrato');
     Route::post('/obra/{solicitud}/documento',[ObraController::class, 'anexarDocumento'])->name('obra.documento');
+    Route::post('/obra/{solicitud}/abonos',                  [AbonoObraController::class, 'store'])->name('obra.abono.store');
+    Route::put('/obra/{solicitud}/abonos/{abono}/retencion', [AbonoObraController::class, 'aplicarRetencion'])->name('obra.abono.retencion');
+    Route::get('/obra/{solicitud}/abonos/{abono}/soporte',   [AbonoObraController::class, 'descargarSoporte'])->name('obra.abono.soporte');
 
     // Viáticos
     Route::get('/viaticos/crear',                    [ViaticosController::class, 'create'])->name('viaticos.crear');
