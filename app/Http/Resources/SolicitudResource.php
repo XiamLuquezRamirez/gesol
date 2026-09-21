@@ -19,6 +19,18 @@ class SolicitudResource extends JsonResource
             // Datos de la card de viáticos: municipios destino y contratos únicos
             // de los viajeros (para "Viáticos - Municipios" y el contrato relacionado).
             'viaticos'   => $this->when($this->tipoSolicitud->clave === 'VIA', fn () => $this->datosViaticos()),
+            // Datos de la card de obra: solicitante y contrato relacionado (si ya
+            // se relacionó); permite mostrar algo sensato para OBR en el listado.
+            'obra'       => $this->when($this->tipoSolicitud->clave === 'OBR', fn () => $this->datosObra()),
+        ];
+    }
+
+    /** Nombre del solicitante y descripción del contrato relacionado (si existe). */
+    private function datosObra(): array
+    {
+        return [
+            'nombre_solicitante' => $this->solicitable?->nombre_solicitante,
+            'contrato'           => $this->solicitable?->contrato?->descripcion,
         ];
     }
 

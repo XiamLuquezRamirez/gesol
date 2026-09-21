@@ -2,9 +2,12 @@
 
 namespace App\Console\Commands;
 
+use App\Models\AbonoObra;
 use App\Models\ArchivoViajero;
+use App\Models\CotizacionObra;
 use App\Models\CotizacionOficina;
 use App\Models\Solicitud;
+use App\Models\SolicitudObra;
 use App\Models\SolicitudOficina;
 use App\Models\SolicitudViaticos;
 use Illuminate\Console\Command;
@@ -27,8 +30,9 @@ class LimpiarSolicitudes extends Command
         $totalSolicitudes = Solicitud::count();
         $totalOficina     = SolicitudOficina::count();
         $totalViaticos    = SolicitudViaticos::count();
+        $totalObra        = SolicitudObra::count();
 
-        if ($totalSolicitudes === 0 && $totalOficina === 0 && $totalViaticos === 0) {
+        if ($totalSolicitudes === 0 && $totalOficina === 0 && $totalViaticos === 0 && $totalObra === 0) {
             $this->info('No hay solicitudes que limpiar. El sistema ya esta vacio.');
             return self::SUCCESS;
         }
@@ -37,7 +41,8 @@ class LimpiarSolicitudes extends Command
         $this->line("  • {$totalSolicitudes} solicitudes (con sus transiciones)");
         $this->line("  • {$totalOficina} cabeceras de oficina (items y cotizaciones en cascada)");
         $this->line("  • {$totalViaticos} comisiones de viaticos (viajeros y asignaciones en cascada)");
-        $this->line('  • Archivos fisicos de cotizaciones, comprobantes/soportes de viajeros y notificaciones');
+        $this->line("  • {$totalObra} solicitudes de obra (items, cotizaciones y abonos en cascada)");
+        $this->line('  • Archivos fisicos de cotizaciones, comprobantes/soportes de viajeros, soportes de obra y notificaciones');
         $this->line('Se conservan: usuarios, roles, empleados, areas, tarifas y tipos de solicitud.');
 
         if (! $this->option('force') && ! $this->confirm('¿Continuar?')) {
@@ -61,6 +66,17 @@ class LimpiarSolicitudes extends Command
         }
         $this->line(count($pathsViajero).' archivo(s) de viajero eliminados del disco.');
 
+        // 1c) Archivos fisicos de obra: cotizaciones (path) y soportes de abonos
+        //     (soporte_path). La cascada de BD borra los registros pero no limpia
+        //     el disco, asi que se eliminan aqui antes de perder los paths.
+        $pathsObra = CotizacionObra::pluck('path')
+            ->merge(AbonoObra::pluck('soporte_path'))
+            ->filter()->all();
+        foreach ($pathsObra as $path) {
+            Storage::disk('local')->delete($path);
+        }
+        $this->line(count($pathsObra).' archivo(s) de obra eliminados del disco.');
+
         // 2) Borrado transaccional de los registros. Las FK con cascadeOnDelete
         //    arrastran items, cotizaciones, transiciones, viajeros y asignaciones.
         DB::transaction(function () {
@@ -69,6 +85,7 @@ class LimpiarSolicitudes extends Command
             Solicitud::query()->delete();       // -> transiciones_solicitud (cascade)
             SolicitudOficina::query()->delete(); // -> items_oficina, cotizaciones_oficina (cascade)
             SolicitudViaticos::query()->delete(); // -> viajeros_comision -> asignaciones_viaticos (cascade)
+            SolicitudObra::query()->delete();    // -> items_obra, cotizaciones_obra, abonos_obra (cascade)
 
             // 3) Notificaciones: en Gesol todas provienen de solicitudes
             //    (AvisoTransicionNotification y ComisionCerradaNotification),
