@@ -1,9 +1,14 @@
 <?php
-use App\Http\Controllers\{AbonoOficinaController, ArchivoViajeroController, ComisionesRrhhController, InicioController, LiquidacionPdfController, NotificacionController, OficinaController, ParametrosController, ProfileController, SolicitudController, UsuarioController, ViaticosController};
+use App\Http\Controllers\{AbonoOficinaController, ArchivoViajeroController, ComisionesRrhhController, InicioController, LiquidacionPdfController, NotificacionController, OficinaController, ParametrosController, ProfileController, ReporteController, SolicitudController, UsuarioController, ViaticosController};
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', fn() => redirect()->route('inicio'))->middleware('auth');
+
+// Pantalla propia de "sesion expirada" (error 419). Es publica a proposito: cuando
+// la sesion caduca, el usuario ya no esta autenticado y debe poder ver este aviso.
+Route::get('/sesion-expirada', fn () => Inertia::render('Errores/SesionExpirada'))
+    ->name('sesion.expirada');
 
 Route::middleware(['auth','verified'])->group(function () {
     Route::get('/inicio', [InicioController::class, 'index'])->name('inicio');
@@ -76,6 +81,16 @@ Route::middleware(['auth','verified'])->group(function () {
     // Panel de comisiones (solo RR. HH.)
     Route::middleware('role:rrhh')->group(function () {
         Route::get('/rrhh/comisiones', [ComisionesRrhhController::class, 'index'])->name('rrhh.comisiones');
+    });
+
+    // Reportes consolidados (admin y contabilidad). Panel de tarjetas + una vista por informe.
+    Route::middleware('role:admin|contador|contabilidad_lider')->prefix('reportes')->name('reportes.')->group(function () {
+        Route::get('/',            [ReporteController::class, 'index'])->name('index');
+        Route::get('/viaticos',    [ReporteController::class, 'viaticos'])->name('viaticos');
+        Route::get('/oficina',     [ReporteController::class, 'oficina'])->name('oficina');
+        Route::get('/personal',    [ReporteController::class, 'personal'])->name('personal');
+        Route::get('/comprobantes-pendientes', [ReporteController::class, 'comprobantesPendientes'])->name('comprobantes');
+        Route::get('/reajustes',   [ReporteController::class, 'reajustes'])->name('reajustes');
     });
 
     // Notificaciones

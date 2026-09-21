@@ -139,7 +139,7 @@ export default function Crear({ areas, usuarios, empleados = [], solicitud, edit
                                     </>
                                 )}
                             </div>
-                        </div>
+                        </div> 
 
                         <div className="grid grid-cols-2 gap-4">
                             <div>
