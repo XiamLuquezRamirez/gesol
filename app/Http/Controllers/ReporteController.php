@@ -65,16 +65,29 @@ class ReporteController extends Controller
     public function porViajero(Request $request)
     {
         [$desde, $hasta] = $this->rango($request);
-        $reporte = $this->viaticosPorViajero($desde, $hasta);
+        $empleadoId = $request->query('empleado') ? (int) $request->query('empleado') : null;
+        $reporte = $this->viaticosPorViajero($desde, $hasta, $empleadoId);
 
+        // Lista de empleados con comisiones en el rango, para el selector.
+        $empleados = ViajeroComision::whereBetween('fecha_salida', [$desde, $hasta])
+            ->whereHas('solicitudViaticos.solicitud',
+                fn ($q) => $q->whereNotIn('estado', ['borrador', 'rechazada', 'cancelada']))
+            ->with('empleado:id,nombres,apellidos')
+            ->get()->pluck('empleado')->filter()->unique('id')
+            ->map(fn ($e) => ['id' => $e->id, 'nombre' => trim($e->nombres.' '.$e->apellidos)])
+            ->sortBy('nombre')->values();
+
+        // Exportacion (xlsx/pdf): agrupada por rubro. Si hay empleado, solo ese.
         if ($export = $this->formatoExport($request)) {
-            [$encabezados, $filas] = $this->filasPorViajero($reporte);
-            return $this->exportar($export, 'gasto-por-viajero', 'Gasto por viajero', $desde, $hasta, $encabezados, $filas);
+            [$encabezados, $filas] = $this->filasPorViajeroRubro($reporte);
+            $slug = $empleadoId ? "gasto-viajero-{$empleadoId}" : 'gasto-por-rubro';
+            return $this->exportar($export, $slug, 'Gasto por viajero (por rubro)', $desde, $hasta, $encabezados, $filas);
         }
 
         return Inertia::render('Reportes/PorViajero', [
-            'filtros' => ['desde' => $desde, 'hasta' => $hasta],
-            'reporte' => $reporte,
+            'filtros'   => ['desde' => $desde, 'hasta' => $hasta, 'empleado' => $empleadoId],
+            'empleados' => $empleados,
+            'reporte'   => $reporte,
         ]);
     }
 
@@ -208,13 +221,15 @@ class ReporteController extends Controller
     }
 
     /**
-     * Mismo universo que detalleViaticos, pero PIVOTEADO POR EMPLEADO: una entrada
-     * por viajero con el total de TODAS sus comisiones; cada comision desglosa sus
-     * rubros y sus comprobantes de pago descargables.
+     * Mismo universo que detalleViaticos, pero PIVOTEADO POR EMPLEADO y AGRUPADO POR
+     * RUBRO: una entrada por empleado con sus rubros; cada rubro totaliza su gasto y
+     * lista las comisiones (fila viajero) que aportan a ese rubro, con el subtotal del
+     * rubro en esa comision y los comprobantes de pago descargables.
+     * Si $empleadoId no es null, restringe el reporte a ese empleado.
      */
-    private function viaticosPorViajero(string $desde, string $hasta): array
+    private function viaticosPorViajero(string $desde, string $hasta, ?int $empleadoId = null): array
     {
-        $viajeros = ViajeroComision::with([
+        $consulta = ViajeroComision::with([
                 'empleado.area',
                 'asignaciones',
                 'archivos' => fn ($q) => $q->where('tipo', 'comprobante'),
@@ -222,12 +237,17 @@ class ReporteController extends Controller
             ])
             ->whereBetween('fecha_salida', [$desde, $hasta])
             ->whereHas('solicitudViaticos.solicitud',
-                fn ($q) => $q->whereNotIn('estado', ['borrador', 'rechazada', 'cancelada']))
-            ->get();
+                fn ($q) => $q->whereNotIn('estado', ['borrador', 'rechazada', 'cancelada']));
+
+        if ($empleadoId !== null) {
+            $consulta->where('empleado_id', $empleadoId);
+        }
+
+        $viajeros = $consulta->get();
 
         $porEmpleado = [];
         $totalGeneral = 0.0;
-        $numComisiones = 0;
+        $rubrosGlobales = [];
 
         foreach ($viajeros as $v) {
             $solicitud = $v->solicitudViaticos?->solicitud;
@@ -240,52 +260,75 @@ class ReporteController extends Controller
 
             if (! isset($porEmpleado[$clave])) {
                 $porEmpleado[$clave] = [
+                    'empleado_id'    => $v->empleado_id,
                     'empleado'       => $nombre,
                     'identificacion' => $v->identificacionMostrada,
                     'area'           => $v->empleado?->area?->nombre ?? '—',
                     'total'          => 0.0,
-                    'num_comisiones' => 0,
-                    'comisiones'     => [],
+                    'rubros'         => [],   // rubro => ['total'=>float, 'comisiones'=>[sid => fila]]
                 ];
             }
 
-            $totalViajero = (float) $v->asignaciones->sum('subtotal');
-            $porEmpleado[$clave]['total'] += $totalViajero;
-            $porEmpleado[$clave]['num_comisiones']++;
-            $totalGeneral += $totalViajero;
-            $numComisiones++;
+            $comprobantes = $v->archivos->map(fn ($ar) => [
+                'id'     => $ar->id,
+                'nombre' => $ar->nombre,
+                'url'    => route('viaticos.archivos.descargar', [$solicitud->id, $v->id, $ar->id], false),
+            ])->values()->all();
 
-            $porEmpleado[$clave]['comisiones'][] = [
-                'solicitud_id' => $solicitud->id,
-                'radicado'     => $solicitud->radicado,
-                'nombre'       => $v->solicitudViaticos->nombre_comision,
-                'estado'       => $solicitud->estado,
-                'total'        => round($totalViajero, 2),
-                'rubros'       => $v->asignaciones->map(fn ($a) => [
-                    'rubro'    => $a->rubro instanceof \BackedEnum ? $a->rubro->value : (string) $a->rubro,
-                    'subtotal' => (float) $a->subtotal,
-                ])->values(),
-                'comprobantes' => $v->archivos->map(fn ($ar) => [
-                    'id'     => $ar->id,
-                    'nombre' => $ar->nombre,
-                    'url'    => route('viaticos.archivos.descargar', [$solicitud->id, $v->id, $ar->id], false),
-                ])->values(),
-            ];
+            // Acumular subtotales por rubro dentro de esta comision-viajero.
+            $porRubroEnComision = [];
+            foreach ($v->asignaciones as $a) {
+                $rubro = $a->rubro instanceof \BackedEnum ? $a->rubro->value : (string) $a->rubro;
+                $sub   = (float) $a->subtotal;
+                $porRubroEnComision[$rubro] = ($porRubroEnComision[$rubro] ?? 0.0) + $sub;
+                $rubrosGlobales[$rubro] = true;
+            }
+
+            foreach ($porRubroEnComision as $rubro => $sub) {
+                if (! isset($porEmpleado[$clave]['rubros'][$rubro])) {
+                    $porEmpleado[$clave]['rubros'][$rubro] = ['total' => 0.0, 'comisiones' => []];
+                }
+                $porEmpleado[$clave]['rubros'][$rubro]['total'] += $sub;
+                $porEmpleado[$clave]['rubros'][$rubro]['comisiones'][] = [
+                    'solicitud_id' => $solicitud->id,
+                    'radicado'     => $solicitud->radicado,
+                    'nombre'       => $v->solicitudViaticos->nombre_comision,
+                    'subtotal'     => round($sub, 2),
+                    'comprobantes' => $comprobantes,
+                ];
+                $porEmpleado[$clave]['total'] += $sub;
+                $totalGeneral += $sub;
+            }
         }
 
         $viajerosSalida = collect($porEmpleado)
             ->map(function ($e) {
-                $e['total'] = round($e['total'], 2);
-                return $e;
+                $rubros = collect($e['rubros'])
+                    ->map(fn ($datos, $rubro) => [
+                        'rubro'      => $rubro,
+                        'total'      => round($datos['total'], 2),
+                        'comisiones' => $datos['comisiones'],
+                    ])
+                    ->sortByDesc('total')
+                    ->values();
+
+                return [
+                    'empleado_id'    => $e['empleado_id'],
+                    'empleado'       => $e['empleado'],
+                    'identificacion' => $e['identificacion'],
+                    'area'           => $e['area'],
+                    'total'          => round($e['total'], 2),
+                    'rubros'         => $rubros,
+                ];
             })
             ->sortByDesc('total')
             ->values();
 
         return [
-            'total'          => round($totalGeneral, 2),
-            'num_empleados'  => $viajerosSalida->count(),
-            'num_comisiones' => $numComisiones,
-            'viajeros'       => $viajerosSalida,
+            'total'         => round($totalGeneral, 2),
+            'num_empleados' => $viajerosSalida->count(),
+            'num_rubros'    => count($rubrosGlobales),
+            'viajeros'      => $viajerosSalida,
         ];
     }
 
@@ -516,24 +559,27 @@ class ReporteController extends Controller
         return [$encabezados, $filas];
     }
 
-    /** Por viajero aplanado: una fila por comision de cada viajero. */
-    private function filasPorViajero(array $reporte): array
+    /**
+     * Por viajero aplanado, AGRUPADO POR RUBRO: por cada empleado, una fila cabecera
+     * por rubro (con su total) y una fila por comision que aporta a ese rubro; luego
+     * el subtotal del empleado. Al final, el total general.
+     */
+    private function filasPorViajeroRubro(array $reporte): array
     {
-        $encabezados = ['Empleado', 'Área', 'Comisión', 'Radicado', 'Total comisión', 'Comprobantes'];
+        $encabezados = ['Empleado', 'Rubro', 'Comisión', 'Radicado', 'Valor'];
         $filas = [];
         foreach ($reporte['viajeros'] as $v) {
-            foreach ($v['comisiones'] as $c) {
-                $filas[] = [
-                    $v['empleado'],
-                    $v['area'],
-                    $c['nombre'],
-                    $c['radicado'],
-                    $this->money($c['total']),
-                    collect($c['comprobantes'])->pluck('nombre')->implode(', ') ?: 'Sin comprobante',
-                ];
+            foreach ($v['rubros'] as $r) {
+                // Cabecera del rubro con su total.
+                $filas[] = [$v['empleado'], $r['rubro'], '', '', $this->money($r['total'])];
+                // Una fila por comision que aporta a este rubro.
+                foreach ($r['comisiones'] as $c) {
+                    $filas[] = ['', '', $c['nombre'], $c['radicado'], $this->money($c['subtotal'])];
+                }
             }
+            $filas[] = [$v['empleado'].' — TOTAL', '', '', '', $this->money($v['total'])];
         }
-        $filas[] = ['', '', '', '', 'TOTAL: '.$this->money($reporte['total']), ''];
+        $filas[] = ['TOTAL GENERAL', '', '', '', $this->money($reporte['total'])];
         return [$encabezados, $filas];
     }
 

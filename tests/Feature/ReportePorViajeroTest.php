@@ -17,13 +17,16 @@ class ReportePorViajeroTest extends TestCase
         return $u;
     }
 
-    /** Comision de viaticos con un viajero y sus rubros, en fechas dadas. Devuelve [solicitud, viajero]. */
-    private function comisionConRubros(string $salida, string $regreso, array $rubros, string $estado = 'cerrada'): array
+    /**
+     * Comision de viaticos con un viajero (empleado dado, o el primero) y sus rubros,
+     * en fechas dadas. Devuelve [solicitud, viajero].
+     */
+    private function comisionConRubros(string $salida, string $regreso, array $rubros, string $estado = 'cerrada', ?int $empleadoId = null): array
     {
         $tipo = TipoSolicitud::where('clave', 'VIA')->firstOrFail();
         $cab  = SolicitudViaticos::create(['nombre_comision' => 'C', 'municipio_destino' => 'X', 'observacion' => 'x']);
         $viajero = ViajeroComision::create([
-            'solicitud_viaticos_id' => $cab->id, 'empleado_id' => Empleados::first()->id,
+            'solicitud_viaticos_id' => $cab->id, 'empleado_id' => $empleadoId ?? Empleados::first()->id,
             'motivo' => 'm', 'fecha_salida' => $salida, 'hora_salida' => '08:00',
             'fecha_regreso' => $regreso, 'hora_regreso' => '17:00', 'tipo_pago' => 'efectivo',
         ]);
@@ -40,7 +43,7 @@ class ReportePorViajeroTest extends TestCase
         return [$sol, $viajero];
     }
 
-    public function test_agrupa_por_viajero_y_totaliza(): void
+    public function test_agrupa_por_empleado_y_rubro(): void
     {
         $this->seed();
         [$sol, $viajero] = $this->comisionConRubros('2026-01-10', '2026-01-10', ['gasolina' => 50000, 'cena' => 20000]);
@@ -57,11 +60,35 @@ class ReportePorViajeroTest extends TestCase
                 ->component('Reportes/PorViajero')
                 ->where('reporte.total', 70000)
                 ->where('reporte.num_empleados', 1)
-                ->where('reporte.num_comisiones', 1)
+                ->where('reporte.num_rubros', 2)
                 ->where('reporte.viajeros.0.total', 70000)
-                ->where('reporte.viajeros.0.num_comisiones', 1)
-                ->where('reporte.viajeros.0.comisiones.0.total', 70000)
-                ->where('reporte.viajeros.0.comisiones.0.comprobantes.0.nombre', 'pago.pdf'));
+                // Rubros ordenados por total desc: gasolina (50000) primero.
+                ->where('reporte.viajeros.0.rubros.0.rubro', 'gasolina')
+                ->where('reporte.viajeros.0.rubros.0.total', 50000)
+                ->where('reporte.viajeros.0.rubros.1.rubro', 'cena')
+                ->where('reporte.viajeros.0.rubros.1.total', 20000)
+                ->where('reporte.viajeros.0.rubros.0.comisiones.0.comprobantes.0.nombre', 'pago.pdf'));
+    }
+
+    public function test_filtro_por_empleado(): void
+    {
+        $this->seed();
+        $empleados = Empleados::take(2)->get();
+        $this->assertCount(2, $empleados, 'El seed debe tener al menos dos empleados.');
+        $a = $empleados[0];
+        $b = $empleados[1];
+
+        $this->comisionConRubros('2026-01-10', '2026-01-10', ['gasolina' => 30000], 'cerrada', $a->id);
+        $this->comisionConRubros('2026-01-11', '2026-01-11', ['cena' => 40000], 'cerrada', $b->id);
+
+        $this->actingAs($this->rol('contador'))
+            ->get(route('reportes.por-viajero', ['desde' => '2026-01-01', 'hasta' => '2026-01-31', 'empleado' => $a->id]))
+            ->assertInertia(fn (AssertableInertia $p) => $p
+                ->component('Reportes/PorViajero')
+                ->where('filtros.empleado', $a->id)
+                ->where('reporte.num_empleados', 1)
+                ->where('reporte.total', 30000)
+                ->where('reporte.viajeros.0.empleado_id', $a->id));
     }
 
     public function test_excluye_borrador(): void
@@ -77,16 +104,31 @@ class ReportePorViajeroTest extends TestCase
             ->assertInertia(fn (AssertableInertia $p) => $p
                 ->component('Reportes/PorViajero')
                 ->where('reporte.total', 30000)
-                ->where('reporte.num_comisiones', 1));
+                ->where('reporte.num_empleados', 1));
     }
 
-    public function test_export_xlsx(): void
+    public function test_export_pdf_por_empleado(): void
     {
         $this->seed();
-        $this->comisionConRubros('2026-01-10', '2026-01-10', ['gasolina' => 50000], 'cerrada');
+        [$sol, $viajero] = $this->comisionConRubros('2026-01-10', '2026-01-10', ['gasolina' => 50000], 'cerrada');
+        $empleadoId = $viajero->empleado_id;
 
         $res = $this->actingAs($this->rol('contador'))
-            ->get(route('reportes.por-viajero', ['desde' => '2026-01-01', 'hasta' => '2026-01-31', 'export' => 'xlsx']));
+            ->get(route('reportes.por-viajero', ['desde' => '2026-01-01', 'hasta' => '2026-01-31', 'empleado' => $empleadoId, 'export' => 'pdf']));
+
+        $res->assertOk();
+        $this->assertStringContainsString('application/pdf', $res->headers->get('content-type'));
+        $this->assertStringContainsString('.pdf', $res->headers->get('content-disposition'));
+    }
+
+    public function test_export_xlsx_por_empleado(): void
+    {
+        $this->seed();
+        [$sol, $viajero] = $this->comisionConRubros('2026-01-10', '2026-01-10', ['gasolina' => 50000], 'cerrada');
+        $empleadoId = $viajero->empleado_id;
+
+        $res = $this->actingAs($this->rol('contador'))
+            ->get(route('reportes.por-viajero', ['desde' => '2026-01-01', 'hasta' => '2026-01-31', 'empleado' => $empleadoId, 'export' => 'xlsx']));
 
         $res->assertOk();
         $this->assertStringContainsString('spreadsheetml', $res->headers->get('content-type'));
