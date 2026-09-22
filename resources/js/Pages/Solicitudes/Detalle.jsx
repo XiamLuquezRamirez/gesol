@@ -98,6 +98,7 @@ function DetalleOficina({ solicitable, beneficiarios = [], institucional = false
                         <thead className="bg-slate-50 border-b border-slate-100">
                             <tr className="text-left text-xs text-slate-500">
                                 <th className="px-3 py-2 font-medium">Ítem</th>
+                                <th className="px-3 py-2 font-medium">Concepto</th>
                                 <th className="px-3 py-2 font-medium text-center">Cant.</th>
                             </tr>
                         </thead>
@@ -105,6 +106,7 @@ function DetalleOficina({ solicitable, beneficiarios = [], institucional = false
                             {solicitable.items.map((item, i) => (
                                 <tr key={i} className="text-slate-700 hover:bg-slate-50">
                                     <td className="px-3 py-2.5">{item.nombre}</td>
+                                    <td className="px-3 py-2.5 text-slate-500">{item.concepto_pago?.nombre ?? '—'}</td>
                                     <td className="px-3 py-2.5 text-center">{item.cantidad}</td>
                                 </tr>
                             ))}
