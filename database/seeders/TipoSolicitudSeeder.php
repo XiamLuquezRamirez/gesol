@@ -42,7 +42,8 @@ class TipoSolicitudSeeder extends Seeder
                     'estados'       => json_encode(['borrador','enviada','liquidada','revisada','en_gerencia','cerrada','rechazada','cancelada']),
                     'transiciones'  => json_encode([
                         // El solicitante envia la comision directamente al contador.
-                        ['origen'=>'borrador',  'accion'=>'enviar',        'destino'=>'enviada',   'roles'=>['lider_area','lider_comite'], 'notificar'=>['contador'], 'label'=>'Enviar al contador y RR. HH.'],
+                        // RR. HH. tambien puede crear y enviar comisiones de viaticos, ademas de los lideres.
+                        ['origen'=>'borrador',  'accion'=>'enviar',        'destino'=>'enviada',   'roles'=>['lider_area','lider_comite','rrhh'], 'notificar'=>['contador'], 'label'=>'Enviar al contador y RR. HH.'],
                         // El contador presenta el informe (liquida).
                         ['origen'=>'enviada',   'accion'=>'liquidar',      'destino'=>'liquidada', 'roles'=>['contador'],                  'label'=>'Presentar informe'],
                         ['origen'=>'enviada',   'accion'=>'devolver',      'destino'=>'borrador',  'roles'=>['contador'],                  'label'=>'Devolver'],

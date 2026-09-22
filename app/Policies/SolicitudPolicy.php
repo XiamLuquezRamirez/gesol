@@ -73,6 +73,13 @@ class SolicitudPolicy
             return true;
         }
 
+        // Un borrador es privado de su solicitante (ya cubierto arriba): nadie mas lo
+        // ve por rol, aunque su rol pueda "enviar" desde borrador. Esto evita que, p. ej.,
+        // RR. HH. (que ahora puede enviar viaticos) vea los borradores de otros.
+        if ($solicitud->estado === 'borrador') {
+            return false;
+        }
+
         $rolesUsuario = $usuario->getRoleNames()->toArray();
         return collect($solicitud->tipoSolicitud->transiciones)
             ->pluck('roles')->flatten()->unique()
