@@ -80,6 +80,9 @@ Route::middleware(['auth','verified'])->group(function () {
     Route::post('/parametros/contratos',                [ParametrosController::class, 'storeContrato'])->name('parametros.contratos.store');
     Route::put('/parametros/contratos/{contrato}',      [ParametrosController::class, 'updateContrato'])->name('parametros.contratos.update');
     Route::delete('/parametros/contratos/{contrato}',   [ParametrosController::class, 'destroyContrato'])->name('parametros.contratos.destroy');
+    Route::post('/parametros/conceptos',              [ParametrosController::class, 'storeConcepto'])->name('parametros.conceptos.store');
+    Route::put('/parametros/conceptos/{concepto}',    [ParametrosController::class, 'updateConcepto'])->name('parametros.conceptos.update');
+    Route::delete('/parametros/conceptos/{concepto}', [ParametrosController::class, 'destroyConcepto'])->name('parametros.conceptos.destroy');
 
     // Usuarios (solo admin)
     Route::middleware('role:admin')->group(function () {

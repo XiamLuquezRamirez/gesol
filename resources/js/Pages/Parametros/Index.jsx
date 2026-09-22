@@ -512,14 +512,146 @@ function TabContratos({ contratos, municipios }) {
     );
 }
 
+/* ─── Tab Conceptos de pago ───────────────────────────── */
+const CONCEPTO_VACIO = { nombre: '', activo: true };
+
+function TabConceptos({ conceptos }) {
+    const [panel, setPanel] = useState(null); // null | { tipo, id }
+    const [confirmarId, setConfirmarId] = useState(null);
+    const { data, setData, post, put, reset, processing, errors, clearErrors } = useForm(CONCEPTO_VACIO);
+
+    const abrirCrear = () => { reset(); clearErrors(); setPanel({ tipo: 'crear', id: null }); };
+    const abrirEditar = (c) => {
+        setData({ nombre: c.nombre, activo: c.activo });
+        clearErrors();
+        setPanel({ tipo: 'editar', id: c.id });
+    };
+    const cancelar = () => { setPanel(null); clearErrors(); };
+
+    const submit = (e) => {
+        e.preventDefault();
+        if (panel.tipo === 'crear') post(route('parametros.conceptos.store'), { onSuccess: () => setPanel(null) });
+        else put(route('parametros.conceptos.update', panel.id), { onSuccess: () => setPanel(null) });
+    };
+    const eliminar = (c) => {
+        if (confirmarId !== c.id) { setConfirmarId(c.id); return; }
+        router.delete(route('parametros.conceptos.destroy', c.id), { onSuccess: () => setConfirmarId(null) });
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="flex justify-end">
+                <button type="button" onClick={abrirCrear}
+                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors">
+                    <PlusCircleIcon className="w-4 h-4" /> Nuevo concepto
+                </button>
+            </div>
+
+            {panel && (
+                <div className="bg-white rounded-xl border border-indigo-200 p-5">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-indigo-500 mb-4">
+                        {panel.tipo === 'crear' ? 'Nuevo concepto' : 'Editar concepto'}
+                    </p>
+                    <form onSubmit={submit} className="space-y-4">
+                        <Field label="Concepto" error={errors.nombre}>
+                            <Input
+                                value={data.nombre}
+                                onChange={(e) => setData('nombre', e.target.value)}
+                                error={errors.nombre}
+                                placeholder="Ej. Grúa, taxi, gasolina"
+                            />
+                        </Field>
+                        <label className="inline-flex items-center gap-2 text-sm text-slate-600">
+                            <input
+                                type="checkbox"
+                                checked={data.activo}
+                                onChange={(e) => setData('activo', e.target.checked)}
+                                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            Activo
+                        </label>
+                        <div className="flex justify-end gap-3 pt-1">
+                            <button type="button" onClick={cancelar}
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50">
+                                <XCircleIcon className="w-4 h-4" /> Cancelar
+                            </button>
+                            <button type="submit" disabled={processing}
+                                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg disabled:opacity-50">
+                                <CheckCircleIcon className="w-4 h-4" />
+                                {processing ? 'Guardando…' : panel.tipo === 'crear' ? 'Crear concepto' : 'Guardar cambios'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            )}
+
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                {conceptos.length === 0 ? (
+                    <p className="text-sm text-slate-400 text-center py-10">No hay conceptos de pago registrados.</p>
+                ) : (
+                    <table className="w-full text-sm">
+                        <thead className="bg-slate-50 border-b border-slate-100">
+                            <tr>
+                                <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3">Concepto</th>
+                                <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3">Estado</th>
+                                <th className="px-5 py-3 w-24"></th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                            {conceptos.map((c) => (
+                                <tr key={c.id} className="hover:bg-slate-50/50">
+                                    <td className="px-5 py-3 font-medium text-slate-700">{c.nombre}</td>
+                                    <td className="px-5 py-3">
+                                        {c.activo ? (
+                                            <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-50 text-emerald-700">Activo</span>
+                                        ) : (
+                                            <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 text-slate-500">Inactivo</span>
+                                        )}
+                                    </td>
+                                    <td className="px-5 py-3">
+                                        <div className="flex items-center justify-end gap-1">
+                                            <button type="button" onClick={() => abrirEditar(c)}
+                                                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors" title="Editar">
+                                                <PencilSquareIcon className="w-4 h-4" />
+                                            </button>
+                                            {confirmarId === c.id ? (
+                                                <div className="flex items-center gap-1 ml-1">
+                                                    <button type="button" onClick={() => eliminar(c)}
+                                                        className="px-2 py-1 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg">
+                                                        Confirmar
+                                                    </button>
+                                                    <button type="button" onClick={() => setConfirmarId(null)}
+                                                        className="px-2 py-1 text-xs font-medium text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg">
+                                                        No
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <button type="button" onClick={() => eliminar(c)}
+                                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Eliminar">
+                                                    <TrashIcon className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
+            </div>
+        </div>
+    );
+}
+
 /* ─── Página principal ────────────────────────────────── */
 const TABS = [
     { id: 'tarifas',   label: 'Tarifas de viáticos' },
     { id: 'empleados', label: 'Empleados' },
     { id: 'contratos', label: 'Contratos' },
+    { id: 'conceptos', label: 'Conceptos de pago' },
 ];
 
-export default function Index({ tarifas, empleados, areas = [], contratos = [], municipios = [] }) {
+export default function Index({ tarifas, empleados, areas = [], contratos = [], municipios = [], conceptosPago = [] }) {
     const { props } = usePage();
     const flash = props.flash ?? {};
     const [tab, setTab] = useState('tarifas');
@@ -572,6 +704,7 @@ export default function Index({ tarifas, empleados, areas = [], contratos = [], 
                 {tab === 'tarifas'   && <TabTarifas   tarifas={tarifas} />}
                 {tab === 'empleados' && <TabEmpleados empleados={empleados} areas={areas} />}
                 {tab === 'contratos' && <TabContratos contratos={contratos} municipios={municipios} />}
+                {tab === 'conceptos' && <TabConceptos conceptos={conceptosPago} />}
 
             </div>
         </AppLayout>

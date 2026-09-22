@@ -1,7 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
-use App\Models\{Area, Contrato, Empleados, Municipio, TarifaViatico};
+use App\Models\{Area, ConceptoPago, Contrato, Empleados, Municipio, TarifaViatico};
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -16,6 +16,7 @@ class ParametrosController extends Controller
             'areas'     => Area::where('es_general', false)->orderBy('nombre')->get(['id','nombre']),
             'contratos'  => Contrato::with('municipios:id,nombre')->orderBy('descripcion')->get(),
             'municipios' => Municipio::orderBy('nombre')->get(['id','nombre']),
+            'conceptosPago' => ConceptoPago::orderBy('nombre')->get(['id','nombre','activo']),
         ]);
     }
 
@@ -113,5 +114,31 @@ class ParametrosController extends Controller
         }
         $contrato->delete();
         return back()->with('success', 'Contrato eliminado.');
+    }
+
+    public function storeConcepto(Request $request)
+    {
+        $data = $request->validate([
+            'nombre' => 'required|string|max:100|unique:conceptos_pago,nombre',
+            'activo' => 'boolean',
+        ]);
+        ConceptoPago::create($data);
+        return back()->with('success', 'Concepto de pago creado.');
+    }
+
+    public function updateConcepto(Request $request, ConceptoPago $concepto)
+    {
+        $data = $request->validate([
+            'nombre' => 'required|string|max:100|unique:conceptos_pago,nombre,'.$concepto->id,
+            'activo' => 'boolean',
+        ]);
+        $concepto->update($data);
+        return back()->with('success', 'Concepto de pago actualizado.');
+    }
+
+    public function destroyConcepto(ConceptoPago $concepto)
+    {
+        $concepto->delete();
+        return back()->with('success', 'Concepto de pago eliminado.');
     }
 }
