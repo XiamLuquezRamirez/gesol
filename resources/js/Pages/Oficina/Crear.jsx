@@ -45,9 +45,9 @@ function TextField({ label, name, value, onChange, error, multiline, ...props })
     );
 }
 
-const ITEM_VACIO = { nombre: '', categoria: 'producto', cantidad: 1, costo_estimado: '', notas: '' };
+const ITEM_VACIO = { nombre: '', categoria: 'producto', cantidad: 1, costo_estimado: '', notas: '', concepto_pago_id: '' };
 
-export default function Crear({ areas, usuarios, empleados = [], solicitud, editar, puedeEnviar = false }) {
+export default function Crear({ areas, usuarios, empleados = [], solicitud, editar, puedeEnviar = false, conceptosPago = [] }) {
     const titulo = editar ? 'Editar solicitud de oficina' : 'Nueva solicitud de oficina';
     const solicitable = solicitud?.solicitable;
 
@@ -62,6 +62,7 @@ export default function Crear({ areas, usuarios, empleados = [], solicitud, edit
             cantidad:        i.cantidad,
             costo_estimado:  i.costo_estimado,
             notas:           i.notas ?? '',
+            concepto_pago_id: i.concepto_pago_id ?? '',
         })) ?? [{ ...ITEM_VACIO }],
     });
 
@@ -177,19 +178,41 @@ export default function Crear({ areas, usuarios, empleados = [], solicitud, edit
                                             <TrashIcon className="w-4 h-4 text-red-500" /> Eliminar
                                         </button>
                                     )}
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-3 gap-3">
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de línea</label>
+                                            <select
+                                                value={item.concepto_pago_id ? 'pago' : 'elemento'}
+                                                onChange={(e) => actualizarItem(idx, 'concepto_pago_id', e.target.value === 'pago' ? (conceptosPago[0]?.id ?? '') : '')}
+                                                className="w-full rounded-lg border border-slate-300 text-sm py-2 px-3 focus:ring-2 focus:ring-indigo-500 outline-none">
+                                                <option value="elemento">Elemento de oficina</option>
+                                                <option value="pago">Otro pago / gasto</option>
+                                            </select>
+                                        </div>
                                         <TextField label="Nombre" value={item.nombre}
                                             onChange={(v) => actualizarItem(idx, 'nombre', v)}
                                             error={errors[`items.${idx}.nombre`]} />
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-1">Categoría</label>
-                                            <select value={item.categoria}
-                                                onChange={(e) => actualizarItem(idx, 'categoria', e.target.value)}
-                                                className="w-full rounded-lg border border-slate-300 text-sm py-2 px-3 focus:ring-2 focus:ring-indigo-500 outline-none">
-                                                <option value="producto">Producto</option>
-                                                <option value="servicio">Servicio</option>
-                                            </select>
-                                        </div>
+                                        {item.concepto_pago_id ? (
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">Concepto</label>
+                                                <select value={item.concepto_pago_id}
+                                                    onChange={(e) => actualizarItem(idx, 'concepto_pago_id', e.target.value)}
+                                                    className="w-full rounded-lg border border-slate-300 text-sm py-2 px-3 focus:ring-2 focus:ring-indigo-500 outline-none">
+                                                    {conceptosPago.length === 0 && <option value="">(Sin conceptos configurados)</option>}
+                                                    {conceptosPago.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                                                </select>
+                                            </div>
+                                        ) : (
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">Categoría</label>
+                                                <select value={item.categoria}
+                                                    onChange={(e) => actualizarItem(idx, 'categoria', e.target.value)}
+                                                    className="w-full rounded-lg border border-slate-300 text-sm py-2 px-3 focus:ring-2 focus:ring-indigo-500 outline-none">
+                                                    <option value="producto">Producto</option>
+                                                    <option value="servicio">Servicio</option>
+                                                </select>
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
@@ -198,7 +221,7 @@ export default function Crear({ areas, usuarios, empleados = [], solicitud, edit
                                                 onChange={(e) => actualizarItem(idx, 'cantidad', parseInt(e.target.value) || 1)}
                                                 className="w-full rounded-lg border border-slate-300 text-sm py-2 px-3 focus:ring-2 focus:ring-indigo-500 outline-none" />
                                         </div>
-                                        <CampoMoneda label="Costo estimado (opcional)" value={item.costo_estimado}
+                                        <CampoMoneda label={item.concepto_pago_id ? 'Monto' : 'Costo estimado (opcional)'} value={item.costo_estimado}
                                             onChange={(v) => actualizarItem(idx, 'costo_estimado', v)}
                                             error={errors[`items.${idx}.costo_estimado`]} />
                                     </div>

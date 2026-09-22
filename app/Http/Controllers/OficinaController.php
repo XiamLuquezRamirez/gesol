@@ -18,6 +18,7 @@ class OficinaController extends Controller
             'areas'     => Area::orderBy('nombre')->get(['id','nombre','es_general']),
             'usuarios'  => Usuario::orderBy('name')->get(['id','name']),
             'empleados' => Empleados::orderBy('nombres')->get(['id','nombres','apellidos','identificacion','area_id']),
+            'conceptosPago' => \App\Models\ConceptoPago::where('activo', true)->orderBy('nombre')->get(['id','nombre']),
             // ¿El usuario puede, ademas de crear, enviar de una vez la solicitud a RR. HH.?
             // (la transicion 'enviar' desde 'borrador' pide el rol lider_area.)
             'puedeEnviar' => $this->puedeEnviarOficina(auth()->user()),
@@ -106,6 +107,7 @@ class OficinaController extends Controller
             'areas'     => Area::orderBy('nombre')->get(['id','nombre','es_general']),
             'usuarios'  => Usuario::orderBy('name')->get(['id','name']),
             'empleados' => Empleados::orderBy('nombres')->get(['id','nombres','apellidos','identificacion','area_id']),
+            'conceptosPago' => \App\Models\ConceptoPago::where('activo', true)->orderBy('nombre')->get(['id','nombre']),
             'editar'    => true,
         ]);
     }
