@@ -11,6 +11,7 @@ class DatabaseSeeder extends Seeder
             AreaSeeder::class,
             TipoSolicitudSeeder::class,
             TarifaViaticosSeeder::class,
+            ConceptoPagoSeeder::class,
             MunicipiosSeeder::class,
             AdminSeeder::class,
             UsuariosDemoSeeder::class,
