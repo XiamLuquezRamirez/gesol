@@ -100,6 +100,7 @@ Route::middleware(['auth','verified'])->group(function () {
     Route::middleware('role:admin|contador|contabilidad_lider')->prefix('reportes')->name('reportes.')->group(function () {
         Route::get('/',            [ReporteController::class, 'index'])->name('index');
         Route::get('/viaticos',    [ReporteController::class, 'viaticos'])->name('viaticos');
+        Route::get('/por-viajero', [ReporteController::class, 'porViajero'])->name('por-viajero');
         Route::get('/oficina',     [ReporteController::class, 'oficina'])->name('oficina');
         Route::get('/personal',    [ReporteController::class, 'personal'])->name('personal');
         Route::get('/comprobantes-pendientes', [ReporteController::class, 'comprobantesPendientes'])->name('comprobantes');

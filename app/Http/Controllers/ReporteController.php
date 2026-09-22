@@ -62,6 +62,22 @@ class ReporteController extends Controller
         ]);
     }
 
+    public function porViajero(Request $request)
+    {
+        [$desde, $hasta] = $this->rango($request);
+        $reporte = $this->viaticosPorViajero($desde, $hasta);
+
+        if ($export = $this->formatoExport($request)) {
+            [$encabezados, $filas] = $this->filasPorViajero($reporte);
+            return $this->exportar($export, 'gasto-por-viajero', 'Gasto por viajero', $desde, $hasta, $encabezados, $filas);
+        }
+
+        return Inertia::render('Reportes/PorViajero', [
+            'filtros' => ['desde' => $desde, 'hasta' => $hasta],
+            'reporte' => $reporte,
+        ]);
+    }
+
     public function oficina(Request $request)
     {
         [$desde, $hasta] = $this->rango($request);
@@ -188,6 +204,88 @@ class ReporteController extends Controller
             'num_comisiones' => $comisiones->count(),
             'num_viajeros'   => $viajeros->count(),
             'comisiones'     => $comisiones,
+        ];
+    }
+
+    /**
+     * Mismo universo que detalleViaticos, pero PIVOTEADO POR EMPLEADO: una entrada
+     * por viajero con el total de TODAS sus comisiones; cada comision desglosa sus
+     * rubros y sus comprobantes de pago descargables.
+     */
+    private function viaticosPorViajero(string $desde, string $hasta): array
+    {
+        $viajeros = ViajeroComision::with([
+                'empleado.area',
+                'asignaciones',
+                'archivos' => fn ($q) => $q->where('tipo', 'comprobante'),
+                'solicitudViaticos.solicitud',
+            ])
+            ->whereBetween('fecha_salida', [$desde, $hasta])
+            ->whereHas('solicitudViaticos.solicitud',
+                fn ($q) => $q->whereNotIn('estado', ['borrador', 'rechazada', 'cancelada']))
+            ->get();
+
+        $porEmpleado = [];
+        $totalGeneral = 0.0;
+        $numComisiones = 0;
+
+        foreach ($viajeros as $v) {
+            $solicitud = $v->solicitudViaticos?->solicitud;
+            if (! $solicitud) {
+                continue;
+            }
+
+            $nombre = $v->nombreMostrado;
+            $clave  = $v->empleado_id ? 'e'.$v->empleado_id : 'x'.mb_strtolower($nombre);
+
+            if (! isset($porEmpleado[$clave])) {
+                $porEmpleado[$clave] = [
+                    'empleado'       => $nombre,
+                    'identificacion' => $v->identificacionMostrada,
+                    'area'           => $v->empleado?->area?->nombre ?? '—',
+                    'total'          => 0.0,
+                    'num_comisiones' => 0,
+                    'comisiones'     => [],
+                ];
+            }
+
+            $totalViajero = (float) $v->asignaciones->sum('subtotal');
+            $porEmpleado[$clave]['total'] += $totalViajero;
+            $porEmpleado[$clave]['num_comisiones']++;
+            $totalGeneral += $totalViajero;
+            $numComisiones++;
+
+            $porEmpleado[$clave]['comisiones'][] = [
+                'solicitud_id' => $solicitud->id,
+                'radicado'     => $solicitud->radicado,
+                'nombre'       => $v->solicitudViaticos->nombre_comision,
+                'estado'       => $solicitud->estado,
+                'total'        => round($totalViajero, 2),
+                'rubros'       => $v->asignaciones->map(fn ($a) => [
+                    'rubro'    => $a->rubro instanceof \BackedEnum ? $a->rubro->value : (string) $a->rubro,
+                    'subtotal' => (float) $a->subtotal,
+                ])->values(),
+                'comprobantes' => $v->archivos->map(fn ($ar) => [
+                    'id'     => $ar->id,
+                    'nombre' => $ar->nombre,
+                    'url'    => route('viaticos.archivos.descargar', [$solicitud->id, $v->id, $ar->id], false),
+                ])->values(),
+            ];
+        }
+
+        $viajerosSalida = collect($porEmpleado)
+            ->map(function ($e) {
+                $e['total'] = round($e['total'], 2);
+                return $e;
+            })
+            ->sortByDesc('total')
+            ->values();
+
+        return [
+            'total'          => round($totalGeneral, 2),
+            'num_empleados'  => $viajerosSalida->count(),
+            'num_comisiones' => $numComisiones,
+            'viajeros'       => $viajerosSalida,
         ];
     }
 
@@ -415,6 +513,27 @@ class ReporteController extends Controller
         }
         // Fila total al final.
         $filas[] = ['', '', '', 'TOTAL: '.$this->money($reporte['total']), ''];
+        return [$encabezados, $filas];
+    }
+
+    /** Por viajero aplanado: una fila por comision de cada viajero. */
+    private function filasPorViajero(array $reporte): array
+    {
+        $encabezados = ['Empleado', 'Área', 'Comisión', 'Radicado', 'Total comisión', 'Comprobantes'];
+        $filas = [];
+        foreach ($reporte['viajeros'] as $v) {
+            foreach ($v['comisiones'] as $c) {
+                $filas[] = [
+                    $v['empleado'],
+                    $v['area'],
+                    $c['nombre'],
+                    $c['radicado'],
+                    $this->money($c['total']),
+                    collect($c['comprobantes'])->pluck('nombre')->implode(', ') ?: 'Sin comprobante',
+                ];
+            }
+        }
+        $filas[] = ['', '', '', '', 'TOTAL: '.$this->money($reporte['total']), ''];
         return [$encabezados, $filas];
     }
 

@@ -17,6 +17,12 @@ const TARJETAS = [
         valor: (r) => formatearMoneda(r.viaticos),
     },
     {
+        key: 'por_viajero', ruta: 'reportes.por-viajero', titulo: 'Gasto por viajero',
+        desc: 'Total de comisiones por empleado, con gasto y comprobantes por comisión.',
+        color: 'bg-violet-50 text-violet-700 border-violet-100',
+        valor: (r) => formatearMoneda(r.viaticos),
+    },
+    {
         key: 'oficina', ruta: 'reportes.oficina', titulo: 'Oficina: aprobado vs. pagado',
         desc: 'Pagos de solicitudes de oficina y saldos pendientes.',
         color: 'bg-emerald-50 text-emerald-700 border-emerald-100',
