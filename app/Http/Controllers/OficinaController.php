@@ -142,6 +142,8 @@ class OficinaController extends Controller
     {
         $costo = $item['costo_estimado'] ?? null;
         $item['costo_estimado'] = ($costo === '' || $costo === null) ? null : $costo;
+        $concepto = $item['concepto_pago_id'] ?? null;
+        $item['concepto_pago_id'] = ($concepto === '' || $concepto === null) ? null : $concepto;
         return $item;
     }
 

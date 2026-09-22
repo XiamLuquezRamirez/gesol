@@ -34,6 +34,7 @@ class GuardarSolicitudOficinaRequest extends FormRequest
             'items'                  => 'required|array|min:1',
             'items.*.nombre'         => 'required|string|max:255',
             'items.*.categoria'      => 'required|in:producto,servicio',
+            'items.*.concepto_pago_id' => 'nullable|exists:conceptos_pago,id',
             'items.*.cantidad'       => 'required|integer|min:1',
             'items.*.costo_estimado' => 'nullable|numeric|min:0',
             'items.*.notas'          => 'nullable|string|max:500',
@@ -85,6 +86,7 @@ class GuardarSolicitudOficinaRequest extends FormRequest
             'items'                  => 'ítems',
             'items.*.nombre'         => 'nombre del ítem',
             'items.*.categoria'      => 'categoría del ítem',
+            'items.*.concepto_pago_id' => 'concepto de pago',
             'items.*.cantidad'       => 'cantidad del ítem',
             'items.*.costo_estimado' => 'costo estimado',
         ];

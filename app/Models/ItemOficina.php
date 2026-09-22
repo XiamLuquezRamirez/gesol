@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 class ItemOficina extends Model
 {
     protected $table = 'items_oficina';
-    protected $fillable = ['solicitud_oficina_id','nombre','categoria','cantidad','costo_estimado','subtotal','notas'];
+    protected $fillable = ['solicitud_oficina_id','nombre','categoria','concepto_pago_id','cantidad','costo_estimado','subtotal','notas'];
     protected $casts = ['categoria' => CategoriaItem::class];
 
     protected static function booted(): void
@@ -21,5 +21,10 @@ class ItemOficina extends Model
     public function solicitudOficina()
     {
         return $this->belongsTo(SolicitudOficina::class, 'solicitud_oficina_id');
+    }
+
+    public function conceptoPago()
+    {
+        return $this->belongsTo(ConceptoPago::class, 'concepto_pago_id');
     }
 }
