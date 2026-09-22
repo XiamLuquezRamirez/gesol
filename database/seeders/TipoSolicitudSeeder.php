@@ -15,7 +15,9 @@ class TipoSolicitudSeeder extends Seeder
                     'estado_inicial'=> 'borrador',
                     'estados'       => json_encode(['borrador','enviada','verificada','aprobada','pendiente_cierre','pagada','cerrada','rechazada']),
                     'transiciones'  => json_encode([
-                        ['origen'=>'borrador',        'accion'=>'enviar',    'destino'=>'enviada',          'roles'=>['lider_area'],                                'label'=>'Enviar a RR. HH.'],
+                        // RR. HH. tambien puede enviar (cuando es el propio solicitante); el
+                        // controlador salta la verificacion en ese caso y va directo a contabilidad.
+                        ['origen'=>'borrador',        'accion'=>'enviar',    'destino'=>'enviada',          'roles'=>['lider_area','rrhh'],                         'label'=>'Enviar a RR. HH.'],
                         ['origen'=>'enviada',         'accion'=>'verificar', 'destino'=>'verificada',       'roles'=>['rrhh'], 'notificar'=>['contador'],           'label'=>'Verificar'],
                         ['origen'=>'enviada',         'accion'=>'devolver',  'destino'=>'borrador',         'roles'=>['rrhh'],                                      'label'=>'Devolver'],
                         // Contabilidad envia a gerencia; el pago se registra por abonos (no es transicion del motor).
@@ -26,7 +28,10 @@ class TipoSolicitudSeeder extends Seeder
                         ['origen'=>'rechazada',       'accion'=>'reenviar',  'destino'=>'verificada',       'roles'=>['rrhh'], 'notificar'=>['contabilidad_lider'], 'label'=>'Reenviar a contabilidad'],
                         // El primer abono lleva la solicitud a 'pendiente_cierre'; desde ahi se cierra.
                         // Se notifica a RR. HH. del cierre para cerrar la trazabilidad de la solicitud.
-                        ['origen'=>'pendiente_cierre','accion'=>'cerrar',    'destino'=>'cerrada',          'roles'=>['contabilidad_lider','lider_area'], 'notificar'=>['rrhh'], 'label'=>'Cerrar'],
+                        // El cierre lo hace SOLO el lider de contabilidad. Antes tambien lo permitia
+                        // 'lider_area', lo que hacia que la solicitud apareciera como pendiente a TODOS
+                        // los lideres de area (no solo al solicitante). Se acota a contabilidad_lider.
+                        ['origen'=>'pendiente_cierre','accion'=>'cerrar',    'destino'=>'cerrada',          'roles'=>['contabilidad_lider'], 'notificar'=>['rrhh'], 'label'=>'Cerrar'],
                     ]),
                     'created_at' => now(), 'updated_at' => now(),
                 ],

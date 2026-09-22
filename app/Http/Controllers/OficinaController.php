@@ -69,12 +69,23 @@ class OficinaController extends Controller
             return $solicitud;
         });
 
-        // Envio inmediato a RR. HH. si el usuario lo pidio ("Crear y enviar").
+        // Envio inmediato si el usuario lo pidio ("Crear y enviar").
         // Reusa el motor (borrador -> enviada), que valida rol y notifica a RR. HH.
         if ($request->boolean('enviar')) {
             $motor = app(MotorWorkflow::class);
             if ($motor->puede($solicitud, 'enviar', auth()->user())) {
                 $motor->aplicarTransicion($solicitud, 'enviar', auth()->user());
+
+                // Si el propio solicitante es RR. HH., no tiene sentido que se verifique
+                // a si mismo: la solicitud va DIRECTO a contabilidad (salta la verificacion).
+                if (auth()->user()->hasRole('rrhh')
+                    && $motor->puede($solicitud->fresh(), 'verificar', auth()->user())
+                ) {
+                    $motor->aplicarTransicion($solicitud->fresh(), 'verificar', auth()->user());
+                    return redirect()->route('solicitudes.show', $solicitud)
+                        ->with('success', 'Solicitud creada y enviada a contabilidad: '.$solicitud->radicado);
+                }
+
                 return redirect()->route('solicitudes.show', $solicitud)
                     ->with('success', 'Solicitud creada y enviada a RR. HH.: '.$solicitud->radicado);
             }

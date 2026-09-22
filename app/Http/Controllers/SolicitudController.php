@@ -100,6 +100,10 @@ class SolicitudController extends Controller
         $idsConAjuste = AjusteComision::solicitudesConPendientePara($usuario)->flip();
 
         return Solicitud::with($this->relacionesListado())
+            // Un borrador solo lo gestiona su propio solicitante (lo ve en "Mis solicitudes").
+            // Se excluye de la cola de pendientes para que la accion de "enviar" desde
+            // borrador no aparezca como tarea a TODOS los usuarios del rol creador.
+            ->where('estado', '!=', 'borrador')
             ->get()
             ->filter(fn ($s) => ! empty($this->motor->accionesDisponibles($s, $usuario))
                 || $idsConAjuste->has($s->id))
