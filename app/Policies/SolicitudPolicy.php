@@ -19,7 +19,7 @@ class SolicitudPolicy
      */
     public function crearObra(Usuario $usuario): bool
     {
-        return $usuario->hasAnyRole(['residente', 'lider_area']);
+        return $usuario->hasAnyRole(['residente', 'lider_area', 'admin']);
     }
 
     /**

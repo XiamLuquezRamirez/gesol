@@ -44,7 +44,14 @@ export default function Crear({ nombreSugerido = '' }) {
     // enviar=true crea la solicitud y la manda de una vez a RR. HH.; false la deja en borrador.
     const submit = (e, enviar = false) => {
         e.preventDefault();
-        transform((datos) => ({ ...datos, enviar }));
+        transform((datos) => ({
+            ...datos,
+            // Se descartan los items en blanco: asi, si el usuario solo adjunta la
+            // cotizacion (sin llenar elementos), se envia items vacio y la validacion
+            // (al menos un elemento O una cotizacion) pasa correctamente.
+            items: (datos.items || []).filter((it) => (it.especificacion || '').trim() !== ''),
+            enviar,
+        }));
         post(route('obra.store'), { forceFormData: true });
     };
 

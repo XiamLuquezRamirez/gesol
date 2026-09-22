@@ -53,6 +53,27 @@ class CrearObraTest extends TestCase
         $this->assertDatabaseHas('cotizaciones_obra', ['tipo' => 'cotizacion']);
     }
 
+    public function test_solo_cotizacion_sin_items_se_guarda_como_borrador(): void
+    {
+        // Caso: el usuario adjunta la cotizacion y NO ingresa elementos. Debe guardarse.
+        // (El frontend descarta los items en blanco; aqui se envia items vacio.)
+        $this->seed();
+        Storage::fake('local');
+        $res = $this->actingAs($this->residente())->post(route('obra.store'), [
+            'nombre_solicitante' => 'CAMILO',
+            'fecha_solicitud' => '2026-09-21',
+            'items' => [],
+            'cotizacion' => UploadedFile::fake()->create('cotizacion.pdf', 100, 'application/pdf'),
+            'enviar' => false,
+        ]);
+        $res->assertRedirect();
+        $res->assertSessionHasNoErrors();
+        $s = Solicitud::whereHasMorph('solicitable', SolicitudObra::class)->first();
+        $this->assertSame('borrador', $s->estado);
+        $this->assertSame(0, $s->solicitable->items()->count());
+        $this->assertDatabaseHas('cotizaciones_obra', ['tipo' => 'cotizacion']);
+    }
+
     public function test_requiere_items_o_cotizacion(): void
     {
         $this->seed();
