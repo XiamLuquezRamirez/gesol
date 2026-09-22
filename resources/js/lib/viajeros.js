@@ -1,7 +1,7 @@
 /**
  * Utilidades para armar los viajeros de una comisión de viáticos en el
- * formulario. La expansión de "varios empleados a la vez" se hace aquí como
- * función pura para poder razonarla y probarla sin React.
+ * formulario. La expansión de "varios empleados/externos a la vez" se hace aquí
+ * como función pura para poder razonarla y probarla sin React.
  */
 
 /** Etiqueta de un empleado: "Nombres Apellidos — identificación". */
@@ -15,9 +15,10 @@ export function etiquetaEmpleado(empleado) {
  * Expande el mini-formulario en una o varias filas de viajero listas para
  * enviar al backend (cada fila es un ViajeroComision individual).
  *
- * - Modo externo: devuelve UNA fila con nombre/identificación libres.
- * - Modo empleados: devuelve N filas (una por empleado seleccionado) que
- *   comparten motivo, contrato, fechas y horas.
+ * Admite internos y externos EN EL MISMO agregado: todos comparten motivo,
+ * contrato, fechas y horas.
+ *  - `form.empleado_ids`: ids de empleados internos (0..N filas).
+ *  - `form.externos`: lista de externos [{nombre_externo, identificacion_externo}] (0..N filas).
  *
  * @param {object} form   estado del mini-formulario.
  * @param {Array}  empleados catálogo [{id, nombres, apellidos, identificacion}].
@@ -33,19 +34,9 @@ export function expandirViajeros(form, empleados = []) {
         hora_regreso: form.hora_regreso,
     };
 
-    if (form.es_externo) {
-        return [{
-            ...base,
-            empleado_id: null,
-            es_externo: true,
-            nombre_externo: form.nombre_externo,
-            identificacion_externo: form.identificacion_externo || null,
-            nombre: form.nombre_externo,
-        }];
-    }
-
+    // Internos: una fila por empleado seleccionado.
     const ids = (form.empleado_ids ?? []).map(Number);
-    return ids.map((id) => {
+    const internos = ids.map((id) => {
         const empleado = empleados.find((e) => Number(e.id) === id);
         return {
             ...base,
@@ -56,4 +47,18 @@ export function expandirViajeros(form, empleados = []) {
             nombre: empleado ? `${empleado.nombres} ${empleado.apellidos}`.trim() : '',
         };
     });
+
+    // Externos: una fila por externo con nombre no vacío.
+    const externos = (form.externos ?? [])
+        .filter((x) => (x.nombre_externo ?? '').trim() !== '')
+        .map((x) => ({
+            ...base,
+            empleado_id: null,
+            es_externo: true,
+            nombre_externo: x.nombre_externo.trim(),
+            identificacion_externo: (x.identificacion_externo ?? '').trim() || null,
+            nombre: x.nombre_externo.trim(),
+        }));
+
+    return [...internos, ...externos];
 }

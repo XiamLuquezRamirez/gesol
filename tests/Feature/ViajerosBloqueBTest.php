@@ -127,6 +127,42 @@ class ViajerosBloqueBTest extends TestCase
         $this->assertEquals(['Proyecto regional'], $cab->viajeros->pluck('motivo')->unique()->values()->all());
     }
 
+    public function test_mezcla_internos_y_externos_en_la_misma_comision(): void
+    {
+        // El formulario permite agregar varios internos Y varios externos a la vez.
+        // El backend debe persistir un ViajeroComision por cada uno, con su tipo.
+        $this->seed();
+        $lider = \App\Models\Usuario::where('email', 'lider.comite@demo.test')->firstOrFail();
+        $emps  = Empleados::take(2)->get();
+
+        $comun = [
+            'motivo' => 'Obra regional',
+            'fecha_salida' => '2026-09-01', 'hora_salida' => '08:00',
+            'fecha_regreso' => '2026-09-03', 'hora_regreso' => '17:00',
+        ];
+        $viajeros = array_merge(
+            $emps->map(fn ($e) => ['empleado_id' => $e->id, 'es_externo' => false] + $comun)->all(),
+            [
+                ['empleado_id' => null, 'es_externo' => true, 'nombre_externo' => 'Externo Uno', 'identificacion_externo' => '111'] + $comun,
+                ['empleado_id' => null, 'es_externo' => true, 'nombre_externo' => 'Externo Dos', 'identificacion_externo' => '222'] + $comun,
+            ],
+        );
+
+        $this->actingAs($lider)->post(route('viaticos.store'), [
+            'nombre_comision' => 'Mixta', 'municipios' => Municipio::take(1)->pluck('id')->all(),
+            'observacion' => 'x', 'viajeros' => $viajeros,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $cab = SolicitudViaticos::latest('id')->first();
+        $this->assertEquals(4, $cab->viajeros()->count(), 'deben guardarse 2 internos + 2 externos');
+        $this->assertEquals(2, $cab->viajeros->whereNotNull('empleado_id')->count());
+        $this->assertEquals(2, $cab->viajeros->whereNull('empleado_id')->count());
+        $this->assertEqualsCanonicalizing(
+            ['Externo Uno', 'Externo Dos'],
+            $cab->viajeros->whereNull('empleado_id')->pluck('nombre_externo')->all()
+        );
+    }
+
     public function test_no_externo_sin_empleado_es_invalido(): void
     {
         $this->seed();

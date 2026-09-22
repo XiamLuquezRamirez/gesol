@@ -8,9 +8,9 @@ import { XCircleIcon, CheckCircleIcon, PlusCircleIcon } from '@heroicons/react/2
 
 const VIAJERO_VACIO = {
     empleado_ids:  [],
-    es_externo:    false,
-    nombre_externo: '',
-    identificacion_externo: '',
+    // Externos: lista editable de {nombre_externo, identificacion_externo}.
+    // Se pueden agregar varios externos e internos a la vez (comparten datos).
+    externos:      [],
     contrato_id:   '',
     motivo:       '',
     fecha_salida: '',
@@ -18,6 +18,8 @@ const VIAJERO_VACIO = {
     fecha_regreso:'',
     hora_regreso: '',
 };
+
+const EXTERNO_VACIO = { nombre_externo: '', identificacion_externo: '' };
 
 function Field({ label, error, children }) {
     return (
@@ -112,11 +114,10 @@ export default function Crear({ empleados, contratos = [], solicitud = null, edi
 
     const validarForm = () => {
         const e = {};
-        if (form.es_externo) {
-            // Nombre obligatorio; identificación opcional.
-            if (!form.nombre_externo.trim()) e.nombre_externo = 'Ingrese el nombre.';
-        } else if (form.empleado_ids.length === 0) {
-            e.empleado_ids = 'Seleccione al menos un viajero.';
+        // Debe haber al menos un interno seleccionado O un externo con nombre.
+        const externosConNombre = (form.externos ?? []).filter((x) => (x.nombre_externo ?? '').trim() !== '');
+        if (form.empleado_ids.length === 0 && externosConNombre.length === 0) {
+            e.empleado_ids = 'Seleccione al menos un viajero (interno o externo).';
         }
         if (!form.motivo.trim()) e.motivo        = 'El motivo es obligatorio.';
         if (!form.fecha_salida)  e.fecha_salida  = 'Ingrese la fecha de salida.';
@@ -138,6 +139,12 @@ export default function Crear({ empleados, contratos = [], solicitud = null, edi
 
     const eliminarViajero = (idx) =>
         setData('viajeros', data.viajeros.filter((_, i) => i !== idx));
+
+    // Manejo de la mini-lista de externos dentro del "Agregar viajero".
+    const agregarFilaExterno = () => setF('externos', [...(form.externos ?? []), { ...EXTERNO_VACIO }]);
+    const quitarFilaExterno = (idx) => setF('externos', (form.externos ?? []).filter((_, i) => i !== idx));
+    const actualizarExterno = (idx, campo, valor) =>
+        setF('externos', (form.externos ?? []).map((x, i) => i === idx ? { ...x, [campo]: valor } : x));
 
     const nombreContrato = (id) =>
         contratos.find((c) => c.id === Number(id))?.descripcion ?? '—';
@@ -207,46 +214,62 @@ export default function Crear({ empleados, contratos = [], solicitud = null, edi
                                 Agregar viajero
                             </p>
 
-                            <label className="flex items-center gap-2 text-sm text-slate-600 mb-2">
-                                <input
-                                    type="checkbox"
-                                    checked={form.es_externo}
-                                    onChange={(e) => setForm((f) => ({ ...f, es_externo: e.target.checked, empleado_ids: [] }))}
-                                    className="rounded border-slate-300"
+                            {/* Internos: buscador multi. Externos: mini-lista. Se pueden
+                                agregar varios de ambos tipos a la vez (comparten datos). */}
+                            <Field label="Viajeros internos (puede elegir varios)" error={formError.empleado_ids}>
+                                <MultiSelectBuscador
+                                    opciones={empleadosDisponibles}
+                                    seleccionados={form.empleado_ids}
+                                    onChange={(ids) => setF('empleado_ids', ids)}
+                                    placeholder="Buscar por nombre o identificación…"
+                                    vacio="No hay empleados disponibles."
                                 />
-                                Viajero externo (no está en la lista)
-                            </label>
+                            </Field>
 
-                            {form.es_externo ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    <Field label="Nombre del viajero" error={formError.nombre_externo}>
-                                        <Input
-                                            type="text"
-                                            value={form.nombre_externo}
-                                            onChange={(e) => setF('nombre_externo', e.target.value)}
-                                            error={formError.nombre_externo}
-                                        />
-                                    </Field>
-                                    <Field label="Identificación (opcional)" error={formError.identificacion_externo}>
-                                        <Input
-                                            type="text"
-                                            value={form.identificacion_externo}
-                                            onChange={(e) => setF('identificacion_externo', e.target.value)}
-                                            error={formError.identificacion_externo}
-                                        />
-                                    </Field>
+                            <div>
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="block text-xs font-medium text-slate-600">
+                                        Viajeros externos (no están en la lista)
+                                    </label>
+                                    <button
+                                        type="button"
+                                        onClick={agregarFilaExterno}
+                                        className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                                    >
+                                        <IconPlus /> Agregar externo
+                                    </button>
                                 </div>
-                            ) : (
-                                <Field label="Viajeros (puede elegir varios)" error={formError.empleado_ids}>
-                                    <MultiSelectBuscador
-                                        opciones={empleadosDisponibles}
-                                        seleccionados={form.empleado_ids}
-                                        onChange={(ids) => setF('empleado_ids', ids)}
-                                        placeholder="Buscar por nombre o identificación…"
-                                        vacio="No hay empleados disponibles."
-                                    />
-                                </Field>
-                            )}
+                                {(form.externos ?? []).length === 0 ? (
+                                    <p className="text-xs text-slate-400">Sin externos. Usa “Agregar externo” para añadir uno o varios.</p>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {(form.externos ?? []).map((ext, idx) => (
+                                            <div key={idx} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 items-start">
+                                                <Input
+                                                    type="text"
+                                                    placeholder="Nombre del viajero externo"
+                                                    value={ext.nombre_externo}
+                                                    onChange={(e) => actualizarExterno(idx, 'nombre_externo', e.target.value)}
+                                                />
+                                                <Input
+                                                    type="text"
+                                                    placeholder="Identificación (opcional)"
+                                                    value={ext.identificacion_externo}
+                                                    onChange={(e) => actualizarExterno(idx, 'identificacion_externo', e.target.value)}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => quitarFilaExterno(idx)}
+                                                    className="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-red-200 text-red-500 hover:bg-red-50"
+                                                    title="Quitar externo"
+                                                >
+                                                    <IconTrash />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
 
                             <Field label="Contrato (opcional)">
                                 <select
