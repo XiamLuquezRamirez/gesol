@@ -99,15 +99,37 @@ export default function Index({ solicitudes, filtros, conteos = {} }) {
                                         </div>
                                         <p className="text-sm font-medium text-slate-800 truncate">
                                             {s.viaticos
-                                                ? `${s.tipo.nombre}${s.viaticos.municipios.length > 0 ? ' - ' + s.viaticos.municipios.join(', ') : ''}`
+                                                ? (s.viaticos.nombre_comision || s.tipo.nombre) + (s.viaticos.municipios.length > 0 ? ' · ' + s.viaticos.municipios.join(', ') : '')
                                                 : s.tipo.nombre}
                                         </p>
                                         {s.viaticos && (
-                                            <p className="text-xs text-slate-500 mt-0.5 truncate">
-                                                {s.viaticos.contratos.length > 0
-                                                    ? `Contrato: ${s.viaticos.contratos.join(', ')}`
-                                                    : 'Sin contrato'}
-                                            </p>
+                                            <div className="mt-0.5 space-y-0.5">
+                                                {s.viaticos.viajeros.length > 0 && (
+                                                    <p className="text-xs text-slate-600 truncate">
+                                                        <span className="font-medium">Viajeros:</span>{' '}
+                                                        {s.viaticos.viajeros.slice(0, 3).join(', ')}
+                                                        {s.viaticos.viajeros.length > 3 ? ` +${s.viaticos.viajeros.length - 3}` : ''}
+                                                    </p>
+                                                )}
+                                                <p className="text-xs text-slate-500 truncate">
+                                                    {s.viaticos.contratos.length > 0 ? `Contrato: ${s.viaticos.contratos.join(', ')}` : 'Sin contrato'}
+                                                    {s.viaticos.fecha_salida ? ` · ${formatearFecha(s.viaticos.fecha_salida)}${s.viaticos.fecha_regreso ? ' → ' + formatearFecha(s.viaticos.fecha_regreso) : ''}` : ''}
+                                                </p>
+                                            </div>
+                                        )}
+                                        {s.oficina && s.oficina.justificacion && (
+                                            <p className="text-xs text-slate-600 mt-0.5 truncate">{s.oficina.justificacion}</p>
+                                        )}
+                                        {s.obra && (
+                                            <div className="mt-0.5 space-y-0.5">
+                                                {s.obra.observacion && (
+                                                    <p className="text-xs text-slate-600 truncate">{s.obra.observacion}</p>
+                                                )}
+                                                <p className="text-xs text-slate-500 truncate">
+                                                    {s.obra.contrato ? `Contrato: ${s.obra.contrato}` : 'Sin contrato'}
+                                                    {s.obra.fecha_entrega ? ` · Entrega: ${formatearFecha(s.obra.fecha_entrega)}` : ''}
+                                                </p>
+                                            </div>
                                         )}
                                         <p className="text-xs text-slate-500 mt-0.5">
                                             {s.solicitante.name} · {formatearFecha(s.created_at)}

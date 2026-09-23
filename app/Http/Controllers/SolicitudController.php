@@ -83,7 +83,7 @@ class SolicitudController extends Controller
             'tipoSolicitud',
             'solicitante',
             'solicitable' => fn ($m) => $m->morphWith([
-                SolicitudViaticos::class => ['municipios', 'viajeros.contrato'],
+                SolicitudViaticos::class => ['municipios', 'viajeros.contrato', 'viajeros.empleado'],
                 \App\Models\SolicitudObra::class => ['contrato'],
             ]),
         ];
