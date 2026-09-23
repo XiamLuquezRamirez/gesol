@@ -19,6 +19,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Version de assets (Inertia)
+    |--------------------------------------------------------------------------
+    |
+    | Version estable que Inertia usa para decidir si el frontend cambio. No se
+    | ata al hash del build de Vite (que cambia en cada compilacion) para no
+    | expulsar con 409/404 a los usuarios con la pestana abierta cuando se sube
+    | un build nuevo en produccion. Suba este numero solo cuando quiera forzar
+    | deliberadamente que todos los clientes recarguen el frontend.
+    |
+    */
+
+    'asset_version' => env('ASSET_VERSION', '1'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
     |

@@ -120,22 +120,26 @@ function CardViajero({ viajero, filtros }) {
 /** Selector de empleado: filtra el reporte por empleado (o todos si está vacío). */
 function FiltroEmpleado({ filtros, empleados }) {
     const cambiar = (value) => {
+        // preserveState:false fuerza a Inertia a tomar los props nuevos (reporte
+        // ya filtrado) del backend; preserveScroll evita saltar al inicio. Sin
+        // esto, el estado del componente podia conservar el listado anterior y
+        // "seguir mostrando" todos los empleados tras filtrar.
         router.get(route('reportes.por-viajero'),
             { desde: filtros?.desde, hasta: filtros?.hasta, empleado: value || undefined },
-            { preserveState: true, replace: true });
+            { preserveState: false, preserveScroll: true, replace: true });
     };
 
     return (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
             <label className="text-sm font-medium text-slate-600">Empleado:</label>
             <select
-                value={filtros?.empleado ?? ''}
+                value={filtros?.empleado != null ? String(filtros.empleado) : ''}
                 onChange={(e) => cambiar(e.target.value)}
                 className="rounded-lg border-slate-200 text-sm"
             >
                 <option value="">Todos los empleados</option>
                 {empleados.map((e) => (
-                    <option key={e.id} value={e.id}>{e.nombre}</option>
+                    <option key={e.id} value={String(e.id)}>{e.nombre}</option>
                 ))}
             </select>
         </div>
